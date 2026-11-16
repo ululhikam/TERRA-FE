@@ -1,0 +1,111 @@
+import { createRouter, createWebHistory } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
+import { useEventWorkspaceStore } from '@/stores/eventWorkspace'
+
+import PublicLayout from '@/layouts/PublicLayout.vue'
+import DashboardLayout from '@/layouts/DashboardLayout.vue'
+import AdminLayout from '@/layouts/AdminLayout.vue'
+
+const routes = [
+  // Public Marketplace & Customer Routes
+  {
+    path: '/',
+    component: PublicLayout,
+    children: [
+      { path: '', name: 'home', component: () => import('@/modules/marketplace/HomePage.vue') },
+      { path: 'events', name: 'explore', component: () => import('@/modules/marketplace/ExploreEventsPage.vue') },
+      { path: 'events/:slug', name: 'event-detail', component: () => import('@/modules/marketplace/EventDetailPage.vue') },
+      { path: 'organizers/:slug', name: 'organizer-profile', component: () => import('@/modules/marketplace/OrganizerProfilePage.vue') },
+      { path: 'checkout/:eventSlug', name: 'checkout', component: () => import('@/modules/marketplace/CheckoutPage.vue'), meta: { requiresAuth: true, allowedRoles: ['customer', 'organizer', 'admin'] } },
+      { path: 'my-tickets', name: 'my-tickets', component: () => import('@/modules/marketplace/MyTicketsPage.vue'), meta: { requiresAuth: true, allowedRoles: ['customer', 'organizer', 'admin'] } },
+      { path: 'profile', name: 'profile', component: () => import('@/modules/marketplace/ProfilePage.vue'), meta: { requiresAuth: true } },
+      { path: 'login', name: 'login', component: () => import('@/modules/auth/LoginPage.vue') },
+      { path: 'register', name: 'register', component: () => import('@/modules/auth/RegisterPage.vue') }
+    ]
+  },
+
+  // Dedicated Organizer Auth Portal
+  { path: '/organizer/login', name: 'organizer-login', component: () => import('@/modules/auth/OrganizerLoginPage.vue') },
+  { path: '/organizer/register', name: 'organizer-register', component: () => import('@/modules/auth/OrganizerRegisterPage.vue') },
+
+  // Dedicated Platform Admin Auth Portal
+  { path: '/admin/login', name: 'admin-login', component: () => import('@/modules/auth/AdminLoginPage.vue') },
+
+  // Organizer Dashboard & Event Workspace
+  {
+    path: '/dashboard',
+    component: DashboardLayout,
+    meta: { requiresAuth: true, allowedRoles: ['organizer'], loginRoute: 'organizer-login' },
+    children: [
+      { path: '', name: 'dashboard-overview', component: () => import('@/modules/organizations/DashboardOverviewPage.vue') },
+      { path: 'organizations', name: 'dashboard-organizations', component: () => import('@/modules/organizations/OrganizationsPage.vue') },
+      { path: 'events', name: 'dashboard-events', component: () => import('@/modules/events/MyEventsPage.vue') },
+      { path: 'events/create', name: 'dashboard-events-create', component: () => import('@/modules/events/CreateEventPage.vue') },
+      { path: 'events/:eventId', name: 'event-workspace', component: () => import('@/modules/events/EventWorkspaceOverviewPage.vue') },
+      { path: 'events/:eventId/profile', name: 'event-profile', component: () => import('@/modules/events/EventProfilePage.vue') },
+      { path: 'events/:eventId/modules', name: 'event-modules', component: () => import('@/modules/event-modules/ModuleConfigPage.vue') },
+      { path: 'events/:eventId/timeline', name: 'event-timeline', component: () => import('@/modules/events/TimelinePage.vue'), meta: { moduleKey: 'timeline', fullBleed: true } },
+      { path: 'events/:eventId/tasks', name: 'event-tasks', component: () => import('@/modules/events/TasksPage.vue'), meta: { moduleKey: 'tasks' } },
+      { path: 'events/:eventId/team', name: 'event-team', component: () => import('@/modules/team/TeamPage.vue'), meta: { moduleKey: 'team' } },
+      { path: 'events/:eventId/tickets', name: 'event-tickets', component: () => import('@/modules/ticketing/TicketTypesPage.vue'), meta: { moduleKey: 'ticketing' } },
+      { path: 'events/:eventId/participants', name: 'event-participants', component: () => import('@/modules/participants/ParticipantsPage.vue'), meta: { moduleKey: 'participants' } },
+      { path: 'events/:eventId/check-in', name: 'event-checkin', component: () => import('@/modules/check-in/CheckInPage.vue'), meta: { moduleKey: 'check_in' } },
+      { path: 'events/:eventId/finance', name: 'event-finance', component: () => import('@/modules/finance/FinancePage.vue'), meta: { moduleKey: 'finance' } },
+      { path: 'events/:eventId/operations', name: 'event-operations', component: () => import('@/modules/events/OperationsPage.vue') },
+      { path: 'events/:eventId/reports', name: 'event-reports', component: () => import('@/modules/reports/ReportsPage.vue'), meta: { moduleKey: 'reports' } }
+    ]
+  },
+
+  // Platform Admin Console
+  {
+    path: '/admin',
+    component: AdminLayout,
+    meta: { requiresAuth: true, allowedRoles: ['admin'], loginRoute: 'admin-login' },
+    children: [
+      { path: '', name: 'admin-dashboard', component: () => import('@/modules/admin/AdminDashboardPage.vue') },
+      { path: 'moderation', name: 'admin-moderation', component: () => import('@/modules/admin/EventModerationPage.vue') },
+      { path: 'verifications', name: 'admin-verifications', component: () => import('@/modules/admin/OrganizerVerificationPage.vue') },
+      { path: 'users-categories', name: 'admin-users-categories', component: () => import('@/modules/admin/AdminUsersCategoriesPage.vue') }
+    ]
+  }
+]
+
+const router = createRouter({
+  history: createWebHistory(),
+  routes,
+  scrollBehavior(to) {
+    if (to.hash) {
+      return { el: to.hash, behavior: 'smooth' }
+    }
+    return { top: 0 }
+  }
+})
+
+router.beforeEach((to) => {
+  const authStore = useAuthStore()
+
+  // 1. Check authentication
+  if (to.meta.requiresAuth && !authStore.isAuthenticated) {
+    const loginRoute = to.meta.loginRoute || 'login'
+    return { name: loginRoute, query: { redirect: to.fullPath } }
+  }
+
+  // 2. Check role isolation per portal
+  if (to.meta.allowedRoles && authStore.user) {
+    if (!to.meta.allowedRoles.includes(authStore.user.role)) {
+      if (authStore.user.role === 'admin') return { name: 'admin-dashboard' }
+      if (authStore.user.role === 'organizer') return { name: 'dashboard-overview' }
+      return { name: 'home' }
+    }
+  }
+
+  // 3. Check active module in Event Workspace
+  if (to.meta.moduleKey && to.params.eventId) {
+    const workspace = useEventWorkspaceStore()
+    if (!workspace.isModuleEnabled(to.params.eventId, to.meta.moduleKey)) {
+      return { name: 'event-modules', params: { eventId: to.params.eventId } }
+    }
+  }
+})
+
+export default router
