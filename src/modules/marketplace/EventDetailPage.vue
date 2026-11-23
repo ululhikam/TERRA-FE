@@ -500,7 +500,7 @@ function shareEvent() {
     <!-- Mobile Sticky Bottom Ticket Action Bar -->
     <div
       v-if="activeTicket"
-      class="lg:hidden fixed bottom-[70px] inset-x-3 z-40 rounded-2xl border-2 border-black bg-white/95 backdrop-blur-md p-3 shadow-[4px_4px_0px_#000] flex items-center justify-between gap-3"
+      class="lg:hidden fixed bottom-[9.5vh] inset-x-[3vw] z-40 rounded-2xl border-2 border-black bg-white/95 backdrop-blur-md p-[1.5vh] shadow-[4px_4px_0px_#000] flex items-center justify-between gap-3"
     >
       <div class="min-w-0">
         <p class="text-[10px] font-bold text-slate-500 truncate">{{ activeTicket.name }}</p>

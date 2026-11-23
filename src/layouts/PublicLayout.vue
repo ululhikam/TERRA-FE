@@ -114,18 +114,18 @@ function scrollToTop() {
 </script>
 
 <template>
-  <div class="min-h-screen flex flex-col bg-[#fafaf9] text-slate-900 bg-grid-paper selection:bg-[#72a5e4] selection:text-black overflow-x-clip pb-20 md:pb-0">
+  <div class="min-h-dvh flex flex-col bg-[#fafaf9] text-slate-900 bg-grid-paper selection:bg-[#72a5e4] selection:text-black overflow-x-clip pb-[11vh] md:pb-0">
     <!-- Top Scroll Progress Bar -->
-    <div class="fixed top-0 left-0 right-0 z-[60] h-1 bg-transparent pointer-events-none">
+    <div class="fixed top-0 left-0 right-0 z-[60] h-[0.45vh] min-h-[3px] bg-transparent pointer-events-none">
       <div
         class="h-full bg-[#72a5e4] border-r border-b border-black transition-[width] duration-100 ease-out"
         :style="{ width: `${Math.round(scrollProgress * 100)}%` }"
       />
     </div>
 
-    <!-- Top Navbar: Full bar at top -> collapses into centered Logo pill on scroll -> click logo pops out Bubble Navbar -->
-    <header class="sticky top-0 z-50 h-16 pointer-events-none">
-      <!-- Expanded Full Navbar (visible at top of page) -->
+    <!-- Top Navbar: Full-width edge-to-edge at top -> collapses into centered Logo pill on scroll -> click logo pops out Bubble Navbar -->
+    <header class="sticky top-0 z-50 h-[8vh] min-h-[3.5rem] max-h-[5rem] pointer-events-none">
+      <!-- Expanded Full Navbar (visible at top of page, mentok kiri-kanan) -->
       <div
         class="border-b border-black bg-[#fafaf9]/95 backdrop-blur-xs transition-all duration-300 ease-out"
         :class="
@@ -134,7 +134,7 @@ function scrollToTop() {
             : 'opacity-100 translate-y-0 pointer-events-auto'
         "
       >
-        <div class="mx-auto flex h-16 max-w-5xl items-center justify-between px-4 sm:px-6 lg:px-8 border-x border-black/15">
+        <div class="flex h-[8vh] min-h-[3.5rem] max-h-[5rem] w-full items-center justify-between px-[3.5vw] sm:px-[2.5vw] lg:px-[2vw]">
           <!-- Left Brand Logo: TERRA -->
           <RouterLink to="/" class="flex items-center shrink-0">
             <TerraLogo size="md" />
@@ -803,7 +803,7 @@ function scrollToTop() {
     <!-- Thumb-Friendly Mobile Bottom Navigation Dock -->
     <nav
       aria-label="Mobile Navigation Dock"
-      class="md:hidden fixed bottom-3 inset-x-3 z-50 rounded-2xl border-2 border-black bg-[#fafaf9]/95 backdrop-blur-md px-2 py-1.5 shadow-[4px_4px_0px_#000] grid grid-cols-4 gap-1"
+      class="md:hidden fixed bottom-[1.5vh] inset-x-[3vw] z-50 rounded-2xl border-2 border-black bg-[#fafaf9]/95 backdrop-blur-md px-[2vw] py-[0.8vh] shadow-[4px_4px_0px_#000] grid grid-cols-4 gap-1"
     >
       <RouterLink
         to="/"

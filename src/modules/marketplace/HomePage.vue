@@ -161,8 +161,8 @@ onBeforeUnmount(() => {
     <!-- =================================================================== -->
     <!-- 1. CLEAN HERO SECTION (VISUAL GRAFFITI + COMPACT SEARCH)            -->
     <!-- =================================================================== -->
-    <section class="relative flex flex-col justify-between overflow-visible">
-      <div class="w-full max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-10 relative z-10 space-y-5">
+    <section class="relative min-h-[88dvh] flex flex-col justify-between overflow-visible">
+      <div class="w-full max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-[3vh] pb-[5vh] relative z-10 space-y-[2.5vh] flex-1 flex flex-col justify-center">
         <!-- Minimal Top Header -->
         <div class="flex flex-col items-center text-center space-y-2 relative z-20">
           <div class="inline-flex items-center gap-2 rounded-full border border-black bg-white px-3.5 py-1 shadow-[2px_2px_0px_#000]">
@@ -292,8 +292,8 @@ onBeforeUnmount(() => {
     <!-- =================================================================== -->
     <!-- 2. VISUAL EVENT SHOWCASE (CLEAN POSTER CARDS, MINIMAL TEXT)         -->
     <!-- =================================================================== -->
-    <section class="relative z-10 py-12 sm:py-14">
-      <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 space-y-7">
+    <section class="relative z-10 py-[7vh]">
+      <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 space-y-[3.5vh]">
         <!-- Section Title + Filter Pills -->
         <div class="reveal-section flex flex-col sm:flex-row sm:items-end justify-between gap-4">
           <div>
@@ -437,8 +437,8 @@ onBeforeUnmount(() => {
     <!-- =================================================================== -->
     <!-- 3. ABOUT TERRA & CARA KERJA (CLEAN BENTO GRID + TAB SWITCHER)       -->
     <!-- =================================================================== -->
-    <section id="about" class="relative z-10 py-12 sm:py-14 border-t border-black/15 scroll-mt-16">
-      <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
+    <section id="about" class="relative z-10 py-[7vh] border-t border-black/15 scroll-mt-[8vh]">
+      <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 space-y-[4vh]">
         <!-- Minimal Section Header -->
         <div class="reveal-section flex flex-col sm:flex-row sm:items-end justify-between gap-4">
           <div class="space-y-1.5">
@@ -607,8 +607,8 @@ onBeforeUnmount(() => {
     <!-- =================================================================== -->
     <!-- 4. CLEAN 2-CARD PRICING SNAPSHOT                                    -->
     <!-- =================================================================== -->
-    <section id="pricing" class="relative border-y border-black bg-[#72a5e4] text-black z-10 scroll-mt-16">
-      <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-6">
+    <section id="pricing" class="relative border-y border-black bg-[#72a5e4] text-black z-10 scroll-mt-[8vh]">
+      <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-[7vh] space-y-[3vh]">
         <div class="reveal-section flex flex-col sm:flex-row sm:items-end justify-between gap-4">
           <div>
             <span class="text-[10px] font-black uppercase tracking-widest text-slate-900 block">PRICING</span>
