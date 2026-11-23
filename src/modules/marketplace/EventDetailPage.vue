@@ -489,11 +489,39 @@ function shareEvent() {
           <!-- Pesan Tiket Sekarang Button -->
           <button
             @click="proceedCheckout"
-            class="w-full rounded-full bg-black py-3 text-xs font-bold text-white hover:bg-slate-800 transition-colors cursor-pointer"
+            class="shimmer-sheen luxury-pill w-full rounded-full bg-black py-3 text-xs font-bold text-white hover:bg-slate-800 transition-colors cursor-pointer"
           >
             Pesan Tiket Sekarang &rarr;
           </button>
         </div>
+      </div>
+    </div>
+
+    <!-- Mobile Sticky Bottom Ticket Action Bar -->
+    <div
+      v-if="activeTicket"
+      class="lg:hidden fixed bottom-[70px] inset-x-3 z-40 rounded-2xl border-2 border-black bg-white/95 backdrop-blur-md p-3 shadow-[4px_4px_0px_#000] flex items-center justify-between gap-3"
+    >
+      <div class="min-w-0">
+        <p class="text-[10px] font-bold text-slate-500 truncate">{{ activeTicket.name }}</p>
+        <p class="text-sm font-black text-black">
+          {{ Number(activeTicket.price) > 0 ? formatCurrency(Number(activeTicket.price) * quantity) : 'Gratis' }}
+          <span class="text-[10px] font-semibold text-slate-500">({{ quantity }}x)</span>
+        </p>
+      </div>
+      <div class="flex items-center gap-2 shrink-0">
+        <div class="flex items-center rounded-full border border-black bg-[#fafaf9] px-2.5 py-1 gap-2.5 text-xs font-bold text-black">
+          <button @click="decrementQty" type="button" class="px-1 active:scale-90">–</button>
+          <span class="font-mono">{{ quantity }}</span>
+          <button @click="incrementQty" type="button" class="px-1 active:scale-90">+</button>
+        </div>
+        <button
+          @click="proceedCheckout"
+          type="button"
+          class="luxury-pill rounded-full border border-black bg-[#72a5e4] px-4 py-2 text-xs font-black text-black cursor-pointer"
+        >
+          Beli &rarr;
+        </button>
       </div>
     </div>
 

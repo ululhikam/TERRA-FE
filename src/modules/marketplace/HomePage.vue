@@ -173,8 +173,23 @@ onBeforeUnmount(() => {
           </div>
         </div>
 
-        <!-- Center Pure Vector SVG Bubble Graffiti Art ("TERRA" + Connected Ribbons) -->
+        <!-- Center Pure Vector SVG Bubble Graffiti Art ("TERRA" + Connected Ribbons + Floating Motion Chips) -->
         <div class="relative z-30 pointer-events-none">
+          <!-- Floating Kinetic Chips (Desktop & Tablet) -->
+          <div
+            class="hidden sm:inline-flex items-center gap-1.5 absolute -top-2 left-4 z-40 rounded-full border border-black bg-[#72a5e4] px-3 py-1 text-[10px] font-black text-black shadow-[2px_2px_0px_#000] animate-float-slow"
+          >
+            <QrCode class="h-3 w-3" />
+            <span>INSTANT QR PASS</span>
+          </div>
+          <div
+            class="hidden sm:inline-flex items-center gap-1.5 absolute -bottom-1 right-6 z-40 rounded-full border border-black bg-white px-3 py-1 text-[10px] font-black text-black shadow-[2px_2px_0px_#000] animate-float-slow"
+            style="animation-delay: -2.5s"
+          >
+            <Sparkles class="h-3 w-3 text-[#72a5e4]" />
+            <span>13 MODULAR ENGINES</span>
+          </div>
+
           <BubbleGraffiti full-bleed :scroll-offset="scrollY" />
         </div>
 
@@ -218,19 +233,19 @@ onBeforeUnmount(() => {
 
             <button
               type="submit"
-              class="rounded-full bg-black px-6 py-2.5 text-xs font-bold text-white hover:bg-slate-800 transition-colors shrink-0 cursor-pointer"
+              class="shimmer-sheen luxury-pill rounded-full bg-black px-6 py-3 sm:py-2.5 text-xs font-bold text-white hover:bg-slate-800 transition-colors shrink-0 cursor-pointer"
             >
               Cari Tiket
             </button>
           </form>
 
-          <!-- Compact Quick Tags & Location Pills -->
-          <div class="flex flex-wrap items-center justify-center gap-2 text-[11px]">
+          <!-- Compact Quick Tags & Location Pills (Swipeable on Mobile) -->
+          <div class="flex items-center sm:justify-center gap-2 overflow-x-auto no-scrollbar snap-x snap-mandatory py-1 px-1 text-[11px]">
             <button
               v-for="tag in ['DEMAFEST', 'Tech Summit', 'Konser', 'Workshop', 'Gratis']"
               :key="tag"
               @click="quickSearch(tag)"
-              class="luxury-pill rounded-full border border-black bg-white px-3 py-1 font-semibold text-black cursor-pointer"
+              class="snap-start shrink-0 luxury-pill rounded-full border border-black bg-white px-3.5 py-1.5 sm:py-1 font-semibold text-black cursor-pointer"
             >
               {{ tag }}
             </button>
@@ -238,7 +253,22 @@ onBeforeUnmount(() => {
         </div>
       </div>
 
-      <!-- Compact 3-Highlight Strip -->
+      <!-- Kinetic Marquee Ticker + 3-Highlight Strip -->
+      <div class="border-t border-black bg-black text-white py-2 overflow-hidden relative z-10 select-none">
+        <div class="animate-marquee flex items-center gap-7 text-[10px] font-bold uppercase tracking-[0.18em]">
+          <template v-for="n in 2" :key="n">
+            <span class="flex items-center gap-2"><span class="h-2 w-2 rounded-full bg-[#72a5e4]" /> E-TICKET PDF &amp; EMAIL BERLOGO EVENT</span>
+            <span>✦</span>
+            <span class="flex items-center gap-2"><span class="h-2 w-2 rounded-full bg-[#72a5e4]" /> FULLSCREEN LIVE QR GATE SCANNER</span>
+            <span>✦</span>
+            <span class="flex items-center gap-2"><span class="h-2 w-2 rounded-full bg-[#72a5e4]" /> 13 MODULAR EVENT WORKSPACE</span>
+            <span>✦</span>
+            <span class="flex items-center gap-2"><span class="h-2 w-2 rounded-full bg-[#72a5e4]" /> 100% VERIFIED ORGANIZER</span>
+            <span>✦</span>
+          </template>
+        </div>
+      </div>
+
       <div class="border-y border-black bg-[#72a5e4] text-black relative z-10">
         <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex flex-wrap items-center justify-center sm:justify-between gap-3 text-xs font-bold">
           <span class="inline-flex items-center gap-2">
@@ -293,14 +323,14 @@ onBeforeUnmount(() => {
           </div>
         </div>
 
-        <!-- Category Chips -->
-        <div class="flex items-center gap-2 overflow-x-auto pb-1 text-xs">
+        <!-- Category Chips (Mobile Swipeable Rail) -->
+        <div class="flex items-center gap-2 overflow-x-auto no-scrollbar snap-x snap-mandatory pb-1 text-xs">
           <button
             v-for="cat in categories"
             :key="cat.key"
             @click="activeCategory = cat.key"
-            class="rounded-full border border-black px-3.5 py-1 whitespace-nowrap font-semibold transition-colors cursor-pointer"
-            :class="activeCategory === cat.key ? 'bg-[#72a5e4] text-black font-bold' : 'bg-white text-slate-700 hover:text-black'"
+            class="snap-start shrink-0 luxury-pill rounded-full border border-black px-4 py-1.5 whitespace-nowrap font-semibold cursor-pointer"
+            :class="activeCategory === cat.key ? 'bg-[#72a5e4] text-black font-bold shadow-[2px_2px_0px_#000]' : 'bg-white text-slate-700 hover:text-black'"
           >
             {{ cat.label }}
           </button>
@@ -350,13 +380,17 @@ onBeforeUnmount(() => {
           </div>
         </RouterLink>
 
-        <!-- Clean 3-Column Poster Grid -->
-        <div class="reveal-section grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+        <!-- Clean 3-Column Poster Grid with Animated Filter Transitions -->
+        <TransitionGroup
+          name="card-grid"
+          tag="div"
+          class="reveal-section grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5"
+        >
           <RouterLink
             v-for="evt in catalogCards"
             :key="evt.id"
             :to="`/events/${evt.slug || evt.id}`"
-            class="group rounded-2xl border-2 border-black bg-white overflow-hidden flex flex-col justify-between shadow-[3px_3px_0px_#000] hover:-translate-y-0.5 transition-all"
+            class="luxury-card group rounded-2xl border-2 border-black bg-white overflow-hidden flex flex-col justify-between shadow-[3px_3px_0px_#000]"
           >
             <div>
               <div class="relative aspect-video bg-black border-b border-black overflow-hidden">
@@ -382,12 +416,12 @@ onBeforeUnmount(() => {
 
             <div class="px-4 py-3 border-t border-black/10 bg-[#fafaf9] flex items-center justify-between">
               <span class="text-xs font-black text-black">{{ getEventMeta(evt).priceLabel }}</span>
-              <span class="text-[11px] font-bold text-black group-hover:underline">
+              <span class="text-[11px] font-bold text-black group-hover:translate-x-0.5 transition-transform">
                 Detail &rarr;
               </span>
             </div>
           </RouterLink>
-        </div>
+        </TransitionGroup>
 
         <div class="flex justify-center pt-1">
           <RouterLink
@@ -517,19 +551,21 @@ onBeforeUnmount(() => {
             </div>
           </div>
 
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div
-              v-for="step in roleFlows[activeRoleFlow].steps"
-              :key="step.num"
-              class="rounded-2xl border border-black bg-[#fafaf9] p-4 space-y-2"
-            >
-              <span class="inline-block rounded-lg border border-black bg-[#72a5e4] px-2.5 py-0.5 text-xs font-black text-black">
-                {{ step.num }}
-              </span>
-              <h4 class="text-sm font-bold text-black">{{ step.title }}</h4>
-              <p class="text-xs text-slate-600 leading-relaxed">{{ step.desc }}</p>
+          <Transition name="tab-slide" mode="out-in">
+            <div :key="activeRoleFlow" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div
+                v-for="step in roleFlows[activeRoleFlow].steps"
+                :key="step.num"
+                class="luxury-card rounded-2xl border border-black bg-[#fafaf9] p-4 space-y-2"
+              >
+                <span class="inline-block rounded-lg border border-black bg-[#72a5e4] px-2.5 py-0.5 text-xs font-black text-black">
+                  {{ step.num }}
+                </span>
+                <h4 class="text-sm font-bold text-black">{{ step.title }}</h4>
+                <p class="text-xs text-slate-600 leading-relaxed">{{ step.desc }}</p>
+              </div>
             </div>
-          </div>
+          </Transition>
 
           <div class="flex flex-wrap items-center justify-between gap-3 pt-2">
             <!-- Verified Organizers Compact Pill Row -->
