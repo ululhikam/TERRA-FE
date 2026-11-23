@@ -114,7 +114,7 @@ function scrollToTop() {
 </script>
 
 <template>
-  <div class="min-h-dvh flex flex-col bg-[#fafaf9] text-slate-900 bg-grid-paper selection:bg-[#72a5e4] selection:text-black overflow-x-clip pb-safe-dock">
+  <div class="min-h-dvh flex flex-col bg-[#fafaf9] text-slate-900 bg-grid-paper selection:bg-[#72a5e4] selection:text-black overflow-x-clip">
     <!-- Top Scroll Progress Bar -->
     <div class="fixed top-0 left-0 right-0 z-[60] h-[0.45vh] min-h-[3px] bg-transparent pointer-events-none">
       <div
@@ -241,42 +241,16 @@ function scrollToTop() {
             </template>
           </div>
 
-          <!-- Mobile Quick CTA + Menu Button (44x44px touch target) -->
-          <div class="flex md:hidden items-center gap-2 z-10">
-            <RouterLink
-              v-if="!authStore.isAuthenticated"
-              to="/login"
-              @click="mobileOpen = false"
-              class="luxury-pill rounded-full border border-black bg-[#72a5e4] px-3.5 py-1.5 text-[11px] font-black text-black shadow-[2px_2px_0px_#000]"
-            >
-              Masuk
-            </RouterLink>
-            <RouterLink
-              v-else-if="authStore.isCustomer"
-              to="/my-tickets"
-              @click="mobileOpen = false"
-              class="luxury-pill inline-flex items-center gap-1 rounded-full border border-black bg-[#72a5e4] px-3 py-1.5 text-[11px] font-black text-black shadow-[2px_2px_0px_#000]"
-            >
-              <Ticket class="h-3.5 w-3.5" />
-              <span>Tiket</span>
-            </RouterLink>
-            <RouterLink
-              v-else-if="authStore.isOrganizer"
-              to="/dashboard"
-              @click="mobileOpen = false"
-              class="luxury-pill rounded-full border border-black bg-[#72a5e4] px-3 py-1.5 text-[11px] font-black text-black shadow-[2px_2px_0px_#000]"
-            >
-              Studio
-            </RouterLink>
-
+          <!-- Mobile Menu Button (Clean single control on top right) -->
+          <div class="flex md:hidden items-center z-10">
             <button
               @click="mobileOpen = !mobileOpen"
-              class="inline-flex h-10 w-10 items-center justify-center rounded-xl border-2 border-black bg-white text-black shadow-[2px_2px_0px_#000] active:translate-y-0.5 active:shadow-none transition-all"
+              class="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-black bg-white text-black shadow-[2px_2px_0px_#000] active:translate-y-0.5 active:shadow-none transition-all"
               :class="mobileOpen ? 'bg-[#72a5e4]' : 'bg-white'"
               aria-label="Toggle Menu"
             >
-              <Menu v-if="!mobileOpen" class="h-5 w-5" />
-              <X v-else class="h-5 w-5" />
+              <Menu v-if="!mobileOpen" class="h-4 w-4" />
+              <X v-else class="h-4 w-4" />
             </button>
           </div>
         </div>
@@ -883,62 +857,6 @@ function scrollToTop() {
         </div>
       </div>
     </footer>
-
-    <!-- Floating Quick Scroll-to-Top FAB on Mobile -->
-    <Transition name="bubble-pop">
-      <button
-        v-if="scrollProgress > 0.25 && !route.path.startsWith('/events/')"
-        @click="scrollToTop"
-        type="button"
-        aria-label="Kembali ke atas"
-        class="md:hidden fixed bottom-[10.5vh] right-[4vw] z-40 flex h-10 w-10 items-center justify-center rounded-full border-2 border-black bg-[#72a5e4] text-black shadow-[3px_3px_0px_#000] active:scale-90 transition-transform"
-      >
-        <ArrowUp class="h-4 w-4" />
-      </button>
-    </Transition>
-
-    <!-- Thumb-Friendly Mobile Bottom Navigation Dock (Safe-Area Aware, 44px Ergonomic Touch Targets) -->
-    <nav
-      aria-label="Mobile Navigation Dock"
-      class="md:hidden fixed bottom-safe-dock inset-x-[3vw] z-50 rounded-2xl border-2 border-black bg-[#fafaf9]/96 backdrop-blur-md px-1.5 py-1.5 shadow-[4px_4px_0px_#000] grid grid-cols-4 gap-1"
-    >
-      <RouterLink
-        to="/"
-        class="flex flex-col items-center justify-center min-h-[44px] py-1 rounded-xl text-[10px] font-bold transition-all active:scale-95"
-        :class="route.path === '/' ? 'bg-[#72a5e4] border border-black text-black shadow-[2px_2px_0px_#000]' : 'text-slate-700'"
-      >
-        <Home class="h-4 w-4 mb-0.5" />
-        <span>Beranda</span>
-      </RouterLink>
-
-      <RouterLink
-        to="/events"
-        class="flex flex-col items-center justify-center min-h-[44px] py-1 rounded-xl text-[10px] font-bold transition-all active:scale-95"
-        :class="route.path.startsWith('/events') ? 'bg-[#72a5e4] border border-black text-black shadow-[2px_2px_0px_#000]' : 'text-slate-700'"
-      >
-        <Compass class="h-4 w-4 mb-0.5" />
-        <span>Explore</span>
-      </RouterLink>
-
-      <RouterLink
-        to="/pricing"
-        class="flex flex-col items-center justify-center min-h-[44px] py-1 rounded-xl text-[10px] font-bold transition-all active:scale-95"
-        :class="route.path === '/pricing' ? 'bg-[#72a5e4] border border-black text-black shadow-[2px_2px_0px_#000]' : 'text-slate-700'"
-      >
-        <Tag class="h-4 w-4 mb-0.5" />
-        <span>Pricing</span>
-      </RouterLink>
-
-      <RouterLink
-        :to="!authStore.isAuthenticated ? '/login' : authStore.isOrganizer ? '/dashboard' : authStore.isAdmin ? '/admin' : '/my-tickets'"
-        class="flex flex-col items-center justify-center min-h-[44px] py-1 rounded-xl text-[10px] font-bold transition-all active:scale-95"
-        :class="['/login', '/my-tickets', '/profile'].includes(route.path) ? 'bg-[#72a5e4] border border-black text-black shadow-[2px_2px_0px_#000]' : 'text-slate-700'"
-      >
-        <Ticket v-if="authStore.isCustomer" class="h-4 w-4 mb-0.5" />
-        <User v-else class="h-4 w-4 mb-0.5" />
-        <span>{{ !authStore.isAuthenticated ? 'Masuk' : authStore.isOrganizer ? 'Studio' : authStore.isAdmin ? 'Admin' : 'Tiket' }}</span>
-      </RouterLink>
-    </nav>
   </div>
 </template>
 

@@ -385,13 +385,19 @@ onBeforeUnmount(() => {
   <div
     ref="rootRef"
     class="relative select-none flex items-center justify-center overflow-visible"
-    :class="fullBleed ? 'w-screen relative left-1/2 -translate-x-1/2 z-30 pointer-events-none' : 'w-full'"
+    :class="
+      fullBleed
+        ? isMobileView
+          ? 'w-full max-w-[92vw] mx-auto z-20 pointer-events-none'
+          : 'w-screen relative left-1/2 -translate-x-1/2 z-30 pointer-events-none'
+        : 'w-full'
+    "
   >
     <!-- =================================================================== -->
     <!-- MAIN HERO GRAFFITI SVG (PROPORTIONAL ON ALL DEVICES)                -->
     <!-- =================================================================== -->
     <svg
-      :viewBox="fullBleed ? (isMobileView ? '230 -8 980 384' : '0 0 1440 370') : '250 0 940 360'"
+      :viewBox="fullBleed ? (isMobileView ? '325 4 790 332' : '0 0 1440 370') : '250 0 940 360'"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       class="w-full h-auto block overflow-visible"
@@ -413,9 +419,9 @@ onBeforeUnmount(() => {
         fill="#000000"
       />
 
-      <!-- 2. BACKGROUND RIBBON LOOPS -->
+      <!-- 2. BACKGROUND RIBBON LOOPS (Desktop/Tablet Only so mobile has zero clipped edges) -->
       <path
-        v-if="fullBleed"
+        v-if="fullBleed && !isMobileView"
         d="M 430,152 C 335,168 265,195 195,212 C 125,228 62,218 0,192 L 0,222 C 68,248 135,256 212,238 C 285,220 355,196 432,184 Z"
         fill="#fafaf9"
         stroke="#000000"
@@ -424,7 +430,7 @@ onBeforeUnmount(() => {
         vector-effect="non-scaling-stroke"
       />
       <path
-        v-else
+        v-else-if="!fullBleed"
         d="M 430,152 C 345,168 295,198 250,240 L 250,275 C 295,235 355,198 432,186 Z"
         fill="#fafaf9"
         stroke="#000000"
@@ -432,8 +438,8 @@ onBeforeUnmount(() => {
         stroke-linejoin="round"
       />
 
-      <!-- Left & Right Hero Contour Root Lines (Draw-In Entrance + Living Energy Vein) -->
-      <g v-if="fullBleed">
+      <!-- Left & Right Hero Contour Root Lines (Desktop/Tablet Only) -->
+      <g v-if="fullBleed && !isMobileView">
         <path
           d="M 358,16 C 245,16 140,4 2,2"
           pathLength="1"
@@ -623,9 +629,9 @@ onBeforeUnmount(() => {
       </g>
       </g>
 
-      <!-- 5. HERO FOREGROUND RIBBONS (EXACT EDGE FIT 2..1438 & EXITING AT x=16..48 & x=1392..1424, y=370) -->
+      <!-- 5. HERO FOREGROUND RIBBONS (Desktop/Tablet Only so mobile wordmark stays 100% clean) -->
       <path
-        v-if="fullBleed"
+        v-if="fullBleed && !isMobileView"
         d="M 432,158 C 372,178 332,186 312,156 C 292,126 316,52 278,2 L 244,2 C 276,48 272,94 248,88 C 228,84 205,58 175,28 C 145,-2 95,12 55,55 C 25,88 16,135 2,155 L 2,185 C 28,165 48,125 82,92 C 118,58 155,58 195,95 C 232,128 268,142 282,172 C 294,202 258,218 222,232 C 145,260 16,265 16,370 L 48,370 C 48,292 168,282 242,248 C 298,224 368,196 432,174 Z"
         fill="#fafaf9"
         stroke="#000000"
@@ -634,7 +640,7 @@ onBeforeUnmount(() => {
         vector-effect="non-scaling-stroke"
       />
       <path
-        v-else
+        v-else-if="!fullBleed"
         d="M 432,158 C 372,178 332,186 312,156 C 292,126 324,72 288,12 L 250,12 C 272,52 272,94 248,88 C 228,84 205,58 175,28 L 175,95 C 232,128 268,142 282,172 C 294,202 258,218 222,232 L 242,248 C 298,224 368,196 432,174 Z"
         fill="#fafaf9"
         stroke="#000000"
@@ -643,7 +649,7 @@ onBeforeUnmount(() => {
       />
 
       <path
-        v-if="fullBleed"
+        v-if="fullBleed && !isMobileView"
         d="M 1008,136 C 1045,134 1068,102 1108,94 C 1152,84 1185,116 1196,168 C 1208,222 1182,272 1235,315 C 1285,355 1424,275 1424,370 L 1392,370 C 1392,312 1278,368 1222,322 C 1172,280 1192,212 1176,162 C 1160,112 1138,102 1102,110 C 1065,118 1048,148 1008,146 Z"
         fill="#fafaf9"
         stroke="#000000"
@@ -652,7 +658,7 @@ onBeforeUnmount(() => {
         vector-effect="non-scaling-stroke"
       />
       <path
-        v-else
+        v-else-if="!fullBleed"
         d="M 1008,136 C 1045,134 1068,102 1108,94 C 1152,84 1185,116 1196,168 C 1208,222 1182,272 1235,325 L 1252,296 C 1212,256 1238,204 1222,152 C 1206,102 1168,68 1112,78 C 1068,86 1048,122 1008,144 Z"
         fill="#fafaf9"
         stroke="#000000"
@@ -692,9 +698,9 @@ onBeforeUnmount(() => {
     <!-- and organic side-branches + blue buds sprout as you scroll down!    -->
     <!-- =================================================================== -->
     <svg
-      v-if="fullBleed"
+      v-if="fullBleed && !isMobileView"
       ref="tailSvgRef"
-      class="pointer-events-none absolute top-full left-0 w-full z-0 lg:z-30 opacity-20 sm:opacity-35 lg:opacity-100 overflow-hidden"
+      class="hidden lg:block pointer-events-none absolute top-full left-0 w-full z-30 overflow-hidden"
       :style="{ height: tailHeight + 'px' }"
       viewBox="0 0 1440 4000"
       preserveAspectRatio="none"

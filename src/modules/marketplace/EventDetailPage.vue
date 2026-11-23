@@ -500,7 +500,7 @@ function shareEvent() {
     <!-- Mobile Sticky Bottom Ticket Action Bar (Thumb-Ergonomic with Tier Switcher) -->
     <div
       v-if="activeTicket"
-      class="lg:hidden fixed bottom-[calc(4.6rem+max(1.2vh,env(safe-area-inset-bottom,10px)))] inset-x-[3vw] z-40 rounded-2xl border-2 border-black bg-white/96 backdrop-blur-md p-3 shadow-[4px_4px_0px_#000] flex items-center justify-between gap-2.5"
+      class="lg:hidden fixed bottom-3 inset-x-3 z-40 rounded-2xl border-2 border-black bg-white/96 backdrop-blur-md p-3 shadow-[4px_4px_0px_#000] flex items-center justify-between gap-2.5"
     >
       <div class="min-w-0 flex-1">
         <div v-if="ticketTypes.length > 1" class="relative">
