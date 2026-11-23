@@ -11,8 +11,7 @@ import {
   QrCode,
   Layers,
   ShieldCheck,
-  Sparkles,
-  Check
+  Sparkles
 } from 'lucide-vue-next'
 
 const router = useRouter()
@@ -599,65 +598,6 @@ onBeforeUnmount(() => {
                 {{ roleFlows[activeRoleFlow].ctaLabel }} &rarr;
               </RouterLink>
             </div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- =================================================================== -->
-    <!-- 4. CLEAN 2-CARD PRICING SNAPSHOT                                    -->
-    <!-- =================================================================== -->
-    <section id="pricing" class="relative border-y border-black bg-[#72a5e4] text-black z-10 scroll-mt-[8vh]">
-      <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-[7vh] space-y-[3vh]">
-        <div class="reveal-section flex flex-col sm:flex-row sm:items-end justify-between gap-4">
-          <div>
-            <span class="text-[10px] font-black uppercase tracking-widest text-slate-900 block">PRICING</span>
-            <h2 class="text-2xl sm:text-3xl font-black tracking-tight text-black">
-              Biaya Transparan, <span class="font-editorial font-normal">Mulai Gratis</span>
-            </h2>
-          </div>
-          <RouterLink
-            to="/pricing"
-            class="luxury-pill self-start sm:self-auto rounded-full border border-black bg-black px-5 py-2 text-xs font-bold text-white"
-          >
-            Bandingkan Semua Paket &rarr;
-          </RouterLink>
-        </div>
-
-        <div class="reveal-section grid grid-cols-1 md:grid-cols-2 gap-5">
-          <!-- Card 1: Peserta -->
-          <div class="rounded-2xl border-2 border-black bg-white p-6 shadow-[4px_4px_0px_#000] flex flex-col justify-between space-y-4">
-            <div class="flex items-start justify-between gap-3">
-              <div>
-                <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">UNTUK PESERTA</span>
-                <h3 class="text-lg font-bold text-black">Pembeli Tiket</h3>
-              </div>
-              <span class="text-2xl font-black text-black">Rp 0</span>
-            </div>
-            <ul class="space-y-1.5 text-xs text-slate-700">
-              <li class="flex items-center gap-2"><Check class="h-3.5 w-3.5 text-black shrink-0" /> Akun &amp; penyimpanan E-Ticket QR gratis</li>
-              <li class="flex items-center gap-2"><Check class="h-3.5 w-3.5 text-black shrink-0" /> Unduh PDF Boarding-Pass &amp; pengiriman email</li>
-              <li class="flex items-center gap-2"><Check class="h-3.5 w-3.5 text-black shrink-0" /> Akses Forum Teman Berangkat Bareng</li>
-            </ul>
-          </div>
-
-          <!-- Card 2: Organizer -->
-          <div class="rounded-2xl border-2 border-black bg-black text-white p-6 shadow-[4px_4px_0px_#fff] flex flex-col justify-between space-y-4">
-            <div class="flex items-start justify-between gap-3">
-              <div>
-                <span class="text-[10px] font-bold uppercase tracking-wider text-[#72a5e4]">UNTUK PENYELENGGARA</span>
-                <h3 class="text-lg font-bold text-white">Organizer &amp; Komunitas</h3>
-              </div>
-              <div class="text-right">
-                <span class="text-2xl font-black text-[#72a5e4] block leading-none">Gratis</span>
-                <span class="text-[10px] text-slate-400">atau mulai Rp49rb/event</span>
-              </div>
-            </div>
-            <ul class="space-y-1.5 text-xs text-slate-300">
-              <li class="flex items-center gap-2"><Check class="h-3.5 w-3.5 text-[#72a5e4] shrink-0" /> Gratis untuk acara komunitas &amp; kampus non-komersial</li>
-              <li class="flex items-center gap-2"><Check class="h-3.5 w-3.5 text-[#72a5e4] shrink-0" /> Akses 13 modul operasional &amp; Fullscreen QR Scanner</li>
-              <li class="flex items-center gap-2"><Check class="h-3.5 w-3.5 text-[#72a5e4] shrink-0" /> Tersedia Free Trial Pro 14 hari &amp; paket Bundle</li>
-            </ul>
           </div>
         </div>
       </div>
