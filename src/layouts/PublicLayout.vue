@@ -134,14 +134,14 @@ function scrollToTop() {
             : 'opacity-100 translate-y-0 pointer-events-auto'
         "
       >
-        <div class="flex h-[8vh] min-h-[3.5rem] max-h-[5rem] w-full items-center justify-between px-[3.5vw] sm:px-[2.5vw] lg:px-[2vw]">
+        <div class="relative flex h-[8vh] min-h-[3.5rem] max-h-[5rem] w-full items-center justify-between px-[3.5vw] sm:px-[2.5vw] lg:px-[2vw]">
           <!-- Left Brand Logo: TERRA -->
-          <RouterLink to="/" class="flex items-center shrink-0">
+          <RouterLink to="/" class="flex items-center shrink-0 z-10">
             <TerraLogo size="md" />
           </RouterLink>
 
-          <!-- Center Navigation Pills -->
-          <nav class="hidden md:flex items-center gap-2 lg:gap-2.5">
+          <!-- Center Navigation Pills (True Viewport Center regardless of left/right width difference) -->
+          <nav class="hidden md:flex items-center gap-2 lg:gap-2.5 absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
             <a
               href="/#about"
               class="luxury-pill rounded-full border border-black bg-white px-4 py-1.5 text-xs font-semibold text-black"

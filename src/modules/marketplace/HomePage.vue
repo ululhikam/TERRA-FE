@@ -161,8 +161,8 @@ onBeforeUnmount(() => {
     <!-- =================================================================== -->
     <!-- 1. CLEAN HERO SECTION (VISUAL GRAFFITI + COMPACT SEARCH)            -->
     <!-- =================================================================== -->
-    <section class="relative min-h-[88dvh] flex flex-col justify-between overflow-visible">
-      <div class="w-full max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-[3vh] pb-[5vh] relative z-10 space-y-[2.5vh] flex-1 flex flex-col justify-center">
+    <section class="relative min-h-[92dvh] flex flex-col items-center justify-center overflow-visible">
+      <div class="w-full max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-[3vh] relative z-10 space-y-[2.5vh] flex flex-col justify-center">
         <!-- Minimal Top Header -->
         <div class="flex flex-col items-center text-center space-y-2 relative z-20">
           <div class="inline-flex items-center gap-2 rounded-full border border-black bg-white px-3.5 py-1 shadow-[2px_2px_0px_#000]">
@@ -175,9 +175,9 @@ onBeforeUnmount(() => {
 
         <!-- Center Pure Vector SVG Bubble Graffiti Art ("TERRA" + Connected Ribbons + Floating Motion Chips) -->
         <div class="relative z-30 pointer-events-none">
-          <!-- Floating Kinetic Chips (Desktop & Tablet) -->
+          <!-- Floating Kinetic Chips (Desktop & Tablet) - Symmetrical Left/Right -->
           <div
-            class="hidden sm:inline-flex items-center gap-1.5 absolute -top-2 left-4 z-40 rounded-full border border-black bg-[#72a5e4] px-3 py-1 text-[10px] font-black text-black shadow-[2px_2px_0px_#000] animate-float-slow"
+            class="hidden sm:inline-flex items-center gap-1.5 absolute -top-2 left-6 z-40 rounded-full border border-black bg-[#72a5e4] px-3 py-1 text-[10px] font-black text-black shadow-[2px_2px_0px_#000] animate-float-slow"
           >
             <QrCode class="h-3 w-3" />
             <span>INSTANT QR PASS</span>
