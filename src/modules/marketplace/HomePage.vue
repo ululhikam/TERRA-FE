@@ -604,17 +604,180 @@ onBeforeUnmount(() => {
     </section>
 
     <!-- =================================================================== -->
-    <!-- 5 & 6. UNIFIED ORGANIZER PROMOTOR + BLACK MODULAR ENGINE SECTION    -->
+    <!-- 5. ABOUT TERRA SECTION (STORY, VISION, 3-PORTAL & 13-MODULE ENGINE) -->
     <!-- =================================================================== -->
-    <section id="about" class="relative z-10">
+    <section id="about" class="relative z-10 scroll-mt-16">
       <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-12 pb-6 border-x border-black/15 space-y-10 relative">
+        <span class="pointer-events-none hidden sm:block absolute top-2 -left-[5px] text-xs font-mono text-black/40 leading-none">+</span>
+        <span class="pointer-events-none hidden sm:block absolute top-2 -right-[5px] text-xs font-mono text-black/40 leading-none">+</span>
+
         <div class="hidden sm:flex items-start absolute top-0 right-10">
           <div class="h-2.5 w-8 bg-black" />
           <div class="h-4 w-12 bg-[#72a5e4] border-b border-x border-black" />
         </div>
 
-        <!-- Official Organizer & Promotor -->
+        <!-- About Header & Editorial Story -->
         <div class="reveal-section space-y-6">
+          <div class="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-black/15 pb-6">
+            <div class="space-y-2.5 max-w-2xl">
+              <div class="inline-flex items-center gap-2 rounded-full border border-black bg-[#72a5e4] px-3.5 py-1 text-[10px] font-black uppercase tracking-widest text-black shadow-[2px_2px_0px_#000]">
+                <span class="h-2 w-2 rounded-full bg-black" />
+                ABOUT TERRA • TENTANG PLATFORM KAMI
+              </div>
+              <h2 class="text-2xl sm:text-4xl tracking-tight text-black leading-[1.15]">
+                <strong class="font-sans font-black">Menyatukan Marketplace Tiket Publik</strong>
+                <span class="font-editorial font-normal"> &amp; Ruang Kerja Kepanitiaan Modern</span>
+              </h2>
+            </div>
+
+            <div class="flex items-center gap-2 shrink-0">
+              <RouterLink
+                to="/events"
+                class="luxury-pill rounded-full border border-black bg-white px-4 py-2 text-xs font-bold text-black"
+              >
+                Eksplorasi Event
+              </RouterLink>
+              <RouterLink
+                to="/pricing"
+                class="luxury-pill rounded-full border border-black bg-black px-4 py-2 text-xs font-bold text-white"
+              >
+                Lihat Paket &rarr;
+              </RouterLink>
+            </div>
+          </div>
+
+          <!-- 2-Column Editorial Story & Mission/Vision Cards -->
+          <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+            <!-- Left: Background Story Card -->
+            <div class="lg:col-span-7 rounded-2xl border-2 border-black bg-white p-6 sm:p-7 shadow-[4px_4px_0px_#000] flex flex-col justify-between space-y-5">
+              <div class="space-y-3">
+                <span class="text-[10px] font-black uppercase tracking-widest text-slate-500 block">
+                  LATAR BELAKANG &amp;CERITA TERRA
+                </span>
+                <h3 class="text-lg sm:text-xl font-bold text-black leading-snug">
+                  Dibangun untuk Menghapus Fragmentasi Operasional Acara di Indonesia
+                </h3>
+                <p class="text-xs sm:text-sm text-slate-700 leading-relaxed">
+                  Selama ini penyelenggara acara kampus, organisasi mahasiswa (BEM/UKM), komunitas teknologi, hingga promotor independen harus berpindah-pindah antara spreadsheet anggaran, chat grup kepanitiaan, formulir registrasi manual, dan platform tiket pihak ketiga.
+                </p>
+                <p class="text-xs sm:text-sm text-slate-700 leading-relaxed">
+                  <strong>TERRA</strong> hadir sebagai solusi <em>all-in-one</em> yang menghubungkan <strong>E-Commerce Tiket Publik</strong> dengan <strong>Sistem Informasi Manajemen Event Modular</strong>. Dari perencanaan WBS Timeline, pembagian tugas Kanban, RAB keuangan otomatis, hingga pemindaian QR Gate Check-in layar penuh—semuanya terhubung secara real-time dalam satu ekosistem.
+                </p>
+              </div>
+
+              <!-- Key Highlights Strip -->
+              <div class="grid grid-cols-3 gap-3 pt-4 border-t border-black/15 text-center">
+                <div class="rounded-xl border border-black bg-[#fafaf9] p-3">
+                  <span class="text-xl sm:text-2xl font-black text-black block leading-none">13</span>
+                  <span class="text-[10px] font-bold text-slate-600 mt-1 block">Modul Operasional</span>
+                </div>
+                <div class="rounded-xl border border-black bg-[#72a5e4] p-3">
+                  <span class="text-xl sm:text-2xl font-black text-black block leading-none">3</span>
+                  <span class="text-[10px] font-bold text-black mt-1 block">Portal Terisolasi</span>
+                </div>
+                <div class="rounded-xl border border-black bg-[#fafaf9] p-3">
+                  <span class="text-xl sm:text-2xl font-black text-black block leading-none">100%</span>
+                  <span class="text-[10px] font-bold text-slate-600 mt-1 block">Atomic QR Validated</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Right: Vision, Mission & 3-Portal Architecture -->
+            <div class="lg:col-span-5 flex flex-col gap-4 justify-between">
+              <div class="rounded-2xl border-2 border-black bg-[#72a5e4] p-5 sm:p-6 shadow-[4px_4px_0px_#000] space-y-2.5 text-black">
+                <div class="flex items-center justify-between">
+                  <span class="text-[10px] font-black uppercase tracking-widest text-black">VISI &amp; MISI EKOSISTEM</span>
+                  <span class="rounded-full border border-black bg-white px-2.5 py-0.5 text-[10px] font-bold">v2.6</span>
+                </div>
+                <h4 class="text-base font-bold leading-snug">
+                  Infrastruktur Setara Festival Internasional untuk Semua Skala Acara
+                </h4>
+                <p class="text-xs text-slate-900 leading-relaxed">
+                  Memberdayakan panitia acara gratis maupun berbayar dengan kontrol penuh atas modul kepanitiaan, transparansi anggaran per divisi, serta pengalaman e-ticket boarding-pass berlogo resmi acara.
+                </p>
+              </div>
+
+              <div class="rounded-2xl border-2 border-black bg-white p-5 sm:p-6 shadow-[4px_4px_0px_#000] space-y-3">
+                <span class="text-[10px] font-black uppercase tracking-widest text-slate-500 block">
+                  ARSITEKTUR 3 PORTAL TERINTEGRASI
+                </span>
+                <div class="space-y-2.5 text-xs">
+                  <div class="flex items-start gap-2.5">
+                    <span class="rounded-md border border-black bg-[#72a5e4] px-2 py-0.5 text-[10px] font-black text-black shrink-0">01</span>
+                    <div>
+                      <p class="font-bold text-black">Public Marketplace &amp; Companion Forum</p>
+                      <p class="text-[11px] text-slate-600">Eksplorasi acara, checkout tiket, e-ticket PDF/email berlogo event, survei publik, dan forum teman berangkat bareng.</p>
+                    </div>
+                  </div>
+                  <div class="flex items-start gap-2.5">
+                    <span class="rounded-md border border-black bg-black px-2 py-0.5 text-[10px] font-black text-white shrink-0">02</span>
+                    <div>
+                      <p class="font-bold text-black">Organizer Studio (13 Modular Engines)</p>
+                      <p class="text-[11px] text-slate-600">Workspace multi-organisasi dengan RBAC tim, timeline WBS, Kanban 5-kolom, RAB keuangan, vendor/sponsor, &amp; live QR scanner.</p>
+                    </div>
+                  </div>
+                  <div class="flex items-start gap-2.5">
+                    <span class="rounded-md border border-black bg-[#fafaf9] px-2 py-0.5 text-[10px] font-black text-black shrink-0">03</span>
+                    <div>
+                      <p class="font-bold text-black">Admin Trust &amp; Moderation Console</p>
+                      <p class="text-[11px] text-slate-600">Verifikasi legalitas organizer, moderasi kelayakan publikasi event, pengelolaan kategori, dan pengawasan transaksi.</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 4 Domain Clusters of the 13 Modular Engines -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-2">
+            <div class="rounded-2xl border border-black bg-white p-4 space-y-2">
+              <div class="flex items-center justify-between">
+                <span class="text-[10px] font-black uppercase tracking-wider text-slate-500">DOMAIN 01</span>
+                <span class="rounded-full border border-black bg-[#72a5e4] px-2 py-0.5 text-[9px] font-bold text-black">4 Modul</span>
+              </div>
+              <h4 class="text-sm font-bold text-black">Perencanaan &amp; Tim</h4>
+              <p class="text-[11px] text-slate-600 leading-relaxed">
+                <strong>Event Profile</strong>, <strong>Project Timeline</strong>, <strong>Task Kanban</strong>, dan <strong>Team RBAC</strong> untuk sinkronisasi jadwal &amp; divisi kepanitiaan.
+              </p>
+            </div>
+
+            <div class="rounded-2xl border border-black bg-white p-4 space-y-2">
+              <div class="flex items-center justify-between">
+                <span class="text-[10px] font-black uppercase tracking-wider text-slate-500">DOMAIN 02</span>
+                <span class="rounded-full border border-black bg-[#72a5e4] px-2 py-0.5 text-[9px] font-bold text-black">3 Modul</span>
+              </div>
+              <h4 class="text-sm font-bold text-black">Tiket &amp; Gate Check-in</h4>
+              <p class="text-[11px] text-slate-600 leading-relaxed">
+                <strong>Ticketing</strong>, <strong>Participants CRM</strong>, dan <strong>Fullscreen QR Check-in Scanner</strong> dengan PDF/email boarding-pass otomatis.
+              </p>
+            </div>
+
+            <div class="rounded-2xl border border-black bg-white p-4 space-y-2">
+              <div class="flex items-center justify-between">
+                <span class="text-[10px] font-black uppercase tracking-wider text-slate-500">DOMAIN 03</span>
+                <span class="rounded-full border border-black bg-[#72a5e4] px-2 py-0.5 text-[9px] font-bold text-black">4 Modul</span>
+              </div>
+              <h4 class="text-sm font-bold text-black">Keuangan &amp; Kemitraan</h4>
+              <p class="text-[11px] text-slate-600 leading-relaxed">
+                <strong>Finance &amp; RAB</strong>, <strong>Vendor Management</strong>, <strong>Sponsorship</strong>, dan <strong>Document Vault</strong> berbasis Supabase Storage.
+              </p>
+            </div>
+
+            <div class="rounded-2xl border border-black bg-white p-4 space-y-2">
+              <div class="flex items-center justify-between">
+                <span class="text-[10px] font-black uppercase tracking-wider text-slate-500">DOMAIN 04</span>
+                <span class="rounded-full border border-black bg-[#72a5e4] px-2 py-0.5 text-[9px] font-bold text-black">2 Modul</span>
+              </div>
+              <h4 class="text-sm font-bold text-black">Analitik &amp; Evaluasi</h4>
+              <p class="text-[11px] text-slate-600 leading-relaxed">
+                <strong>Reports &amp; Conversion Funnel</strong> serta <strong>Feedback &amp; Survey Builder</strong> untuk mengukur keberhasilan acara secara objektif.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Official Organizer & Promotor -->
+        <div class="reveal-section space-y-6 pt-4 border-t border-black/15">
           <div class="space-y-1">
             <h2 class="text-xl sm:text-2xl font-bold tracking-tight text-black">
               Official Organizer &amp; Promotor
