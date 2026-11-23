@@ -727,6 +727,12 @@ function scrollToTop() {
                     <ArrowUpRight class="h-3 w-3 opacity-60" />
                   </RouterLink>
                 </li>
+                <li>
+                  <RouterLink to="/pricing" class="inline-flex items-center gap-1 hover:text-black">
+                    <span>Paket &amp; Harga Event</span>
+                    <ArrowUpRight class="h-3 w-3 opacity-60" />
+                  </RouterLink>
+                </li>
               </ul>
             </div>
 
