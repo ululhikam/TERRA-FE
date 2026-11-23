@@ -1,12 +1,26 @@
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
-import { useRoute } from 'vue-router'
+import { ref, computed, onMounted, onBeforeUnmount, nextTick, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useEventWorkspaceStore } from '@/stores/eventWorkspace'
 import { useToastStore } from '@/stores/toast'
 import { createCameraQrScanner, scanTicketQrFromFile, parseScannedQrPayload } from '@/utils/qrCode'
-import { Scan, CheckCircle2, AlertTriangle, Upload, Camera, CameraOff } from 'lucide-vue-next'
+import {
+  Scan,
+  CheckCircle2,
+  AlertTriangle,
+  Upload,
+  Camera,
+  CameraOff,
+  Maximize2,
+  Minimize2,
+  ArrowLeft,
+  SwitchCamera,
+  X,
+  Keyboard
+} from 'lucide-vue-next'
 
 const route = useRoute()
+const router = useRouter()
 const store = useEventWorkspaceStore()
 const toast = useToastStore()
 
@@ -19,7 +33,71 @@ const scannerActive = ref(false)
 const isScanningFile = ref(false)
 const cameraError = ref('')
 const qrFileInput = ref(null)
+const isPageFullscreen = ref(true)
+const isNativeFullscreen = ref(false)
+const cameraFacingMode = ref('environment')
+const showFullscreenManual = ref(false)
+const fullscreenRootRef = ref(null)
 let scannerController = null
+
+watch(
+  [isPageFullscreen, scannerActive],
+  ([pageFs, camFs]) => {
+    if (typeof document !== 'undefined') {
+      document.body.style.overflow = pageFs || camFs ? 'hidden' : ''
+    }
+  },
+  { immediate: true }
+)
+
+function enterNativeFullscreen(el = document.documentElement) {
+  try {
+    if (typeof document !== 'undefined' && !document.fullscreenElement) {
+      el?.requestFullscreen?.()?.catch?.(() => {})
+    }
+  } catch {
+    // Browser may block fullscreen without direct gesture
+  }
+}
+
+function exitNativeFullscreen() {
+  try {
+    if (typeof document !== 'undefined' && document.fullscreenElement) {
+      document.exitFullscreen?.()?.catch?.(() => {})
+    }
+  } catch {
+    // Ignore exit errors
+  }
+}
+
+function toggleNativeFullscreen() {
+  if (isNativeFullscreen.value) {
+    exitNativeFullscreen()
+  } else {
+    enterNativeFullscreen()
+  }
+}
+
+function handleFullscreenChange() {
+  if (typeof document !== 'undefined') {
+    isNativeFullscreen.value = Boolean(document.fullscreenElement)
+  }
+}
+
+function handleKeydown(e) {
+  if (e.key === 'Escape' && scannerActive.value) {
+    stopScanner()
+  }
+}
+
+async function goBackToEvent() {
+  await stopScanner()
+  exitNativeFullscreen()
+  if (typeof document !== 'undefined') {
+    document.body.style.overflow = ''
+  }
+  router.push(`/dashboard/events/${eventId.value}`)
+}
 
 const eventParticipants = computed(() =>
   store.participants.filter((p) => !p.event_id || p.event_id === eventId.value)
@@ -57,24 +135,38 @@ function formatCheckInTime(val) {
 
 async function startScanner() {
   cameraError.value = ''
-  if (!scannerController) {
-    scannerController = createCameraQrScanner('qr-reader', {
-      fps: 12,
-      qrbox: 240,
-      cooldownMs: 3000,
-      onDecode: async (decodedText) => {
-        await processCode(decodedText)
-      },
-      onError: () => {
-        cameraError.value = 'Kamera tidak terdeteksi atau izin ditolak. Gunakan Scan Gambar QR atau input manual.'
-      }
-    })
+  if (scannerController) {
+    await scannerController.stop().catch(() => {})
+    scannerController = null
   }
 
+  scannerActive.value = true
+  await nextTick()
+  enterNativeFullscreen()
+
+  scannerController = createCameraQrScanner('qr-reader', {
+    fps: 12,
+    qrbox: (viewfinderWidth, viewfinderHeight) => {
+      const minEdge = Math.min(viewfinderWidth, viewfinderHeight)
+      const size = Math.round(Math.max(220, Math.min(minEdge * 0.65, 360)))
+      return { width: size, height: size }
+    },
+    cooldownMs: 3000,
+    onDecode: async (decodedText) => {
+      await processCode(decodedText)
+    },
+    onError: () => {
+      cameraError.value = 'Kamera tidak terdeteksi atau izin ditolak. Gunakan Scan Gambar QR atau input manual.'
+    }
+  })
+
   try {
-    scannerActive.value = true
-    await scannerController.start({ facingMode: 'environment' })
+    await scannerController.start({ facingMode: cameraFacingMode.value })
   } catch {
+    if (scannerController) {
+      await scannerController.stop().catch(() => {})
+      scannerController = null
+    }
     scannerActive.value = false
     cameraError.value = 'Kamera tidak terdeteksi atau izin ditolak. Gunakan Scan Gambar QR atau input manual.'
   }
@@ -82,9 +174,20 @@ async function startScanner() {
 
 async function stopScanner() {
   if (scannerController) {
-    await scannerController.stop()
+    await scannerController.stop().catch(() => {})
+    scannerController = null
   }
   scannerActive.value = false
+  showFullscreenManual.value = false
+}
+
+async function switchCamera() {
+  cameraFacingMode.value = cameraFacingMode.value === 'environment' ? 'user' : 'environment'
+  if (scannerActive.value) {
+    await stopScanner()
+    await nextTick()
+    await startScanner()
+  }
 }
 
 function triggerFileUpload() {
@@ -154,49 +257,101 @@ function exportCheckinsCsv() {
 }
 
 onMounted(() => {
+  if (typeof window !== 'undefined') {
+    window.addEventListener('keydown', handleKeydown)
+  }
+  if (typeof document !== 'undefined') {
+    document.addEventListener('fullscreenchange', handleFullscreenChange)
+  }
   if (eventId.value) {
     store.fetchEventWorkspace(eventId.value)
   }
 })
 
 onBeforeUnmount(() => {
+  if (typeof window !== 'undefined') {
+    window.removeEventListener('keydown', handleKeydown)
+  }
+  if (typeof document !== 'undefined') {
+    document.removeEventListener('fullscreenchange', handleFullscreenChange)
+    document.body.style.overflow = ''
+  }
   stopScanner()
+  exitNativeFullscreen()
 })
 </script>
 
 <template>
-  <div class="space-y-6 min-h-[calc(100vh-6rem)]">
-    <!-- Header -->
-    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-      <div class="space-y-1">
-        <div class="flex items-center gap-2">
-          <span class="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-            GATE ATTENDANCE
-          </span>
-          <span class="rounded-full border border-black bg-[#72a5e4] px-3 py-0.5 text-xs font-bold text-black">
-            {{ scannerActive ? 'Camera Active' : 'Scanner Ready' }}
-          </span>
-        </div>
-        <h1 class="text-3xl font-bold tracking-tight text-black font-editorial">
-          Live Check-in Scanner
-        </h1>
-        <p class="text-xs text-slate-600">
-          Pindai QR Code tiket menggunakan kamera perangkat, unggah gambar QR, atau input kode manual dengan validasi anti-duplikasi.
-        </p>
-      </div>
+  <Teleport to="body" :disabled="!isPageFullscreen">
+    <div
+      ref="fullscreenRootRef"
+      :class="
+        isPageFullscreen
+          ? 'fixed inset-0 z-[80] bg-[#fafaf9] overflow-y-auto p-4 sm:p-6 lg:p-8'
+          : 'space-y-6 min-h-[calc(100vh-6rem)]'
+      "
+    >
+      <div :class="isPageFullscreen ? 'mx-auto max-w-7xl space-y-6 pb-8' : 'space-y-6'">
+        <!-- Header -->
+        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div class="space-y-1">
+            <div class="flex flex-wrap items-center gap-2">
+              <button
+                v-if="isPageFullscreen"
+                type="button"
+                @click="goBackToEvent"
+                class="inline-flex items-center gap-1.5 rounded-full border border-black bg-white px-3.5 py-1 text-xs font-bold text-black hover:bg-slate-100 cursor-pointer"
+              >
+                <ArrowLeft class="h-3.5 w-3.5" />
+                Kembali
+              </button>
+              <span class="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                GATE ATTENDANCE
+              </span>
+              <span class="rounded-full border border-black bg-[#72a5e4] px-3 py-0.5 text-xs font-bold text-black">
+                {{ scannerActive ? 'Camera Active' : 'Scanner Ready' }}
+              </span>
+            </div>
+            <h1 class="text-3xl font-bold tracking-tight text-black font-editorial">
+              Live Check-in Scanner
+            </h1>
+            <p class="text-xs text-slate-600">
+              Pindai QR Code tiket menggunakan kamera layar penuh, unggah gambar QR, atau input kode manual dengan validasi anti-duplikasi.
+            </p>
+          </div>
 
-      <div class="relative w-full sm:w-60">
-        <select
-          v-model="selectedStation"
-          class="w-full rounded-full border border-black bg-white px-5 py-2 text-xs font-semibold text-black focus:outline-hidden appearance-none cursor-pointer"
-        >
-          <option value="Gate A - Main Lobby">Gate A - Main Lobby</option>
-          <option value="Gate B - VIP Lounge">Gate B - VIP Lounge</option>
-          <option value="Gate C - Side Entrance">Gate C - Side Entrance</option>
-        </select>
-        <span class="pointer-events-none absolute right-4 top-2 text-xs">⌄</span>
-      </div>
-    </div>
+          <div class="flex flex-wrap items-center gap-2">
+            <div class="relative w-full sm:w-56">
+              <select
+                v-model="selectedStation"
+                class="w-full rounded-full border border-black bg-white px-5 py-2 text-xs font-semibold text-black focus:outline-hidden appearance-none cursor-pointer"
+              >
+                <option value="Gate A - Main Lobby">Gate A - Main Lobby</option>
+                <option value="Gate B - VIP Lounge">Gate B - VIP Lounge</option>
+                <option value="Gate C - Side Entrance">Gate C - Side Entrance</option>
+              </select>
+              <span class="pointer-events-none absolute right-4 top-2 text-xs">⌄</span>
+            </div>
+
+            <button
+              type="button"
+              @click="toggleNativeFullscreen"
+              class="inline-flex items-center gap-1.5 rounded-full border border-black bg-white px-4 py-2 text-xs font-bold text-black hover:bg-slate-100 cursor-pointer"
+            >
+              <Minimize2 v-if="isNativeFullscreen" class="h-3.5 w-3.5" />
+              <Maximize2 v-else class="h-3.5 w-3.5" />
+              {{ isNativeFullscreen ? 'Keluar Layar Penuh' : 'Layar Penuh' }}
+            </button>
+
+            <button
+              type="button"
+              @click="isPageFullscreen = !isPageFullscreen"
+              class="inline-flex items-center gap-1.5 rounded-full border border-black bg-black px-4 py-2 text-xs font-bold text-white hover:bg-slate-800 cursor-pointer"
+            >
+              {{ isPageFullscreen ? 'Tampilkan Sidebar' : 'Mode Layar Penuh' }}
+            </button>
+          </div>
+        </div>
 
     <!-- 3 Stat Metrics -->
     <div v-reveal class="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -301,18 +456,27 @@ onBeforeUnmount(() => {
 
         <!-- Camera / Viewfinder Box -->
         <div class="relative rounded-xl border border-black bg-black text-white p-8 flex flex-col items-center justify-center min-h-[340px] overflow-hidden">
-          <div id="qr-reader" class="w-full max-w-[320px] rounded-lg overflow-hidden" :class="scannerActive ? 'block' : 'hidden'" />
-
-          <div v-if="!scannerActive" class="space-y-4 text-center max-w-sm">
+          <div class="space-y-4 text-center max-w-sm">
             <div class="mx-auto w-16 h-16 rounded-2xl border-2 border-dashed border-white/50 flex items-center justify-center">
               <Scan class="h-8 w-8 text-[#72a5e4]" />
             </div>
             <div>
-              <h4 class="text-base font-bold text-white">Kamera Siap Digunakan</h4>
+              <h4 class="text-base font-bold text-white">
+                {{ scannerActive ? 'Kamera Layar Penuh Sedang Aktif' : 'Kamera Layar Penuh Siap Digunakan' }}
+              </h4>
               <p class="text-xs text-slate-300 mt-1 leading-relaxed">
-                Klik <strong>Buka Kamera</strong> untuk memindai QR Code tiket secara langsung, atau klik <strong>Scan Gambar QR</strong> untuk memindai file PNG/JPG tiket.
+                Klik <strong>Buka Kamera</strong> untuk masuk ke mode pemindaian QR layar penuh, atau klik <strong>Scan Gambar QR</strong> untuk memindai file PNG/JPG tiket.
               </p>
             </div>
+            <button
+              v-if="!scannerActive"
+              type="button"
+              @click="startScanner"
+              class="inline-flex items-center gap-2 rounded-full bg-[#72a5e4] border border-black px-5 py-2 text-xs font-bold text-black hover:bg-[#5c93d9] cursor-pointer"
+            >
+              <Camera class="h-4 w-4" />
+              Buka Kamera Layar Penuh
+            </button>
           </div>
         </div>
 
@@ -418,5 +582,151 @@ onBeforeUnmount(() => {
         </div>
       </div>
     </div>
-  </div>
+      </div>
+    </div>
+  </Teleport>
+
+  <!-- Full-Bleed Live Camera QR Scanner Overlay -->
+  <Teleport to="body">
+    <div
+      v-if="scannerActive"
+      class="fixed inset-0 z-[95] bg-black text-white flex flex-col overflow-hidden"
+    >
+      <!-- Camera Viewfinder -->
+      <div class="relative flex-1 w-full h-full bg-black overflow-hidden">
+        <div id="qr-reader" class="fullscreen-qr-reader w-full h-full" />
+      </div>
+
+      <!-- Top Floating HUD -->
+      <div class="absolute top-0 inset-x-0 z-20 p-4 sm:p-5 bg-gradient-to-b from-black/85 via-black/50 to-transparent flex flex-wrap items-center justify-between gap-3">
+        <div class="flex flex-wrap items-center gap-2">
+          <span class="inline-flex items-center gap-1.5 rounded-full border border-emerald-400/70 bg-emerald-500/20 px-3 py-1 text-xs font-bold text-emerald-200 backdrop-blur-xs">
+            <span class="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+            LIVE SCANNER
+          </span>
+          <select
+            v-model="selectedStation"
+            class="rounded-full border border-white/30 bg-black/70 px-3.5 py-1 text-xs font-semibold text-white focus:outline-hidden backdrop-blur-xs cursor-pointer"
+          >
+            <option value="Gate A - Main Lobby">Gate A - Main Lobby</option>
+            <option value="Gate B - VIP Lounge">Gate B - VIP Lounge</option>
+            <option value="Gate C - Side Entrance">Gate C - Side Entrance</option>
+          </select>
+          <span class="rounded-full border border-black bg-[#72a5e4] px-3 py-1 text-xs font-bold text-black">
+            {{ checkedInCount }} / {{ totalParticipants }} Hadir
+          </span>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <button
+            type="button"
+            @click="switchCamera"
+            class="inline-flex items-center gap-1.5 rounded-full border border-white/30 bg-black/70 px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-white/15 backdrop-blur-xs cursor-pointer"
+          >
+            <SwitchCamera class="h-3.5 w-3.5" />
+            Ganti Kamera
+          </button>
+          <button
+            type="button"
+            @click="stopScanner"
+            class="inline-flex items-center gap-1.5 rounded-full border border-black bg-white px-4 py-1.5 text-xs font-bold text-black hover:bg-slate-200 cursor-pointer"
+          >
+            <X class="h-3.5 w-3.5" />
+            Tutup
+          </button>
+        </div>
+      </div>
+
+      <!-- Bottom Floating HUD -->
+      <div class="absolute bottom-0 inset-x-0 z-20 p-4 sm:p-6 bg-gradient-to-t from-black/95 via-black/75 to-transparent space-y-3">
+        <div
+          v-if="lastResult"
+          class="mx-auto max-w-2xl rounded-2xl border-2 border-black p-3.5 sm:p-4 flex items-center justify-between gap-3 text-black shadow-[3px_3px_0px_#000]"
+          :class="lastResult.success ? 'bg-emerald-300' : 'bg-rose-300'"
+        >
+          <div class="flex items-start gap-2.5 min-w-0">
+            <CheckCircle2 v-if="lastResult.success" class="h-5 w-5 text-black shrink-0 mt-0.5" />
+            <AlertTriangle v-else class="h-5 w-5 text-black shrink-0 mt-0.5" />
+            <div class="min-w-0">
+              <p class="text-[11px] font-black uppercase tracking-wider">
+                {{ lastResult.success ? 'CHECK-IN BERHASIL' : `VALIDASI GAGAL (${lastResult.status || 'ERROR'})` }}
+              </p>
+              <p class="text-xs sm:text-sm font-bold truncate">{{ lastResult.message }}</p>
+              <p v-if="lastResult.participant" class="text-[11px] font-mono truncate">
+                {{ lastResult.participant.full_name }} • {{ lastResult.scannedCode }}
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            @click="lastResult = null"
+            class="rounded-full border border-black bg-white p-1 text-black hover:bg-slate-100 shrink-0 cursor-pointer"
+          >
+            <X class="h-3.5 w-3.5" />
+          </button>
+        </div>
+
+        <form
+          v-if="showFullscreenManual"
+          @submit.prevent="handleManual"
+          class="mx-auto max-w-xl flex gap-2"
+        >
+          <input
+            v-model="ticketInput"
+            type="text"
+            placeholder="Masukkan kode tiket manual..."
+            class="flex-1 rounded-full border border-white/40 bg-black/80 px-4 py-2 text-xs text-white font-mono placeholder:text-slate-400 focus:outline-hidden"
+          />
+          <button
+            type="submit"
+            class="rounded-full border border-black bg-[#72a5e4] px-5 py-2 text-xs font-bold text-black hover:bg-[#5c93d9] cursor-pointer shrink-0"
+          >
+            Check-in
+          </button>
+        </form>
+
+        <div class="flex flex-wrap items-center justify-center gap-2.5">
+          <button
+            type="button"
+            :disabled="isScanningFile"
+            @click="triggerFileUpload"
+            class="inline-flex items-center gap-1.5 rounded-full border border-white/30 bg-black/75 px-4 py-2 text-xs font-semibold text-white hover:bg-white/15 backdrop-blur-xs cursor-pointer disabled:opacity-60"
+          >
+            <Upload class="h-3.5 w-3.5" />
+            {{ isScanningFile ? 'Memindai...' : 'Scan Gambar QR' }}
+          </button>
+          <button
+            type="button"
+            @click="showFullscreenManual = !showFullscreenManual"
+            class="inline-flex items-center gap-1.5 rounded-full border border-white/30 bg-black/75 px-4 py-2 text-xs font-semibold text-white hover:bg-white/15 backdrop-blur-xs cursor-pointer"
+          >
+            <Keyboard class="h-3.5 w-3.5" />
+            Input Manual
+          </button>
+          <button
+            type="button"
+            @click="stopScanner"
+            class="inline-flex items-center gap-1.5 rounded-full border border-black bg-rose-500 px-5 py-2 text-xs font-bold text-white hover:bg-rose-600 cursor-pointer"
+          >
+            <CameraOff class="h-3.5 w-3.5" />
+            Tutup Kamera
+          </button>
+        </div>
+      </div>
+    </div>
+  </Teleport>
 </template>
+
+<style scoped>
+:deep(.fullscreen-qr-reader) {
+  width: 100% !important;
+  height: 100% !important;
+  border: none !important;
+}
+
+:deep(.fullscreen-qr-reader video) {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+}
+</style>
