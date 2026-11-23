@@ -27,11 +27,32 @@ const scrollContainerRef = ref(null)
 // Expand/Collapse state
 const collapsedIds = reactive(new Set())
 
-// Base timeline window (UTC-safe date math, pan-able by weeks)
-const BASE_START_DATE = '2026-11-01'
+const currentEvent = computed(
+  () => store.events.find((e) => e.id === route.params.eventId) || store.activeEvent
+)
+const todayIso = new Date().toISOString().slice(0, 10)
+const BASE_START_DATE = computed(() => {
+  const eventTasks = store.tasks.filter((t) => !t.event_id || t.event_id === route.params.eventId)
+  const dates = eventTasks
+    .map((t) => (t.start_date || t.due_at || t.due_date || '').slice(0, 10))
+    .filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d))
+  if (dates.length) {
+    dates.sort()
+    const dt = new Date(dates[0] + 'T00:00:00Z')
+    dt.setUTCDate(dt.getUTCDate() - 3)
+    return dt.toISOString().slice(0, 10)
+  }
+  const evtStart = currentEvent.value?.start_at?.slice(0, 10)
+  if (evtStart) {
+    const dt = new Date(evtStart + 'T00:00:00Z')
+    dt.setUTCDate(dt.getUTCDate() - 21)
+    return dt.toISOString().slice(0, 10)
+  }
+  return todayIso
+})
 const timelineOffsetDays = ref(0)
 const totalTimelineDays = 63
-const todayMarkerDate = '2026-11-16'
+const todayMarkerDate = todayIso
 
 // Create Modal Form
 const newTitle = ref('')
@@ -64,7 +85,7 @@ const statusOptions = ['To Do', 'In Progress', 'Review', 'Done']
 const priorityOptions = ['Low', 'Medium', 'High']
 
 function parseUtcDate(isoStr) {
-  const [y, m, d] = (isoStr || BASE_START_DATE).slice(0, 10).split('-').map(Number)
+  const [y, m, d] = (isoStr || BASE_START_DATE.value).slice(0, 10).split('-').map(Number)
   return new Date(Date.UTC(y, (m || 1) - 1, d || 1))
 }
 
@@ -87,7 +108,7 @@ function formatShortIdDate(isoStr) {
   })
 }
 
-const timelineStartIso = computed(() => addDaysIso(BASE_START_DATE, timelineOffsetDays.value))
+const timelineStartIso = computed(() => addDaysIso(BASE_START_DATE.value, timelineOffsetDays.value))
 
 const todayPercent = computed(() => {
   const diffDays = diffDaysIso(timelineStartIso.value, todayMarkerDate)

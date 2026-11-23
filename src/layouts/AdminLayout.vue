@@ -87,6 +87,14 @@ async function handleLogout() {
               <ShieldCheck class="h-4 w-4 shrink-0 text-black" />
               <span>Pricing &amp; Verifikasi</span>
             </RouterLink>
+            <RouterLink
+              to="/admin/reports-orders"
+              active-class="bg-[#72a5e4] border border-black text-black font-semibold"
+              class="flex items-center gap-2.5 rounded-xl px-3 py-2 text-xs text-slate-800 hover:bg-slate-100 transition-colors"
+            >
+              <Store class="h-4 w-4 shrink-0 text-black" />
+              <span>Reports &amp; Orders</span>
+            </RouterLink>
           </nav>
         </div>
       </div>

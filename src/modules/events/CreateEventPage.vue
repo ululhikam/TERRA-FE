@@ -31,6 +31,7 @@ watch(
 const locationType = ref('offline')
 const locationName = ref('')
 const address = ref('')
+const onlineUrl = ref('')
 const startAt = ref('2026-12-28T09:00')
 const endAt = ref('2026-12-28T17:00')
 const capacity = ref(100)
@@ -74,13 +75,15 @@ async function handleCreate() {
     venue_name: locationName.value || 'Jakarta Convention Center (Hall B)',
     location_name: locationName.value || 'Jakarta Convention Center (Hall B)',
     address: address.value || 'Jl. Gatot Subroto No.1, Jakarta Pusat',
+    online_url: onlineUrl.value || undefined,
     start_date: startAt.value,
     end_date: endAt.value,
     start_at: startAt.value,
     end_at: endAt.value,
     timezone: 'Asia/Jakarta',
     capacity: Number(capacity.value) || 100,
-    publication_status: 'Published',
+    status: 'Draft',
+    publication_status: 'Unpublished',
     description: description.value,
     poster_url: posterUrl.value || 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=900&q=80',
     banner_url: bannerUrl.value || posterUrl.value || 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=1400&q=80'
@@ -178,6 +181,28 @@ async function handleCreate() {
             v-model="capacity"
             type="number"
             min="10"
+            class="w-full rounded-xl border border-black bg-white p-3 text-xs sm:text-sm text-black placeholder:text-slate-400 focus:outline-hidden"
+          />
+        </div>
+      </div>
+
+      <!-- Alamat Lengkap & Tautan Online -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div class="space-y-1.5">
+          <label class="block text-xs font-semibold text-slate-800">Alamat Lengkap Venue</label>
+          <input
+            v-model="address"
+            type="text"
+            placeholder="Jl. Kusumanegara No.157, Yogyakarta"
+            class="w-full rounded-xl border border-black bg-white p-3 text-xs sm:text-sm text-black placeholder:text-slate-400 focus:outline-hidden"
+          />
+        </div>
+        <div v-if="locationType === 'online' || locationType === 'hybrid'" class="space-y-1.5">
+          <label class="block text-xs font-semibold text-slate-800">Tautan Online / Meeting URL</label>
+          <input
+            v-model="onlineUrl"
+            type="url"
+            placeholder="https://zoom.us/j/..."
             class="w-full rounded-xl border border-black bg-white p-3 text-xs sm:text-sm text-black placeholder:text-slate-400 focus:outline-hidden"
           />
         </div>

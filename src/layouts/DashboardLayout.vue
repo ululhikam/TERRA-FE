@@ -27,7 +27,10 @@ import {
   BarChart3,
   FileText,
   Home,
-  ExternalLink
+  ExternalLink,
+  Bell,
+  ReceiptText,
+  History
 } from 'lucide-vue-next'
 
 const route = useRoute()
@@ -121,9 +124,12 @@ function resetScroll() {
   }
 }
 
+const unreadNotifCount = computed(() => (store.notifications || []).filter((n) => !n.is_read).length)
+
 onMounted(async () => {
   resetScroll()
   authStore.fetchCurrentUser().catch(() => {})
+  store.fetchNotifications().catch(() => {})
   if (route.params.eventId) {
     store.fetchEventWorkspace(route.params.eventId)
   } else {
@@ -252,6 +258,24 @@ async function handleLogout() {
               >
                 <Crown class="h-4 w-4 shrink-0 text-black" />
                 <span v-if="!sidebarCollapsed" class="truncate">Billing &amp; Bundle</span>
+              </RouterLink>
+              <RouterLink
+                to="/dashboard/notifications"
+                active-class="bg-[#72a5e4] border border-black text-black font-bold"
+                class="flex items-center justify-between gap-2.5 rounded-lg px-3 py-2 text-xs text-slate-800 hover:bg-black/5 transition-colors"
+                :class="sidebarCollapsed ? 'lg:justify-center lg:px-0' : ''"
+                title="Notifikasi"
+              >
+                <span class="flex items-center gap-2.5 min-w-0">
+                  <Bell class="h-4 w-4 shrink-0 text-black" />
+                  <span v-if="!sidebarCollapsed" class="truncate">Notifikasi</span>
+                </span>
+                <span
+                  v-if="!sidebarCollapsed && unreadNotifCount > 0"
+                  class="rounded-full border border-black bg-[#72a5e4] px-1.5 py-0.5 text-[10px] font-bold text-black leading-none"
+                >
+                  {{ unreadNotifCount }}
+                </span>
               </RouterLink>
             </nav>
           </div>
@@ -464,6 +488,17 @@ async function handleLogout() {
                 <span v-if="!sidebarCollapsed" class="truncate">Jenis Tiket</span>
               </RouterLink>
               <RouterLink
+                v-if="hasModule('ticketing') && hasPermission('Manage Tickets')"
+                :to="`/dashboard/events/${currentEvent.id}/orders`"
+                active-class="bg-[#72a5e4] border border-black text-black font-bold"
+                class="flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 hover:bg-black/5 transition-colors"
+                :class="sidebarCollapsed ? 'lg:justify-center lg:px-0 lg:py-2' : ''"
+                title="Verifikasi Order"
+              >
+                <ReceiptText class="h-3.5 w-3.5 shrink-0 text-black" />
+                <span v-if="!sidebarCollapsed" class="truncate">Verifikasi Order</span>
+              </RouterLink>
+              <RouterLink
                 v-if="hasModule('participants') && hasPermission('View Participants')"
                 :to="`/dashboard/events/${currentEvent.id}/participants`"
                 active-class="bg-[#72a5e4] border border-black text-black font-bold"
@@ -532,7 +567,7 @@ async function handleLogout() {
           </div>
 
           <!-- LAPORAN -->
-          <div v-if="hasModule('reports')" class="space-y-1">
+          <div v-if="hasModule('reports') || hasPermission('View Event')" class="space-y-1">
             <p
               v-if="!sidebarCollapsed"
               class="px-2 text-[9px] font-bold uppercase tracking-wider text-slate-500 truncate"
@@ -541,6 +576,7 @@ async function handleLogout() {
             </p>
             <nav class="space-y-0.5">
               <RouterLink
+                v-if="hasModule('reports')"
                 :to="`/dashboard/events/${currentEvent.id}/reports`"
                 active-class="bg-[#72a5e4] border border-black text-black font-bold"
                 class="flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 hover:bg-black/5 transition-colors"
@@ -549,6 +585,17 @@ async function handleLogout() {
               >
                 <BarChart3 class="h-3.5 w-3.5 shrink-0 text-black" />
                 <span v-if="!sidebarCollapsed" class="truncate">Laporan &amp; Statistik</span>
+              </RouterLink>
+              <RouterLink
+                v-if="hasPermission('View Event')"
+                :to="`/dashboard/events/${currentEvent.id}/activity-logs`"
+                active-class="bg-[#72a5e4] border border-black text-black font-bold"
+                class="flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 hover:bg-black/5 transition-colors"
+                :class="sidebarCollapsed ? 'lg:justify-center lg:px-0 lg:py-2' : ''"
+                title="Log Aktivitas"
+              >
+                <History class="h-3.5 w-3.5 shrink-0 text-black" />
+                <span v-if="!sidebarCollapsed" class="truncate">Log Aktivitas</span>
               </RouterLink>
             </nav>
           </div>

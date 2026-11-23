@@ -4,14 +4,15 @@ import { useRoute } from 'vue-router'
 import { useEventWorkspaceStore } from '@/stores/eventWorkspace'
 import { useAuthStore } from '@/stores/auth'
 import { useToastStore } from '@/stores/toast'
-import { Plus, Pencil, Trash2, X } from 'lucide-vue-next'
+import api from '@/services/api'
+import { Plus, Pencil, Trash2, X, CheckSquare, MessageSquare } from 'lucide-vue-next'
 
 const route = useRoute()
 const store = useEventWorkspaceStore()
 const authStore = useAuthStore()
 const toast = useToastStore()
 
-const columns = ['To Do', 'In Progress', 'Review', 'Done']
+const columns = ['To Do', 'In Progress', 'Review', 'Done', 'Cancelled']
 const newTaskTitle = ref('')
 const newTaskPriority = ref('Medium')
 
@@ -23,6 +24,11 @@ const editPhase = ref('Pre-Event')
 const editAssignedTo = ref('')
 const editDueDate = ref('')
 const editStatus = ref('To Do')
+const editChecklists = ref([])
+const newChecklistText = ref('')
+const editComments = ref([])
+const newCommentText = ref('')
+const addingComment = ref(false)
 const savingTask = ref(false)
 
 const eventTasks = computed(() => {
@@ -33,6 +39,7 @@ const eventTasks = computed(() => {
       if (t.status === 'in_progress' || t.status === 'In Progress') normStatus = 'In Progress'
       else if (t.status === 'review' || t.status === 'Review') normStatus = 'Review'
       else if (t.status === 'done' || t.status === 'Done') normStatus = 'Done'
+      else if (t.status === 'cancelled' || t.status === 'Cancelled') normStatus = 'Cancelled'
       return { ...t, displayStatus: normStatus }
     })
 })
@@ -82,7 +89,52 @@ function openEditTask(task) {
   editAssignedTo.value = task.assigned_to || ''
   editDueDate.value = (task.due_at || task.due_date || '').slice(0, 10)
   editStatus.value = task.displayStatus || 'To Do'
+  editChecklists.value = Array.isArray(task.checklists)
+    ? task.checklists.map((item) =>
+        typeof item === 'string'
+          ? { text: item, done: false }
+          : { text: item?.text || item?.title || '', done: Boolean(item?.done) }
+      )
+    : []
+  editComments.value = Array.isArray(task.comments) ? [...task.comments] : []
+  newChecklistText.value = ''
+  newCommentText.value = ''
   showEditModal.value = true
+}
+
+function addChecklistItem() {
+  const text = newChecklistText.value.trim()
+  if (!text) return
+  editChecklists.value.push({ text, done: false })
+  newChecklistText.value = ''
+}
+
+function removeChecklistItem(idx) {
+  editChecklists.value.splice(idx, 1)
+}
+
+async function submitTaskComment() {
+  if (!editingTaskId.value || !newCommentText.value.trim()) return
+  addingComment.value = true
+  try {
+    const res = await api.post(`/tasks/${editingTaskId.value}/comments`, {
+      content: newCommentText.value.trim()
+    })
+    if (res?.data) {
+      editComments.value.push(res.data)
+      const target = store.tasks.find((t) => t.id === editingTaskId.value)
+      if (target) {
+        if (!Array.isArray(target.comments)) target.comments = []
+        target.comments.push(res.data)
+      }
+    }
+    newCommentText.value = ''
+    toast.success('Komentar task ditambahkan.')
+  } catch (err) {
+    toast.error(err?.message || 'Gagal menambah komentar.')
+  } finally {
+    addingComment.value = false
+  }
 }
 
 async function saveEditTask() {
@@ -96,7 +148,8 @@ async function saveEditTask() {
       assigned_to: editAssignedTo.value.trim(),
       due_at: editDueDate.value || undefined,
       due_date: editDueDate.value || undefined,
-      status: editStatus.value
+      status: editStatus.value,
+      checklists: editChecklists.value
     })
     showEditModal.value = false
     toast.success('Detail task berhasil diperbarui.')
@@ -159,8 +212,8 @@ async function removeTask(task) {
       </button>
     </form>
 
-    <!-- 4 Kanban Columns Grid -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-start">
+    <!-- 5 Kanban Columns Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 items-start">
       <div
         v-for="col in columns"
         :key="col"
@@ -215,6 +268,20 @@ async function removeTask(task) {
               <h4 class="text-xs font-bold text-black leading-snug">{{ task.title }}</h4>
               <p class="text-[11px] text-slate-500">PIC: {{ task.assigned_to || 'Tim Panitia' }}</p>
 
+              <div
+                v-if="(task.checklists || []).length || (task.comments || []).length"
+                class="flex items-center gap-2 text-[10px] text-slate-600 font-semibold"
+              >
+                <span v-if="(task.checklists || []).length" class="inline-flex items-center gap-1">
+                  <CheckSquare class="h-3 w-3" />
+                  {{ (task.checklists || []).filter((c) => c?.done).length }}/{{ (task.checklists || []).length }}
+                </span>
+                <span v-if="(task.comments || []).length" class="inline-flex items-center gap-1">
+                  <MessageSquare class="h-3 w-3" />
+                  {{ (task.comments || []).length }}
+                </span>
+              </div>
+
               <!-- Move Dropdown -->
               <div class="pt-1">
                 <select
@@ -243,7 +310,7 @@ async function removeTask(task) {
       v-if="showEditModal"
       class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-2xs"
     >
-      <div class="w-full max-w-md rounded-3xl border-2 border-black bg-white p-6 sm:p-8 space-y-5">
+      <div class="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-3xl border-2 border-black bg-white p-6 sm:p-8 space-y-5">
         <div class="flex items-center justify-between border-b border-black/20 pb-3">
           <h3 class="text-xl font-bold text-black font-editorial">Edit Detail Task</h3>
           <button @click="showEditModal = false" class="p-1 rounded-full border border-black hover:bg-slate-100">
@@ -296,6 +363,81 @@ async function removeTask(task) {
                 type="date"
                 class="w-full rounded-xl border border-black p-2.5 text-black focus:outline-hidden"
               />
+            </div>
+          </div>
+
+          <!-- Sub-checklist -->
+          <div class="space-y-2 rounded-2xl border border-black/20 bg-[#fafaf9] p-3.5">
+            <label class="font-bold text-black block">Checklist Sub-Tugas</label>
+            <div class="space-y-1.5">
+              <div
+                v-for="(item, idx) in editChecklists"
+                :key="idx"
+                class="flex items-center justify-between gap-2 rounded-lg border border-black/15 bg-white px-2.5 py-1.5"
+              >
+                <label class="flex items-center gap-2 cursor-pointer flex-1 min-w-0">
+                  <input v-model="item.done" type="checkbox" class="accent-black" />
+                  <span class="truncate" :class="item.done ? 'line-through text-slate-400' : 'text-black'">
+                    {{ item.text }}
+                  </span>
+                </label>
+                <button
+                  type="button"
+                  @click="removeChecklistItem(idx)"
+                  class="text-[10px] font-bold text-rose-600 hover:underline"
+                >
+                  Hapus
+                </button>
+              </div>
+            </div>
+            <div class="flex gap-2">
+              <input
+                v-model="newChecklistText"
+                type="text"
+                placeholder="Tambah item checklist..."
+                @keydown.enter.prevent="addChecklistItem"
+                class="flex-1 rounded-xl border border-black bg-white px-3 py-1.5 text-black focus:outline-hidden"
+              />
+              <button
+                type="button"
+                @click="addChecklistItem"
+                class="rounded-xl border border-black bg-[#72a5e4] px-3 py-1.5 font-bold text-black"
+              >
+                + Item
+              </button>
+            </div>
+          </div>
+
+          <!-- Comments Thread -->
+          <div class="space-y-2 rounded-2xl border border-black/20 bg-[#fafaf9] p-3.5">
+            <label class="font-bold text-black block">Diskusi &amp; Komentar Panitia</label>
+            <div v-if="editComments.length" class="space-y-1.5 max-h-32 overflow-y-auto">
+              <div
+                v-for="cmt in editComments"
+                :key="cmt.id || cmt.created_at"
+                class="rounded-lg border border-black/15 bg-white px-2.5 py-1.5 space-y-0.5"
+              >
+                <span class="text-[10px] font-bold text-black">{{ cmt.author_name || 'Panitia' }}</span>
+                <p class="text-[11px] text-slate-700">{{ cmt.content }}</p>
+              </div>
+            </div>
+            <p v-else class="text-[11px] text-slate-500">Belum ada komentar.</p>
+            <div class="flex gap-2">
+              <input
+                v-model="newCommentText"
+                type="text"
+                placeholder="Tulis catatan / komentar..."
+                @keydown.enter.prevent="submitTaskComment"
+                class="flex-1 rounded-xl border border-black bg-white px-3 py-1.5 text-black focus:outline-hidden"
+              />
+              <button
+                type="button"
+                :disabled="addingComment"
+                @click="submitTaskComment"
+                class="rounded-xl border border-black bg-white px-3 py-1.5 font-bold text-black hover:bg-slate-100 disabled:opacity-60"
+              >
+                {{ addingComment ? '...' : 'Kirim' }}
+              </button>
             </div>
           </div>
 

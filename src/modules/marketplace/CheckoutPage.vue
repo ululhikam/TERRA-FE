@@ -65,15 +65,33 @@ const remainingQuota = computed(() => {
   return Math.max(0, Number(ticketType.value.quantity || 0) - Number(ticketType.value.sold_quantity || 0))
 })
 
+const minQty = computed(() => Math.max(1, Number(ticketType.value?.min_per_order || 1)))
+
 const maxQty = computed(() => {
   const limit = Number(ticketType.value?.max_per_order || 5)
-  return Math.max(1, Math.min(limit, remainingQuota.value || limit))
+  return Math.max(minQty.value, Math.min(limit, remainingQuota.value || limit))
 })
 
 const quantity = ref(Math.max(1, Number(route.query.qty) || 1))
+watch(
+  [minQty, maxQty],
+  ([minVal, maxVal]) => {
+    if (quantity.value < minVal) quantity.value = minVal
+    if (quantity.value > maxVal) quantity.value = maxVal
+  },
+  { immediate: true }
+)
+
 const fullName = ref(authStore.user?.full_name || '')
 const email = ref(authStore.user?.email || '')
 const phone = ref(authStore.user?.phone || '')
+const institution = ref('')
+const memberId = ref('')
+const proofFile = ref(null)
+const proofUrl = ref('')
+const proofNotes = ref('')
+const submittingProof = ref(false)
+const proofSubmitted = ref(false)
 const errorMsg = ref('')
 
 const schema = z.object({
@@ -157,18 +175,51 @@ async function confirmOrder() {
 
   submitting.value = true
   try {
+    const registration_data = {}
+    if (institution.value.trim()) registration_data.institution = institution.value.trim()
+    if (memberId.value.trim()) registration_data.member_id = memberId.value.trim()
+
     const res = await store.placeOrder({
       eventId: event.value.id,
       ticketTypeId: ticketType.value.id,
       quantity: quantity.value,
-      attendee: parsed.data
+      attendee: {
+        ...parsed.data,
+        ...(Object.keys(registration_data).length ? { registration_data } : {})
+      }
     })
     completedOrder.value = res
-    toast.success(`Pesanan ${res.orderNumber} berhasil! QR Code & Email PDF siap digunakan.`)
+    toast.success(
+      res.orderStatus === 'Pending'
+        ? `Pesanan ${res.orderNumber} dibuat. Silakan unggah bukti pembayaran.`
+        : `Pesanan ${res.orderNumber} berhasil! QR Code & Email PDF siap digunakan.`
+    )
   } catch (err) {
     errorMsg.value = err?.message || 'Gagal memproses checkout tiket.'
   } finally {
     submitting.value = false
+  }
+}
+
+async function handleSubmitPaymentProof() {
+  if (!completedOrder.value?.orderId) return
+  if (!proofFile.value && !proofUrl.value.trim()) {
+    toast.error('Unggah file bukti transfer atau isi tautan bukti pembayaran.')
+    return
+  }
+  submittingProof.value = true
+  try {
+    await store.submitOrderPaymentProof(completedOrder.value.orderId, {
+      file: proofFile.value,
+      payment_proof_url: proofUrl.value.trim(),
+      payment_notes: proofNotes.value.trim()
+    })
+    proofSubmitted.value = true
+    toast.success('Bukti pembayaran berhasil dikirim. Menunggu verifikasi organizer.')
+  } catch (err) {
+    toast.error(err?.message || 'Gagal mengirim bukti pembayaran.')
+  } finally {
+    submittingProof.value = false
   }
 }
 </script>
@@ -184,19 +235,34 @@ async function confirmOrder() {
     <template v-if="completedOrder">
       <div
         v-reveal
-        class="rounded-2xl border-2 border-black bg-[#72a5e4] p-6 sm:p-8 shadow-[4px_4px_0px_#000] flex flex-col lg:flex-row lg:items-center justify-between gap-4"
+        class="rounded-2xl border-2 border-black p-6 sm:p-8 shadow-[4px_4px_0px_#000] flex flex-col lg:flex-row lg:items-center justify-between gap-4"
+        :class="completedOrder.orderStatus === 'Pending' ? 'bg-amber-200' : 'bg-[#72a5e4]'"
       >
         <div class="space-y-1.5">
           <div class="inline-flex items-center gap-2 rounded-full border border-black bg-white px-3 py-1 text-[11px] font-bold text-black">
-            <CheckCircle2 class="h-3.5 w-3.5 text-emerald-600" />
-            PEMBELIAN BERHASIL • QR &amp; EMAIL TERKIRIM
+            <CheckCircle2
+              class="h-3.5 w-3.5"
+              :class="completedOrder.orderStatus === 'Pending' ? 'text-amber-600' : 'text-emerald-600'"
+            />
+            {{
+              completedOrder.orderStatus === 'Pending'
+                ? 'PESANAN TERSIMPAN • MENUNGGU VERIFIKASI PEMBAYARAN'
+                : 'PEMBELIAN BERHASIL • QR & EMAIL TERKIRIM'
+            }}
           </div>
           <h1 class="text-2xl sm:text-3xl font-bold tracking-tight text-black font-sans">
-            Tiket Digital &amp; QR Code Siap Digunakan
+            {{
+              completedOrder.orderStatus === 'Pending'
+                ? 'Unggah Bukti Pembayaran untuk Aktivasi Tiket'
+                : 'Tiket Digital & QR Code Siap Digunakan'
+            }}
           </h1>
           <p class="text-xs text-slate-900">
             Order Ref: <span class="font-mono font-bold">{{ completedOrder.orderNumber }}</span>
-            <span v-if="completedOrder.emailNotification?.recipient">
+            <span v-if="completedOrder.orderStatus === 'Pending'">
+              • Total {{ formatCurrency(completedOrder.total) }}
+            </span>
+            <span v-else-if="completedOrder.emailNotification?.recipient">
               • Email QR dikirim ke <strong>{{ completedOrder.emailNotification.recipient }}</strong>
             </span>
           </p>
@@ -235,6 +301,66 @@ async function confirmOrder() {
             Profil
           </RouterLink>
         </div>
+      </div>
+
+      <!-- Pending Payment Proof Upload -->
+      <div
+        v-if="completedOrder.orderStatus === 'Pending'"
+        class="rounded-2xl border-2 border-black bg-white p-6 space-y-4"
+      >
+        <div class="flex flex-wrap items-center justify-between gap-2 border-b border-black/15 pb-3">
+          <div>
+            <h2 class="text-base font-bold text-black">Konfirmasi Pembayaran Tiket Berbayar</h2>
+            <p class="text-xs text-slate-600">
+              Tiket berstatus Pending hingga pembayaran diverifikasi oleh organizer (QR aktif setelah verifikasi).
+            </p>
+          </div>
+          <span
+            v-if="proofSubmitted"
+            class="rounded-full border border-black bg-emerald-200 px-3 py-1 text-[11px] font-bold text-black"
+          >
+            Bukti Terkirim ✓
+          </span>
+        </div>
+
+        <form @submit.prevent="handleSubmitPaymentProof" class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+          <div class="space-y-1">
+            <label class="font-bold text-black">File Bukti Transfer (JPG/PNG/PDF)</label>
+            <input
+              type="file"
+              accept=".pdf,image/*"
+              @change="(e) => { proofFile = e.target.files?.[0] || null }"
+              class="w-full rounded-xl border border-black bg-[#fafaf9] p-2 text-black"
+            />
+          </div>
+          <div class="space-y-1">
+            <label class="font-bold text-black">Atau Tautan Bukti (Opsional)</label>
+            <input
+              v-model="proofUrl"
+              type="url"
+              placeholder="https://..."
+              class="w-full rounded-xl border border-black bg-white p-2.5 text-black focus:outline-hidden"
+            />
+          </div>
+          <div class="space-y-1">
+            <label class="font-bold text-black">Catatan Transfer (Bank / Pengirim)</label>
+            <input
+              v-model="proofNotes"
+              type="text"
+              placeholder="BRI a/n Nama Peserta"
+              class="w-full rounded-xl border border-black bg-white p-2.5 text-black focus:outline-hidden"
+            />
+          </div>
+          <div class="md:col-span-3 flex justify-end">
+            <button
+              type="submit"
+              :disabled="submittingProof"
+              class="rounded-full bg-black px-6 py-2.5 text-xs font-bold text-white hover:bg-slate-800 disabled:opacity-60 cursor-pointer"
+            >
+              {{ submittingProof ? 'Mengunggah...' : 'Kirim Bukti Pembayaran' }}
+            </button>
+          </div>
+        </form>
       </div>
 
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -367,7 +493,7 @@ async function confirmOrder() {
                 <input
                   v-model.number="quantity"
                   type="number"
-                  min="1"
+                  :min="minQty"
                   :max="maxQty"
                   class="w-full rounded-lg border border-black bg-white p-3 text-xs sm:text-sm text-black focus:outline-hidden"
                 />
@@ -403,6 +529,27 @@ async function confirmOrder() {
                 placeholder="0812xxxxxxxx"
                 class="w-full rounded-lg border border-black bg-white p-3 text-xs sm:text-sm text-black focus:outline-hidden"
               />
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div class="space-y-1.5">
+                <label class="font-bold text-black block">Instansi / Fakultas (Opsional)</label>
+                <input
+                  v-model="institution"
+                  type="text"
+                  placeholder="Contoh: Fakultas Teknik / Umum"
+                  class="w-full rounded-lg border border-black bg-white p-3 text-xs sm:text-sm text-black focus:outline-hidden"
+                />
+              </div>
+              <div class="space-y-1.5">
+                <label class="font-bold text-black block">NIM / ID Anggota (Opsional)</label>
+                <input
+                  v-model="memberId"
+                  type="text"
+                  placeholder="Contoh: 2023004001"
+                  class="w-full rounded-lg border border-black bg-white p-3 text-xs sm:text-sm text-black focus:outline-hidden"
+                />
+              </div>
             </div>
 
             <div class="pt-2">

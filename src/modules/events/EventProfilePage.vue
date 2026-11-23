@@ -28,11 +28,13 @@ const form = reactive({
   location_type: 'hybrid',
   location_name: '',
   address: '',
+  online_url: '',
   start_at: '',
   end_at: '',
   capacity: 600,
   visibility: 'public',
-  status: 'Published',
+  status: 'Draft',
+  theme_color: '#1e3a8a',
   speakers: [],
   schedules: []
 })
@@ -48,7 +50,10 @@ const newSpeaker = reactive({
 })
 
 const newSchedule = reactive({
+  date: '',
+  track: '',
   title: '',
+  description: '',
   start_time: '09:00',
   end_time: '10:30',
   location: 'Main Stage',
@@ -68,13 +73,16 @@ function loadEventIntoForm(evt) {
   form.location_type = evt.location_type || 'hybrid'
   form.location_name = evt.location_name || evt.venue_name || ''
   form.address = evt.address || ''
+  form.online_url = evt.online_url || ''
   form.start_at = toLocalDatetimeInput(evt.start_at || evt.start_date)
   form.end_at = toLocalDatetimeInput(evt.end_at || evt.end_date)
   form.capacity = evt.capacity ?? 600
   form.visibility = evt.visibility || 'public'
-  form.status = evt.publication_status || 'Published'
+  form.status = evt.status || 'Draft'
+  form.theme_color = evt.theme_color || '#1e3a8a'
   form.speakers = (evt.speakers || []).map((s) => ({ ...s }))
   form.schedules = (evt.schedules || []).map((s) => ({ ...s }))
+  if (!newSchedule.date && evt.start_at) newSchedule.date = evt.start_at.slice(0, 10)
 }
 
 watch(event, loadEventIntoForm, { immediate: true })
@@ -171,14 +179,18 @@ function addSchedule() {
   if (!newSchedule.title.trim()) return
   form.schedules.push({
     id: 'sc-' + Date.now(),
+    date: newSchedule.date || (form.start_at ? form.start_at.slice(0, 10) : ''),
+    track: newSchedule.track.trim(),
     title: newSchedule.title.trim(),
+    description: newSchedule.description.trim(),
     start_time: newSchedule.start_time,
     end_time: newSchedule.end_time,
     location: newSchedule.location,
     pic: newSchedule.pic,
-    visibility: 'public'
+    visibility: newSchedule.visibility || 'public'
   })
   newSchedule.title = ''
+  newSchedule.description = ''
   toast.success('Sesi rundown berhasil ditambahkan.')
 }
 
@@ -188,25 +200,32 @@ function removeSchedule(idx) {
 
 async function saveChanges() {
   if (!event.value) return
-  await store.updateEventProfile(event.value.id, {
-    title: form.title,
-    category: form.category,
-    description: form.description,
-    poster_url: form.poster_url,
-    banner_url: form.banner_url,
-    location_type: form.location_type,
-    location_name: form.location_name,
-    address: form.address,
-    start_at: form.start_at,
-    end_at: form.end_at,
-    capacity: Number(form.capacity) || 100,
-    visibility: form.visibility,
-    publication_status: form.status,
-    gallery: [...form.gallery],
-    speakers: [...form.speakers],
-    schedules: [...form.schedules]
-  })
-  toast.success('Perubahan profil & branding event berhasil disimpan!')
+  try {
+    await store.updateEventProfile(event.value.id, {
+      title: form.title,
+      slug: form.slug || undefined,
+      category: form.category,
+      description: form.description,
+      poster_url: form.poster_url,
+      banner_url: form.banner_url,
+      location_type: form.location_type,
+      location_name: form.location_name,
+      address: form.address,
+      online_url: form.online_url || undefined,
+      start_at: form.start_at,
+      end_at: form.end_at,
+      capacity: Number(form.capacity) || 100,
+      visibility: form.visibility,
+      status: form.status,
+      theme_color: form.theme_color || undefined,
+      gallery: [...form.gallery],
+      speakers: [...form.speakers],
+      schedules: [...form.schedules]
+    })
+    toast.success('Perubahan profil & branding event berhasil disimpan!')
+  } catch (err) {
+    toast.error(err?.message || 'Gagal menyimpan perubahan event.')
+  }
 }
 </script>
 
@@ -215,22 +234,25 @@ async function saveChanges() {
     <!-- Top Header -->
     <div class="space-y-4">
       <div class="space-y-1">
-        <div class="flex items-center gap-3">
+        <div class="flex flex-wrap items-center gap-2.5">
           <span class="text-[9px] font-bold uppercase tracking-wider text-slate-500">
             CORE EVENT
           </span>
-          <span class="rounded-full border border-black bg-[#72a5e4] px-3.5 py-0.5 text-[10px] font-bold text-black">
-            Published
+          <span
+            class="rounded-full border border-black px-3.5 py-0.5 text-[10px] font-bold text-black"
+            :class="event.publication_status === 'Published' ? 'bg-[#72a5e4]' : 'bg-amber-100'"
+          >
+            {{ event.publication_status || 'Unpublished' }}
           </span>
           <span class="rounded-full border border-black bg-white px-3.5 py-0.5 text-[10px] font-bold text-black">
-            Published
+            {{ event.status || 'Draft' }}
           </span>
         </div>
         <h1 class="text-3xl font-bold tracking-tight text-black font-sans pt-1">
           Event Profile &amp; Branding
         </h1>
         <p class="text-xs text-slate-500">
-          Atur foto profil/poster, banner cover, deskripsi, waktu, lokasi, serta visibilitas event Anda.
+          Atur informasi dasar, foto poster, banner cover, deskripsi, waktu, lokasi, serta visibilitas event Anda.
         </p>
       </div>
 
@@ -243,10 +265,99 @@ async function saveChanges() {
         </RouterLink>
         <button
           @click="saveChanges"
-          class="rounded-full bg-black px-8 py-2.5 text-xs font-bold text-white hover:bg-slate-800 transition-colors"
+          class="rounded-full bg-black px-8 py-2.5 text-xs font-bold text-white hover:bg-slate-800 transition-colors cursor-pointer"
         >
           Simpan Perubahan
         </button>
+      </div>
+    </div>
+
+    <!-- Section 0: Informasi Dasar, Jadwal, Lokasi & Status -->
+    <div class="rounded-xl border border-black bg-[#fafaf9] p-6 space-y-5">
+      <div class="border-b border-black/15 pb-3 space-y-1">
+        <h3 class="text-lg font-bold text-black font-sans">Informasi Dasar, Lokasi &amp; Jadwal Utama</h3>
+        <p class="text-xs text-slate-500">Kelola judul, slug URL publik, deskripsi, waktu acara, lokasi, kapasitas, dan status operasional.</p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+        <div class="space-y-1">
+          <label class="font-bold text-black">Judul Event</label>
+          <input v-model="form.title" type="text" class="w-full rounded-lg border border-black bg-white p-2.5 text-black" />
+        </div>
+        <div class="space-y-1">
+          <label class="font-bold text-black">Slug URL Publik</label>
+          <input v-model="form.slug" type="text" class="w-full rounded-lg border border-black bg-white p-2.5 font-mono text-black" />
+        </div>
+        <div class="space-y-1">
+          <label class="font-bold text-black">Kategori</label>
+          <select v-model="form.category" class="w-full rounded-lg border border-black bg-white p-2.5 text-black">
+            <option v-for="c in store.categories" :key="c.id" :value="c.name">{{ c.name }}</option>
+            <option v-if="form.category && !store.categories.some((c) => c.name === form.category)" :value="form.category">{{ form.category }}</option>
+          </select>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div class="space-y-1">
+            <label class="font-bold text-black">Status Operasional</label>
+            <select v-model="form.status" class="w-full rounded-lg border border-black bg-white p-2.5 text-black">
+              <option value="Draft">Draft</option>
+              <option value="Preparation">Preparation</option>
+              <option value="Published">Published</option>
+              <option value="Ongoing">Ongoing</option>
+              <option value="Completed">Completed</option>
+              <option value="Cancelled">Cancelled</option>
+            </select>
+          </div>
+          <div class="space-y-1">
+            <label class="font-bold text-black">Visibilitas</label>
+            <select v-model="form.visibility" class="w-full rounded-lg border border-black bg-white p-2.5 text-black">
+              <option value="public">Public Marketplace</option>
+              <option value="private">Private Link</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="space-y-1 text-xs">
+        <label class="font-bold text-black">Deskripsi Lengkap Event</label>
+        <textarea v-model="form.description" rows="4" class="w-full rounded-lg border border-black bg-white p-3 text-black" />
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+        <div class="space-y-1">
+          <label class="font-bold text-black">Format Venue</label>
+          <select v-model="form.location_type" class="w-full rounded-lg border border-black bg-white p-2.5 text-black">
+            <option value="offline">Offline</option>
+            <option value="online">Online</option>
+            <option value="hybrid">Hybrid</option>
+          </select>
+        </div>
+        <div class="space-y-1">
+          <label class="font-bold text-black">Nama Venue / Platform</label>
+          <input v-model="form.location_name" type="text" class="w-full rounded-lg border border-black bg-white p-2.5 text-black" />
+        </div>
+        <div class="space-y-1">
+          <label class="font-bold text-black">Kapasitas Peserta</label>
+          <input v-model.number="form.capacity" type="number" min="1" class="w-full rounded-lg border border-black bg-white p-2.5 text-black" />
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+        <div class="space-y-1">
+          <label class="font-bold text-black">Alamat Lengkap</label>
+          <input v-model="form.address" type="text" class="w-full rounded-lg border border-black bg-white p-2.5 text-black" />
+        </div>
+        <div class="space-y-1">
+          <label class="font-bold text-black">Tautan Online / Meeting (Opsional)</label>
+          <input v-model="form.online_url" type="text" placeholder="https://..." class="w-full rounded-lg border border-black bg-white p-2.5 text-black" />
+        </div>
+        <div class="space-y-1">
+          <label class="font-bold text-black">Waktu Mulai</label>
+          <input v-model="form.start_at" type="datetime-local" class="w-full rounded-lg border border-black bg-white p-2.5 text-black" />
+        </div>
+        <div class="space-y-1">
+          <label class="font-bold text-black">Waktu Selesai</label>
+          <input v-model="form.end_at" type="datetime-local" class="w-full rounded-lg border border-black bg-white p-2.5 text-black" />
+        </div>
       </div>
     </div>
 
@@ -392,13 +503,20 @@ async function saveChanges() {
           :key="sc.id"
           class="rounded-xl border border-black bg-white p-4 flex items-center justify-between text-xs"
         >
-          <div class="flex items-center gap-4">
+          <div class="flex flex-wrap items-center gap-3">
+            <span v-if="sc.date" class="rounded-full border border-black bg-white px-2.5 py-0.5 text-[10px] font-mono font-bold text-black">
+              {{ sc.date }}
+            </span>
             <span class="rounded-full border border-black bg-[#72a5e4] px-3.5 py-1 font-bold text-black font-mono">
               {{ sc.start_time }} – {{ sc.end_time }}
             </span>
+            <span v-if="sc.track" class="rounded-full border border-black bg-amber-100 px-2.5 py-0.5 text-[10px] font-bold text-black">
+              {{ sc.track }}
+            </span>
             <div>
               <p class="font-bold text-black">{{ sc.title }}</p>
-              <p class="text-slate-500 text-[11px]">{{ sc.location }} • Pengisi/PIC: {{ sc.pic }}</p>
+              <p class="text-slate-500 text-[11px]">{{ sc.location }} • PIC: {{ sc.pic || '-' }} • {{ sc.visibility || 'public' }}</p>
+              <p v-if="sc.description" class="text-slate-600 text-[11px] mt-0.5">{{ sc.description }}</p>
             </div>
           </div>
           <button @click="removeSchedule(idx)" class="text-slate-400 hover:text-rose-600">
@@ -407,12 +525,21 @@ async function saveChanges() {
         </div>
       </div>
 
-      <div class="grid grid-cols-1 sm:grid-cols-5 gap-3 text-xs pt-2">
+      <div class="grid grid-cols-1 sm:grid-cols-6 gap-2.5 text-xs pt-2">
+        <input v-model="newSchedule.date" type="date" class="rounded-lg border border-black p-2.5 bg-white" />
         <input v-model="newSchedule.title" placeholder="Nama Sesi..." class="sm:col-span-2 rounded-lg border border-black p-2.5 bg-white" />
+        <input v-model="newSchedule.track" placeholder="Zona / Track (opsional)" class="rounded-lg border border-black p-2.5 bg-white" />
         <input v-model="newSchedule.start_time" placeholder="09:00" class="rounded-lg border border-black p-2.5 bg-white" />
         <input v-model="newSchedule.end_time" placeholder="10:30" class="rounded-lg border border-black p-2.5 bg-white" />
-        <button @click="addSchedule" type="button" class="rounded-full bg-black text-white font-bold py-2.5">
-          + Tambah Sesi
+        <input v-model="newSchedule.location" placeholder="Lokasi Zona..." class="sm:col-span-2 rounded-lg border border-black p-2.5 bg-white" />
+        <input v-model="newSchedule.pic" placeholder="Pengisi / PIC..." class="rounded-lg border border-black p-2.5 bg-white" />
+        <select v-model="newSchedule.visibility" class="rounded-lg border border-black p-2.5 bg-white">
+          <option value="public">Publik</option>
+          <option value="internal">Internal</option>
+        </select>
+        <input v-model="newSchedule.description" placeholder="Deskripsi sesi..." class="sm:col-span-2 rounded-lg border border-black p-2.5 bg-white" />
+        <button @click="addSchedule" type="button" class="sm:col-span-6 rounded-full bg-black text-white font-bold py-2.5 cursor-pointer">
+          + Tambah Sesi Rundown
         </button>
       </div>
     </div>

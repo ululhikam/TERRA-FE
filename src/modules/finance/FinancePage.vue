@@ -45,6 +45,13 @@ const savingBudget = ref(false)
 
 const categoryOptions = [
   'Operasional',
+  'Divisi Acara',
+  'Divisi Humas',
+  'Divisi Perlengkapan',
+  'Divisi Keamanan',
+  'Divisi PDD',
+  'Dana Cadangan (10%)',
+  'Pre-Event 5 Kementerian',
   'Venue & Logistik',
   'Produksi',
   'Marketing',
@@ -53,6 +60,19 @@ const categoryOptions = [
   'Talent & Guest Star',
   'Lainnya'
 ]
+
+const expenseByCategory = computed(() => {
+  const map = new Map()
+  eventExpenses.value.forEach((e) => {
+    const key = e.category || 'Lainnya'
+    map.set(key, (map.get(key) || 0) + Number(e.amount || 0))
+  })
+  return [...map.entries()].map(([categoryName, subtotal]) => ({
+    category: categoryName,
+    subtotal,
+    pct: totalExpense.value > 0 ? Math.round((subtotal / totalExpense.value) * 100) : 0
+  }))
+})
 
 function openCreateTx(defaultType = 'expense') {
   editingTxId.value = null
@@ -291,6 +311,30 @@ function exportCSV() {
         </div>
         <div v-if="!paidTickets.length" class="py-4 text-xs text-slate-500">
           Belum ada penjualan tiket berbayar pada event ini.
+        </div>
+      </div>
+    </div>
+
+    <!-- Rekap Pengeluaran per Divisi / Kategori -->
+    <div v-if="expenseByCategory.length" class="rounded-2xl border border-black bg-white p-6 space-y-4">
+      <div class="flex items-center justify-between pb-2 border-b border-black/10">
+        <div>
+          <h3 class="text-base font-bold text-black">Rekap Pengeluaran per Kategori / Divisi</h3>
+          <p class="text-xs text-slate-500">Distribusi realisasi anggaran dan dana cadangan</p>
+        </div>
+        <span class="text-xs font-bold text-black">{{ expenseByCategory.length }} Kategori</span>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-xs">
+        <div
+          v-for="row in expenseByCategory"
+          :key="row.category"
+          class="rounded-xl border border-black bg-[#fafaf9] p-3.5 flex items-center justify-between gap-2"
+        >
+          <div class="min-w-0">
+            <p class="font-bold text-black truncate">{{ row.category }}</p>
+            <p class="text-[10px] text-slate-500">{{ row.pct }}% dari total beban</p>
+          </div>
+          <span class="font-bold text-black shrink-0">{{ formatCurrency(row.subtotal) }}</span>
         </div>
       </div>
     </div>

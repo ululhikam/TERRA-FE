@@ -145,7 +145,12 @@ async function handleSubmit() {
           </div>
 
           <div class="space-y-1.5">
-            <label class="block text-xs font-semibold text-black">Password</label>
+            <div class="flex items-center justify-between">
+              <label class="block text-xs font-semibold text-black">Password</label>
+              <RouterLink to="/forgot-password" class="text-[11px] font-bold text-black hover:underline">
+                Lupa Password?
+              </RouterLink>
+            </div>
             <div class="relative">
               <Lock class="absolute left-3.5 top-3.5 h-4 w-4 text-slate-500" />
               <input

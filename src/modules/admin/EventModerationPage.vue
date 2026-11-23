@@ -7,6 +7,13 @@ const store = useEventWorkspaceStore()
 const toast = useToastStore()
 
 async function moderate(evt, action) {
+  if (action === 'request-revision') {
+    const notes = window.prompt(`Catatan revisi untuk "${evt.title}":`, 'Lengkapi detail acara dan jadwal.')
+    if (notes === null) return
+    await store.adminRequestRevision(evt.id, notes)
+    toast.success(`Permintaan revisi dikirim untuk "${evt.title}".`)
+    return
+  }
   await store.updateModeration(evt.id, action)
   toast.success(`Event "${evt.title}" berhasil di-${action}.`)
 }
@@ -47,22 +54,28 @@ async function moderate(evt, action) {
                   {{ evt.publication_status }}
                 </span>
               </td>
-              <td class="px-6 py-4 text-right space-x-2">
+              <td class="px-6 py-4 text-right space-x-1.5 whitespace-nowrap">
                 <button
                   @click="moderate(evt, 'approve')"
-                  class="rounded-full border border-black bg-[#72a5e4] px-3.5 py-1 text-xs font-bold text-black hover:bg-[#5c93d9]"
+                  class="rounded-full border border-black bg-[#72a5e4] px-3 py-1 text-xs font-bold text-black hover:bg-[#5c93d9]"
                 >
                   ✓ Approve
                 </button>
                 <button
+                  @click="moderate(evt, 'request-revision')"
+                  class="rounded-full border border-black bg-amber-100 px-3 py-1 text-xs font-semibold text-black hover:bg-amber-200"
+                >
+                  Revisi
+                </button>
+                <button
                   @click="moderate(evt, 'reject')"
-                  class="rounded-full border border-black bg-white px-3.5 py-1 text-xs font-semibold text-black hover:bg-rose-50"
+                  class="rounded-full border border-black bg-white px-3 py-1 text-xs font-semibold text-black hover:bg-rose-50"
                 >
                   ✕ Reject
                 </button>
                 <button
                   @click="moderate(evt, 'suspend')"
-                  class="rounded-full bg-black px-3.5 py-1 text-xs font-bold text-white hover:bg-slate-800"
+                  class="rounded-full bg-black px-3 py-1 text-xs font-bold text-white hover:bg-slate-800"
                 >
                   Suspend
                 </button>

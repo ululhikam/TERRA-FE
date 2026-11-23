@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useEventWorkspaceStore } from '@/stores/eventWorkspace'
 import { useToastStore } from '@/stores/toast'
@@ -8,9 +8,36 @@ import { X, Plus, Download, Pencil, Trash2 } from 'lucide-vue-next'
 const route = useRoute()
 const store = useEventWorkspaceStore()
 const toast = useToastStore()
-const activeTab = ref('vendors')
 
 const eventId = computed(() => route.params.eventId || store.activeEvent?.id || 'evt-1')
+
+const tabConfig = [
+  { key: 'vendors', moduleKey: 'vendors', label: 'Vendor & Mitra Layanan' },
+  { key: 'sponsors', moduleKey: 'sponsors', label: 'Sponsorship & Partners' },
+  { key: 'docs', moduleKey: 'documents', label: 'Dokumen & Lampiran' },
+  { key: 'feedback', moduleKey: 'feedback', label: 'Survei Peserta' }
+]
+const enabledTabs = computed(() =>
+  tabConfig.filter((tab) => store.isModuleEnabled(eventId.value, tab.moduleKey))
+)
+const activeTab = ref(enabledTabs.value[0]?.key || 'vendors')
+
+watch(
+  enabledTabs,
+  (list) => {
+    if (!list.length) {
+      activeTab.value = ''
+      return
+    }
+    if (!list.some((t) => t.key === activeTab.value)) {
+      activeTab.value = list[0].key
+      if (activeTab.value === 'feedback') {
+        store.fetchSurveys(eventId.value).catch(() => {})
+      }
+    }
+  },
+  { immediate: true }
+)
 const vendors = computed(() =>
   store.vendors.filter((v) => !v.event_id || v.event_id === eventId.value)
 )
@@ -55,7 +82,45 @@ const uploadingDoc = ref(false)
 const showSurveyModal = ref(false)
 const surveyTitle = ref('')
 const surveyDesc = ref('')
+const surveyQuestions = ref([
+  { id: 'q1', question: 'Bagaimana penilaian keseluruhan acara?', question_type: 'rating', optionsText: '' }
+])
 const savingSurvey = ref(false)
+
+function addSurveyQuestion() {
+  surveyQuestions.value.push({
+    id: `q${Date.now()}`,
+    question: '',
+    question_type: 'text',
+    optionsText: ''
+  })
+}
+
+function removeSurveyQuestion(idx) {
+  if (surveyQuestions.value.length <= 1) return
+  surveyQuestions.value.splice(idx, 1)
+}
+
+function exportSurveyCsv(srv) {
+  const responses = Array.isArray(srv.responses) ? srv.responses : []
+  const rows = [
+    ['Response ID', 'Submitted At', 'Answers (JSON)'],
+    ...responses.map((r, i) => [
+      r.id || `resp-${i + 1}`,
+      r.submitted_at || r.created_at || '-',
+      JSON.stringify(r.answers || {})
+    ])
+  ]
+  const csv = rows.map((r) => r.map((v) => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',')).join('\n')
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `survey-${srv.id}-responses.csv`
+  a.click()
+  URL.revokeObjectURL(url)
+  toast.success(`Respons survei "${srv.title}" diekspor ke CSV.`)
+}
 
 function openCreateVendor() {
   editingVendorId.value = null
@@ -223,12 +288,31 @@ async function saveSurvey() {
   if (!surveyTitle.value.trim()) return
   savingSurvey.value = true
   try {
+    const questions = surveyQuestions.value
+      .filter((q) => q.question.trim())
+      .map((q, idx) => ({
+        id: q.id || `q${idx + 1}`,
+        question: q.question.trim(),
+        question_type: q.question_type || 'text',
+        options:
+          q.question_type === 'multiple_choice'
+            ? String(q.optionsText || '')
+                .split(',')
+                .map((opt) => opt.trim())
+                .filter(Boolean)
+            : []
+      }))
+
     await store.createSurvey(eventId.value, {
       title: surveyTitle.value.trim(),
-      description: surveyDesc.value.trim()
+      description: surveyDesc.value.trim(),
+      ...(questions.length ? { questions } : {})
     })
     surveyTitle.value = ''
     surveyDesc.value = ''
+    surveyQuestions.value = [
+      { id: 'q1', question: 'Bagaimana penilaian keseluruhan acara?', question_type: 'rating', optionsText: '' }
+    ]
     showSurveyModal.value = false
     toast.success('Survei evaluasi berhasil dibuat.')
   } catch (err) {
@@ -252,40 +336,31 @@ async function saveSurvey() {
       </p>
     </div>
 
-    <!-- Tab Pills Bar -->
-    <div class="flex flex-wrap items-center gap-2.5">
+    <!-- Tab Pills Bar (Gated by Event Modules) -->
+    <div v-if="enabledTabs.length" class="flex flex-wrap items-center gap-2.5">
       <button
-        @click="switchTab('vendors')"
-        class="rounded-full border border-black px-5 py-2 text-xs font-semibold transition-colors"
-        :class="activeTab === 'vendors' ? 'bg-black text-white' : 'bg-white text-black hover:bg-slate-100'"
+        v-for="tab in enabledTabs"
+        :key="tab.key"
+        @click="switchTab(tab.key)"
+        class="rounded-full border border-black px-5 py-2 text-xs font-semibold transition-colors cursor-pointer"
+        :class="activeTab === tab.key ? 'bg-black text-white' : 'bg-white text-black hover:bg-slate-100'"
       >
-        Vendor &amp; Mitra Layanan
-      </button>
-      <button
-        @click="switchTab('sponsors')"
-        class="rounded-full border border-black px-5 py-2 text-xs font-semibold transition-colors"
-        :class="activeTab === 'sponsors' ? 'bg-black text-white' : 'bg-white text-black hover:bg-slate-100'"
-      >
-        Sponsorship &amp; Partners
-      </button>
-      <button
-        @click="switchTab('docs')"
-        class="rounded-full border border-black px-5 py-2 text-xs font-semibold transition-colors"
-        :class="activeTab === 'docs' ? 'bg-black text-white' : 'bg-white text-black hover:bg-slate-100'"
-      >
-        Dokumen &amp; Lampiran
-      </button>
-      <button
-        @click="switchTab('feedback')"
-        class="rounded-full border border-black px-5 py-2 text-xs font-semibold transition-colors"
-        :class="activeTab === 'feedback' ? 'bg-black text-white' : 'bg-white text-black hover:bg-slate-100'"
-      >
-        Survei Peserta
+        {{ tab.label }}
       </button>
     </div>
 
+    <div
+      v-if="!enabledTabs.length"
+      class="rounded-2xl border border-black bg-white p-8 text-center space-y-2"
+    >
+      <h3 class="text-base font-bold text-black">Tidak Ada Modul Operasional Aktif</h3>
+      <p class="text-xs text-slate-600 max-w-md mx-auto">
+        Aktifkan minimal satu modul (Vendors, Sponsors, Dokumen, atau Feedback &amp; Survey) pada menu Pengaturan Modul Event.
+      </p>
+    </div>
+
     <!-- Active Tab: Vendors -->
-    <div v-if="activeTab === 'vendors'" class="space-y-4">
+    <div v-else-if="activeTab === 'vendors'" class="space-y-4">
       <div class="flex items-center justify-between">
         <span class="text-xs text-slate-600 font-medium">Total {{ vendors.length }} Vendor Terdaftar</span>
         <button
@@ -486,7 +561,7 @@ async function saveSurvey() {
     </div>
 
     <!-- Active Tab: Feedback & Surveys -->
-    <div v-else class="space-y-4">
+    <div v-else-if="activeTab === 'feedback'" class="space-y-4">
       <div class="flex items-center justify-between">
         <span class="text-xs text-slate-600 font-medium">Total {{ surveys.length }} Kuesioner Survei</span>
         <button
@@ -512,9 +587,29 @@ async function saveSurvey() {
               {{ srv.is_active ? 'Aktif' : 'Nonaktif' }}
             </span>
           </div>
-          <div class="pt-3 border-t border-black/10 flex items-center justify-between text-[11px] font-semibold text-slate-700">
+
+          <div v-if="(srv.questions || []).length" class="rounded-xl border border-black/15 bg-[#fafaf9] p-3 space-y-1 text-[11px]">
+            <p class="font-bold text-black">{{ (srv.questions || []).length }} Pertanyaan Kuesioner:</p>
+            <ul class="list-disc list-inside text-slate-700 space-y-0.5">
+              <li v-for="(q, qIdx) in srv.questions.slice(0, 3)" :key="q.id || qIdx" class="truncate">
+                {{ q.question }} <span class="text-[10px] text-slate-500">({{ q.question_type || 'text' }})</span>
+              </li>
+            </ul>
+          </div>
+
+          <div class="pt-3 border-t border-black/10 flex flex-wrap items-center justify-between gap-2 text-[11px] font-semibold text-slate-700">
             <span>{{ (srv.responses || []).length }} Respons Masuk</span>
-            <span class="font-mono text-slate-400">ID: {{ srv.id }}</span>
+            <div class="flex items-center gap-2">
+              <button
+                type="button"
+                @click="exportSurveyCsv(srv)"
+                class="inline-flex items-center gap-1 rounded-full border border-black bg-white px-2.5 py-1 text-[10px] font-bold text-black hover:bg-slate-100 cursor-pointer"
+              >
+                <Download class="h-3 w-3" />
+                Ekspor CSV
+              </button>
+              <span class="font-mono text-slate-400">ID: {{ srv.id }}</span>
+            </div>
           </div>
         </div>
       </div>
@@ -710,7 +805,7 @@ async function saveSurvey() {
       v-if="showSurveyModal"
       class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-2xs"
     >
-      <div class="w-full max-w-md rounded-3xl border-2 border-black bg-white p-6 sm:p-8 space-y-5">
+      <div class="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-3xl border-2 border-black bg-white p-6 sm:p-8 space-y-5">
         <div class="flex items-center justify-between border-b border-black/20 pb-3">
           <h3 class="text-xl font-bold text-black font-editorial">Buat Survei Evaluasi Event</h3>
           <button @click="showSurveyModal = false" class="p-1 rounded-full border border-black hover:bg-slate-100">
@@ -730,13 +825,64 @@ async function saveSurvey() {
             />
           </div>
           <div class="space-y-1">
-            <label class="font-bold text-black">Deskripsi / Pertanyaan Ringkas</label>
+            <label class="font-bold text-black">Deskripsi / Petunjuk Pengisian</label>
             <textarea
               v-model="surveyDesc"
-              rows="3"
+              rows="2"
               placeholder="Berikan penilaian acara, materi pembicara, dan fasilitas venue..."
               class="w-full rounded-xl border border-black p-2.5 text-black focus:outline-hidden resize-none"
             />
+          </div>
+
+          <div class="space-y-2 rounded-2xl border border-black/20 bg-[#fafaf9] p-3.5">
+            <div class="flex items-center justify-between">
+              <label class="font-bold text-black">Daftar Pertanyaan Kuesioner</label>
+              <button
+                type="button"
+                @click="addSurveyQuestion"
+                class="rounded-full border border-black bg-[#72a5e4] px-3 py-1 text-[10px] font-bold text-black"
+              >
+                + Tambah Pertanyaan
+              </button>
+            </div>
+
+            <div
+              v-for="(q, idx) in surveyQuestions"
+              :key="q.id"
+              class="rounded-xl border border-black/20 bg-white p-3 space-y-2"
+            >
+              <div class="flex items-center justify-between gap-2">
+                <span class="text-[10px] font-bold text-slate-500">Pertanyaan #{{ idx + 1 }}</span>
+                <button
+                  v-if="surveyQuestions.length > 1"
+                  type="button"
+                  @click="removeSurveyQuestion(idx)"
+                  class="text-[10px] font-bold text-rose-600 hover:underline"
+                >
+                  Hapus
+                </button>
+              </div>
+              <input
+                v-model="q.question"
+                type="text"
+                placeholder="Tulis pertanyaan survei..."
+                class="w-full rounded-lg border border-black p-2 text-black focus:outline-hidden"
+              />
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <select v-model="q.question_type" class="rounded-lg border border-black p-2 text-black bg-white">
+                  <option value="rating">Rating (1 - 5 Bintang)</option>
+                  <option value="text">Isian Teks</option>
+                  <option value="multiple_choice">Pilihan Ganda</option>
+                </select>
+                <input
+                  v-if="q.question_type === 'multiple_choice'"
+                  v-model="q.optionsText"
+                  type="text"
+                  placeholder="Opsi dipisah koma: Ya, Tidak"
+                  class="rounded-lg border border-black p-2 text-black focus:outline-hidden"
+                />
+              </div>
+            </div>
           </div>
           <div class="pt-3 flex justify-end gap-2 border-t border-black/20">
             <button

@@ -24,6 +24,11 @@ export const useEventWorkspaceStore = defineStore('eventWorkspace', () => {
   const adminUsers = ref([])
   const adminVerifications = ref([])
   const adminReports = ref([])
+  const adminOrders = ref([])
+  const notifications = ref([])
+  const eventOrders = ref([])
+  const eventActivityLogs = ref([])
+  const eventReport = ref(null)
 
   const loading = ref(false)
   const apiConnected = ref(false)
@@ -146,6 +151,9 @@ export const useEventWorkspaceStore = defineStore('eventWorkspace', () => {
       calls.push(
         api.get(`/events/${eventId}/ticket-types`).then((r) => {
           if (Array.isArray(r?.data)) evt.ticket_types = r.data
+        }).catch(() => {}),
+        api.get(`/events/${eventId}/orders`).then((r) => {
+          if (Array.isArray(r?.data)) replaceForEvent(eventOrders, eventId, r.data)
         }).catch(() => {})
       )
     }
@@ -177,6 +185,8 @@ export const useEventWorkspaceStore = defineStore('eventWorkspace', () => {
           }
         }).catch(() => {})
       )
+    } else {
+      finance.value = { budget: 0, incomes: [], expenses: [] }
     }
     if (mods.includes('vendors')) {
       calls.push(
@@ -635,7 +645,8 @@ export const useEventWorkspaceStore = defineStore('eventWorkspace', () => {
       attendee: {
         full_name: attendee.full_name,
         email: attendee.email,
-        phone: attendee.phone
+        phone: attendee.phone,
+        ...(attendee.registration_data ? { registration_data: attendee.registration_data } : {})
       }
     })
 
@@ -654,6 +665,11 @@ export const useEventWorkspaceStore = defineStore('eventWorkspace', () => {
     return {
       orderId: data?.order?.id || null,
       orderNumber: data?.order?.order_number,
+      orderStatus: data?.order?.order_status || 'Confirmed',
+      paymentStatus: data?.order?.payment_status || 'Not Required',
+      total: data?.order?.total || 0,
+      currency: data?.order?.currency || 'IDR',
+      order: data?.order || null,
       tickets: issued,
       emailStatus: data?.email_status || null,
       emailNotification: data?.email_notification || data?.email_status || null
@@ -661,9 +677,21 @@ export const useEventWorkspaceStore = defineStore('eventWorkspace', () => {
   }
 
   async function downloadQrPdfFromEndpoint(urlPath, fallbackFilename) {
-    const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api/v1'
+    const rawBase = api.defaults.baseURL || import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api/v1'
+    const baseUrl = String(rawBase).replace(/\/+$/, '')
     const token = localStorage.getItem('terra_access_token') || localStorage.getItem('terra_demo_token')
-    const targetUrl = urlPath.startsWith('http') ? urlPath : `${baseUrl}${urlPath}`
+    let targetUrl = urlPath.startsWith('http') ? urlPath : `${baseUrl}${urlPath}`
+    if (urlPath.startsWith('http') && baseUrl.startsWith('http')) {
+      try {
+        const parsed = new URL(urlPath)
+        const apiOrigin = new URL(baseUrl).origin
+        if (parsed.origin !== apiOrigin && parsed.pathname.startsWith('/api/v1')) {
+          targetUrl = `${apiOrigin}${parsed.pathname}${parsed.search}`
+        }
+      } catch {
+        // Keep original URL
+      }
+    }
     const headers = token ? { Authorization: `Bearer ${token}` } : {}
     const res = await fetch(targetUrl, { headers })
     if (!res.ok) {
@@ -1048,6 +1076,107 @@ export const useEventWorkspaceStore = defineStore('eventWorkspace', () => {
     return res?.data || null
   }
 
+  // ---------------- ORDERS, PAYMENT PROOF, REPORTS, LOGS, SURVEYS, NOTIFICATIONS ----------------
+  async function fetchEventOrders(eventId) {
+    const res = await api.get(`/events/${eventId}/orders`)
+    const list = Array.isArray(res?.data) ? res.data : []
+    replaceForEvent(eventOrders, eventId, list)
+    return list
+  }
+
+  async function verifyOrderPayment(eventId, orderId) {
+    const res = await api.post(`/events/${eventId}/orders/${orderId}/verify-payment`)
+    const data = res?.data
+    if (data?.order) upsertListItem(eventOrders, data.order)
+    return data
+  }
+
+  async function submitOrderPaymentProof(orderId, { file = null, payment_proof_url = '', payment_notes = '' } = {}) {
+    let res
+    if (file instanceof File) {
+      const formData = new FormData()
+      formData.append('file', file)
+      if (payment_notes) formData.append('payment_notes', payment_notes)
+      res = await api.post(`/orders/${orderId}/payment-proof`, formData)
+    } else {
+      res = await api.post(`/orders/${orderId}/payment-proof`, {
+        payment_proof_url,
+        payment_notes
+      })
+    }
+    if (res?.data) upsertListItem(myOrders, res.data)
+    return res?.data || null
+  }
+
+  async function fetchEventActivityLogs(eventId) {
+    const res = await api.get(`/events/${eventId}/activity-logs`)
+    const list = Array.isArray(res?.data) ? res.data : []
+    eventActivityLogs.value = list
+    return list
+  }
+
+  async function fetchEventReports(eventId) {
+    const res = await api.get(`/events/${eventId}/reports`)
+    if (res?.data) eventReport.value = res.data
+    return res?.data || null
+  }
+
+  async function fetchPublicSurveys(slugOrId) {
+    const res = await api.get(`/marketplace/events/${slugOrId}/surveys`)
+    return Array.isArray(res?.data) ? res.data : []
+  }
+
+  async function submitSurveyResponse(surveyId, answers) {
+    const res = await api.post(`/surveys/${surveyId}/responses`, { answers })
+    return res?.data || null
+  }
+
+  async function reportPublicEvent(eventId, payload) {
+    const res = await api.post(`/marketplace/events/${eventId}/report`, payload)
+    return res?.data || null
+  }
+
+  async function adminRequestRevision(eventId, notes = '') {
+    const res = await api.post(`/admin/events/${eventId}/request-revision`, { notes })
+    if (res?.data?.event) upsertListItem(events, res.data.event)
+    return res?.data || null
+  }
+
+  async function fetchAdminOrders() {
+    const res = await api.get('/admin/orders')
+    if (Array.isArray(res?.data)) adminOrders.value = res.data
+    return adminOrders.value
+  }
+
+  async function updateAdminReportStatus(reportId, status) {
+    const res = await api.patch(`/admin/reports/${reportId}`, { status })
+    if (res?.data) upsertListItem(adminReports, res.data)
+    return res?.data || null
+  }
+
+  async function fetchNotifications() {
+    if (!localStorage.getItem('terra_access_token')) return []
+    const res = await api.get('/notifications')
+    if (Array.isArray(res?.data)) notifications.value = res.data
+    return notifications.value
+  }
+
+  async function markNotificationRead(id) {
+    const res = await api.patch(`/notifications/${id}/read`)
+    if (res?.data) upsertListItem(notifications, res.data)
+    return res?.data || null
+  }
+
+  async function forgotPassword(email) {
+    const res = await api.post('/auth/forgot-password', { email })
+    return res?.data || null
+  }
+
+  async function resetPassword(payload) {
+    const res = await api.post('/auth/reset-password', payload)
+    return res?.data || null
+  }
+
   return {
     organizations,
     events,
@@ -1067,6 +1196,11 @@ export const useEventWorkspaceStore = defineStore('eventWorkspace', () => {
     adminUsers,
     adminVerifications,
     adminReports,
+    adminOrders,
+    notifications,
+    eventOrders,
+    eventActivityLogs,
+    eventReport,
     loading,
     apiConnected,
     supabaseStatus,
@@ -1160,6 +1294,21 @@ export const useEventWorkspaceStore = defineStore('eventWorkspace', () => {
     adminUpdatePricingPlan,
     adminSaveBundle,
     adminSavePromo,
-    adminVerifyBillingTransaction
+    adminVerifyBillingTransaction,
+    fetchEventOrders,
+    verifyOrderPayment,
+    submitOrderPaymentProof,
+    fetchEventActivityLogs,
+    fetchEventReports,
+    fetchPublicSurveys,
+    submitSurveyResponse,
+    reportPublicEvent,
+    adminRequestRevision,
+    fetchAdminOrders,
+    updateAdminReportStatus,
+    fetchNotifications,
+    markNotificationRead,
+    forgotPassword,
+    resetPassword
   }
 })

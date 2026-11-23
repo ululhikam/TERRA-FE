@@ -27,7 +27,7 @@ const displayedModules = computed(() => {
 })
 
 function isModuleLocked(mod) {
-  if (mod.required || mod.key === 'event_profile') return false
+  if (mod.isCore || mod.key === 'event_profile') return false
   if (!allowedSet.value) return false
   return !allowedSet.value.has(mod.key)
 }
@@ -42,8 +42,8 @@ async function handleToggle(moduleKey) {
 }
 
 function getDepLabel(mod) {
-  if (mod.required) return 'Modul wajib'
-  const dep = mod.dependencies?.[0] || 'event_profile'
+  if (mod.isCore) return 'Modul wajib'
+  const dep = mod.dependsOn?.[0] || 'event_profile'
   return `Dependensi: ${dep}`
 }
 </script>

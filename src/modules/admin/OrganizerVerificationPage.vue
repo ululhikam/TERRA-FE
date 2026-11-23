@@ -6,7 +6,18 @@ const store = useEventWorkspaceStore()
 const toast = useToastStore()
 
 async function setStatus(org, status) {
-  await store.reviewVerification(org.id, status)
+  let notes = ''
+  if (status === 'request_documents' || status === 'rejected') {
+    const promptMsg = window.prompt(
+      status === 'request_documents'
+        ? `Dokumen tambahan yang diminta dari ${org.name}:`
+        : `Alasan penolakan verifikasi ${org.name}:`,
+      ''
+    )
+    if (promptMsg === null) return
+    notes = promptMsg
+  }
+  await store.reviewVerification(org.id, status, notes)
   toast.success(`Status verifikasi ${org.name} diubah menjadi ${status}.`)
 }
 </script>
@@ -43,16 +54,22 @@ async function setStatus(org, status) {
           <p class="text-xs text-slate-600 leading-relaxed">{{ org.description }}</p>
         </div>
 
-        <div class="flex gap-2.5 pt-3 border-t border-black/15">
+        <div class="flex flex-wrap gap-2 pt-3 border-t border-black/15">
           <button
             @click="setStatus(org, 'verified')"
-            class="rounded-full border border-black bg-[#72a5e4] px-5 py-1.5 text-xs font-bold text-black hover:bg-[#5c93d9]"
+            class="rounded-full border border-black bg-[#72a5e4] px-4 py-1.5 text-xs font-bold text-black hover:bg-[#5c93d9]"
           >
             ✓ Verify
           </button>
           <button
+            @click="setStatus(org, 'request_documents')"
+            class="rounded-full border border-black bg-amber-100 px-4 py-1.5 text-xs font-semibold text-black hover:bg-amber-200"
+          >
+            Minta Dokumen
+          </button>
+          <button
             @click="setStatus(org, 'rejected')"
-            class="rounded-full border border-black bg-white px-5 py-1.5 text-xs font-semibold text-black hover:bg-rose-50"
+            class="rounded-full border border-black bg-white px-4 py-1.5 text-xs font-semibold text-black hover:bg-rose-50"
           >
             Reject
           </button>

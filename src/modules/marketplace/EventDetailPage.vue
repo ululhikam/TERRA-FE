@@ -1,24 +1,53 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter, RouterLink } from 'vue-router'
 import { useEventWorkspaceStore } from '@/stores/eventWorkspace'
+import { useAuthStore } from '@/stores/auth'
 import { formatDateTime, formatCurrency } from '@/utils/formatters'
 import { useToastStore } from '@/stores/toast'
 import EventCompanionForum from './components/EventCompanionForum.vue'
-import { ArrowLeft } from 'lucide-vue-next'
+import { ArrowLeft, Flag, MessageSquarePlus, X } from 'lucide-vue-next'
 
 const route = useRoute()
 const router = useRouter()
 const store = useEventWorkspaceStore()
+const authStore = useAuthStore()
 const toast = useToastStore()
 
 const event = computed(() =>
   store.events.find((e) => e.slug === route.params.slug || e.id === route.params.slug) || store.events[0]
 )
 
+const publicSurveys = ref([])
+const surveyAnswers = reactive({})
+const submittedSurveyIds = ref([])
+const submittingSurveyId = ref('')
+
+const showReportModal = ref(false)
+const reportReason = ref('Informasi Event Menyesatkan')
+const reportDescription = ref('')
+const submittingReport = ref(false)
+
+async function loadEventAndSurveys(slug) {
+  await store.fetchEventPublic(slug).catch(() => {})
+  if (event.value?.id) {
+    publicSurveys.value = await store.fetchPublicSurveys(event.value.id).catch(() => [])
+    publicSurveys.value.forEach((srv) => {
+      if (!surveyAnswers[srv.id]) surveyAnswers[srv.id] = {}
+    })
+  }
+}
+
 onMounted(() => {
-  store.fetchEventPublic(route.params.slug).catch(() => {})
+  loadEventAndSurveys(route.params.slug)
 })
+
+watch(
+  () => route.params.slug,
+  (newSlug) => {
+    if (newSlug) loadEventAndSurveys(newSlug)
+  }
+)
 
 const selectedTicketId = ref('')
 const quantity = ref(1)
@@ -29,16 +58,78 @@ const activeTicket = computed(() => {
   return ticketTypes.value.find((t) => t.id === selectedTicketId.value) || ticketTypes.value[0]
 })
 
+const minQty = computed(() => Math.max(1, Number(activeTicket.value?.min_per_order || 1)))
+const maxQty = computed(() => {
+  const remaining = Math.max(
+    1,
+    Number(activeTicket.value?.quantity || 100) - Number(activeTicket.value?.sold_quantity || 0)
+  )
+  const limit = Number(activeTicket.value?.max_per_order || 5)
+  return Math.max(minQty.value, Math.min(limit, remaining))
+})
+
+watch(
+  [minQty, maxQty],
+  ([minVal, maxVal]) => {
+    if (quantity.value < minVal) quantity.value = minVal
+    if (quantity.value > maxVal) quantity.value = maxVal
+  },
+  { immediate: true }
+)
+
 function selectTicket(id) {
   selectedTicketId.value = id
 }
 
 function incrementQty() {
-  quantity.value++
+  if (quantity.value < maxQty.value) quantity.value++
 }
 
 function decrementQty() {
-  if (quantity.value > 1) quantity.value--
+  if (quantity.value > minQty.value) quantity.value--
+}
+
+function speakerAvatar(sp) {
+  if (sp?.avatar_url) return sp.avatar_url
+  return `https://ui-avatars.com/api/?name=${encodeURIComponent(sp?.name || 'Guest')}&background=72a5e4&color=000`
+}
+
+async function handleSubmitSurvey(srv) {
+  if (!authStore.isAuthenticated) {
+    router.push({ path: '/login', query: { redirect: route.fullPath } })
+    return
+  }
+  submittingSurveyId.value = srv.id
+  try {
+    await store.submitSurveyResponse(srv.id, surveyAnswers[srv.id] || {})
+    submittedSurveyIds.value.push(srv.id)
+    toast.success('Terima kasih! Respons survei Anda telah direkam.')
+  } catch (err) {
+    toast.error(err?.message || 'Gagal mengirim respons survei.')
+  } finally {
+    submittingSurveyId.value = ''
+  }
+}
+
+async function handleSubmitReport() {
+  if (!event.value?.id || reportDescription.value.trim().length < 5) {
+    toast.error('Deskripsi laporan minimal 5 karakter.')
+    return
+  }
+  submittingReport.value = true
+  try {
+    await store.reportPublicEvent(event.value.id, {
+      reason: reportReason.value,
+      description: reportDescription.value.trim()
+    })
+    showReportModal.value = false
+    reportDescription.value = ''
+    toast.success('Laporan dikirim ke tim moderasi Admin TERRA.')
+  } catch (err) {
+    toast.error(err?.message || 'Gagal mengirim laporan event.')
+  } finally {
+    submittingReport.value = false
+  }
 }
 
 function proceedCheckout() {
@@ -77,17 +168,26 @@ function shareEvent() {
           </div>
         </div>
 
-        <!-- Category Pill & Share Pill -->
-        <div class="flex items-center justify-between gap-3">
+        <!-- Category Pill, Share & Report -->
+        <div class="flex flex-wrap items-center justify-between gap-3">
           <span class="rounded-full border border-black bg-[#72a5e4] px-4 py-1 text-xs font-bold text-black">
             {{ event.category }}
           </span>
-          <button
-            @click="shareEvent"
-            class="rounded-full border border-black bg-white px-4 py-1 text-xs font-semibold text-black hover:bg-slate-100"
-          >
-            Bagikan ↗
-          </button>
+          <div class="flex items-center gap-2">
+            <button
+              @click="showReportModal = true"
+              class="inline-flex items-center gap-1 rounded-full border border-black bg-white px-3.5 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-50 cursor-pointer"
+            >
+              <Flag class="h-3 w-3" />
+              Laporkan
+            </button>
+            <button
+              @click="shareEvent"
+              class="rounded-full border border-black bg-white px-4 py-1 text-xs font-semibold text-black hover:bg-slate-100 cursor-pointer"
+            >
+              Bagikan ↗
+            </button>
+          </div>
         </div>
 
         <!-- Title -->
@@ -139,8 +239,9 @@ function shareEvent() {
               <div class="space-y-2.5">
                 <div class="flex items-center gap-3">
                   <img
-                    :src="sp.avatar_url"
+                    :src="speakerAvatar(sp)"
                     :alt="sp.name"
+                    @error="(e) => { e.target.src = speakerAvatar({ name: sp.name }) }"
                     class="h-10 w-10 rounded-lg border border-black object-cover shrink-0 bg-white"
                   />
                   <div>
@@ -171,13 +272,141 @@ function shareEvent() {
               class="rounded-xl border border-black bg-[#fafaf9] p-4 flex flex-col sm:flex-row sm:items-center gap-4"
             >
               <span class="rounded-full border border-black bg-[#72a5e4] px-4 py-1 text-[11px] font-bold text-black font-mono shrink-0 text-center">
-                {{ sc.start_time }} – {{ sc.end_time }}
+                {{ sc.date ? `${sc.date} • ` : '' }}{{ sc.start_time }} – {{ sc.end_time }}
               </span>
-              <div class="space-y-0.5">
-                <p class="text-xs font-bold text-black">{{ sc.title }}</p>
+              <div class="space-y-1 flex-1 min-w-0">
+                <div class="flex flex-wrap items-center gap-2">
+                  <p class="text-xs font-bold text-black">{{ sc.title }}</p>
+                  <span
+                    v-if="sc.track"
+                    class="rounded-full border border-black bg-white px-2 py-0.5 text-[9px] font-bold text-black"
+                  >
+                    {{ sc.track }}
+                  </span>
+                </div>
+                <p v-if="sc.description" class="text-[11px] text-slate-700 leading-snug">{{ sc.description }}</p>
                 <p class="text-[11px] text-slate-500">{{ sc.location }} • PIC: {{ sc.pic }}</p>
               </div>
             </div>
+          </div>
+        </div>
+
+        <!-- Sub-Events / Rangkaian Pre-Event -->
+        <div v-if="(event.sub_events || []).length" class="space-y-3.5 pt-3">
+          <div class="flex items-center justify-between gap-2">
+            <h2 class="text-lg font-bold text-black font-sans">Rangkaian Pre-Event &amp; Sub-Event</h2>
+            <span class="rounded-full border border-black bg-[#72a5e4] px-3 py-0.5 text-[10px] font-bold text-black">
+              {{ event.sub_events.length }} Agenda Terkait
+            </span>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+            <RouterLink
+              v-for="sub in event.sub_events"
+              :key="sub.id"
+              :to="`/events/${sub.slug || sub.id}`"
+              class="rounded-xl border border-black bg-[#fafaf9] p-4 hover:bg-white transition-colors space-y-1.5 block"
+            >
+              <div class="flex items-center justify-between gap-2 text-[10px] font-bold text-slate-500 uppercase">
+                <span>{{ sub.category || 'Pre-Event' }}</span>
+                <span>{{ sub.location_type || 'offline' }}</span>
+              </div>
+              <h3 class="text-sm font-bold text-black leading-snug">{{ sub.title }}</h3>
+              <p class="text-[11px] text-slate-600">{{ formatDateTime(sub.start_at || sub.start_date) }}</p>
+              <p class="text-[11px] font-semibold text-black">{{ sub.location_name || sub.venue_name }}</p>
+            </RouterLink>
+          </div>
+        </div>
+
+        <!-- Galeri Dokumentasi / Poster Event -->
+        <div v-if="(event.gallery || []).length" class="space-y-3 pt-3">
+          <h2 class="text-lg font-bold text-black font-sans">Galeri Visual Event</h2>
+          <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            <img
+              v-for="(imgUrl, idx) in event.gallery"
+              :key="idx"
+              :src="imgUrl"
+              :alt="`${event.title} gallery ${idx + 1}`"
+              class="aspect-video w-full rounded-xl border border-black object-cover bg-slate-100"
+            />
+          </div>
+        </div>
+
+        <!-- Survei Evaluasi Publik -->
+        <div v-if="publicSurveys.length" class="space-y-4 pt-3">
+          <div class="flex items-center gap-2">
+            <MessageSquarePlus class="h-4 w-4 text-black" />
+            <h2 class="text-lg font-bold text-black font-sans">Survei &amp; Aspirasi Peserta</h2>
+          </div>
+
+          <div
+            v-for="srv in publicSurveys"
+            :key="srv.id"
+            class="rounded-2xl border border-black bg-[#fafaf9] p-5 space-y-4"
+          >
+            <div>
+              <h3 class="text-sm font-bold text-black">{{ srv.title }}</h3>
+              <p class="text-xs text-slate-600 mt-0.5">{{ srv.description }}</p>
+            </div>
+
+            <div v-if="submittedSurveyIds.includes(srv.id)" class="rounded-xl border border-black bg-emerald-100 p-3 text-xs font-bold text-black">
+              ✓ Jawaban survei Anda sudah diterima.
+            </div>
+
+            <form v-else @submit.prevent="handleSubmitSurvey(srv)" class="space-y-3 text-xs">
+              <template v-if="(srv.questions || []).length">
+                <div v-for="(q, qIdx) in srv.questions" :key="q.id || qIdx" class="space-y-1.5">
+                  <label class="font-bold text-black block">{{ qIdx + 1 }}. {{ q.question }}</label>
+                  <select
+                    v-if="q.question_type === 'rating'"
+                    v-model="surveyAnswers[srv.id][q.id || q.question]"
+                    required
+                    class="w-full rounded-lg border border-black bg-white p-2 text-black"
+                  >
+                    <option value="">Pilih Rating...</option>
+                    <option value="5">5 - Sangat Puas</option>
+                    <option value="4">4 - Puas</option>
+                    <option value="3">3 - Cukup</option>
+                    <option value="2">2 - Kurang</option>
+                    <option value="1">1 - Sangat Kurang</option>
+                  </select>
+                  <select
+                    v-else-if="q.question_type === 'multiple_choice' && (q.options || []).length"
+                    v-model="surveyAnswers[srv.id][q.id || q.question]"
+                    required
+                    class="w-full rounded-lg border border-black bg-white p-2 text-black"
+                  >
+                    <option value="">Pilih Jawaban...</option>
+                    <option v-for="opt in q.options" :key="opt" :value="opt">{{ opt }}</option>
+                  </select>
+                  <input
+                    v-else
+                    v-model="surveyAnswers[srv.id][q.id || q.question]"
+                    type="text"
+                    required
+                    placeholder="Tuliskan tanggapan Anda..."
+                    class="w-full rounded-lg border border-black bg-white p-2 text-black focus:outline-hidden"
+                  />
+                </div>
+              </template>
+              <div v-else class="space-y-1.5">
+                <label class="font-bold text-black block">Tanggapan Anda</label>
+                <textarea
+                  v-model="surveyAnswers[srv.id].feedback"
+                  rows="2"
+                  required
+                  placeholder="Tuliskan masukan atau aspirasi..."
+                  class="w-full rounded-lg border border-black bg-white p-2 text-black focus:outline-hidden resize-none"
+                />
+              </div>
+
+              <button
+                type="submit"
+                :disabled="submittingSurveyId === srv.id"
+                class="rounded-full bg-black px-5 py-2 text-xs font-bold text-white hover:bg-slate-800 disabled:opacity-60 cursor-pointer"
+              >
+                {{ authStore.isAuthenticated ? (submittingSurveyId === srv.id ? 'Mengirim...' : 'Kirim Jawaban Survei') : 'Masuk untuk Isi Survei →' }}
+              </button>
+            </form>
           </div>
         </div>
 
@@ -260,11 +489,64 @@ function shareEvent() {
           <!-- Pesan Tiket Sekarang Button -->
           <button
             @click="proceedCheckout"
-            class="w-full rounded-full bg-black py-3 text-xs font-bold text-white hover:bg-slate-800 transition-colors"
+            class="w-full rounded-full bg-black py-3 text-xs font-bold text-white hover:bg-slate-800 transition-colors cursor-pointer"
           >
             Pesan Tiket Sekarang &rarr;
           </button>
         </div>
+      </div>
+    </div>
+
+    <!-- Modal Laporkan Event -->
+    <div
+      v-if="showReportModal"
+      @click.self="showReportModal = false"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-2xs"
+    >
+      <div class="w-full max-w-md rounded-3xl border-2 border-black bg-white p-6 space-y-4">
+        <div class="flex items-center justify-between border-b border-black/15 pb-3">
+          <h3 class="text-lg font-bold text-black font-editorial">Laporkan Event Ini</h3>
+          <button @click="showReportModal = false" class="p-1 rounded-full border border-black hover:bg-slate-100">
+            <X class="h-4 w-4" />
+          </button>
+        </div>
+        <form @submit.prevent="handleSubmitReport" class="space-y-3 text-xs">
+          <div class="space-y-1">
+            <label class="font-bold text-black">Alasan Pelaporan</label>
+            <select v-model="reportReason" class="w-full rounded-xl border border-black bg-white p-2.5 text-black">
+              <option value="Informasi Event Menyesatkan">Informasi Event Menyesatkan</option>
+              <option value="Indikasi Penipuan Tiket">Indikasi Penipuan Tiket</option>
+              <option value="Konten Tidak Pantas / SARA">Konten Tidak Pantas / SARA</option>
+              <option value="Duplikasi atau Spam">Duplikasi atau Spam</option>
+            </select>
+          </div>
+          <div class="space-y-1">
+            <label class="font-bold text-black">Detail Penjelasan</label>
+            <textarea
+              v-model="reportDescription"
+              rows="3"
+              required
+              placeholder="Jelaskan masalah yang Anda temukan (min. 5 karakter)..."
+              class="w-full rounded-xl border border-black p-2.5 text-black focus:outline-hidden resize-none"
+            />
+          </div>
+          <div class="flex justify-end gap-2 pt-2">
+            <button
+              type="button"
+              @click="showReportModal = false"
+              class="rounded-full border border-black bg-white px-4 py-2 font-semibold text-black"
+            >
+              Batal
+            </button>
+            <button
+              type="submit"
+              :disabled="submittingReport"
+              class="rounded-full bg-rose-600 px-5 py-2 font-bold text-white hover:bg-rose-700 disabled:opacity-60"
+            >
+              {{ submittingReport ? 'Mengirim...' : 'Kirim Laporan' }}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   </div>

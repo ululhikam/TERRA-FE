@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useEventWorkspaceStore } from '@/stores/eventWorkspace'
 import { useToastStore } from '@/stores/toast'
@@ -11,6 +11,15 @@ const store = useEventWorkspaceStore()
 const toast = useToastStore()
 
 const event = computed(() => store.events.find((e) => e.id === route.params.eventId) || store.activeEvent)
+const remoteReport = computed(() =>
+  store.eventReport?.event_id === event.value?.id ? store.eventReport : null
+)
+
+onMounted(() => {
+  if (route.params.eventId) {
+    store.fetchEventReports(route.params.eventId).catch(() => {})
+  }
+})
 
 const ticketBreakdown = computed(() =>
   (event.value?.ticket_types || []).map((t) => {
@@ -229,6 +238,65 @@ function exportCSV() {
             >
               {{ sellThroughRate }}% Terjual
             </div>
+          </div>
+
+          <div class="space-y-1">
+            <div class="flex justify-between font-semibold text-black">
+              <span>3. Peserta Hadir (Checked-in)</span>
+              <span>{{ checkedInCount }} Hadir ({{ turnoutPct }}%)</span>
+            </div>
+            <div
+              class="h-6 rounded-lg border border-black bg-emerald-300 flex items-center px-3 text-[10px] font-bold text-black transition-all"
+              :style="{ width: `${Math.max(10, turnoutPct)}%` }"
+            >
+              {{ turnoutPct }}% Kehadiran
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Operational Summary Grid -->
+      <div class="lg:col-span-2 rounded-2xl border border-black bg-[#fafaf9] p-6 space-y-4">
+        <div class="flex items-center justify-between gap-2">
+          <div>
+            <h2 class="text-base font-bold text-black">Ringkasan Operasional &amp; Kesiapan Event</h2>
+            <p class="text-[11px] text-slate-600">Agregasi real-time dari modul tugas, jadwal, vendor, dan sponsor.</p>
+          </div>
+          <span
+            v-if="remoteReport"
+            class="rounded-full border border-black bg-white px-2.5 py-0.5 text-[10px] font-bold text-black"
+          >
+            Live Sync Backend
+          </span>
+        </div>
+
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+          <div class="rounded-xl border border-black bg-white p-3.5 space-y-1">
+            <span class="text-[10px] font-bold uppercase text-slate-500">Task Selesai</span>
+            <p class="text-lg font-black text-black">
+              {{ remoteReport?.tasks_summary?.done ?? store.tasks.filter((t) => (t.event_id === event.id) && (t.status === 'Done' || t.status === 'completed')).length }}
+              <span class="text-xs font-semibold text-slate-500">
+                / {{ remoteReport?.tasks_summary?.total ?? store.tasks.filter((t) => t.event_id === event.id).length }}
+              </span>
+            </p>
+          </div>
+          <div class="rounded-xl border border-black bg-white p-3.5 space-y-1">
+            <span class="text-[10px] font-bold uppercase text-slate-500">Sesi Rundown</span>
+            <p class="text-lg font-black text-black">
+              {{ remoteReport?.schedules_total ?? (event.schedules || []).length }} Sesi
+            </p>
+          </div>
+          <div class="rounded-xl border border-black bg-white p-3.5 space-y-1">
+            <span class="text-[10px] font-bold uppercase text-slate-500">Vendor Terdaftar</span>
+            <p class="text-lg font-black text-black">
+              {{ remoteReport?.vendors_count ?? store.vendors.filter((v) => !v.event_id || v.event_id === event.id).length }}
+            </p>
+          </div>
+          <div class="rounded-xl border border-black bg-white p-3.5 space-y-1">
+            <span class="text-[10px] font-bold uppercase text-slate-500">Sponsor Aktif</span>
+            <p class="text-lg font-black text-black">
+              {{ remoteReport?.sponsors_count ?? store.sponsors.filter((s) => !s.event_id || s.event_id === event.id).length }}
+            </p>
           </div>
         </div>
       </div>

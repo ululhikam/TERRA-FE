@@ -12,6 +12,7 @@ const toast = useToastStore()
 
 const eventId = computed(() => route.params.eventId || store.activeEvent?.id || 'evt-1')
 const ticketInput = ref('')
+const participantQuery = ref('')
 const selectedStation = ref('Gate A - Main Lobby')
 const lastResult = ref(null)
 const scannerActive = ref(false)
@@ -23,6 +24,19 @@ let scannerController = null
 const eventParticipants = computed(() =>
   store.participants.filter((p) => !p.event_id || p.event_id === eventId.value)
 )
+const matchingPendingParticipants = computed(() => {
+  const q = participantQuery.value.trim().toLowerCase()
+  const base = eventParticipants.value.filter((p) => !p.checked_in && p.ticket_code)
+  if (!q) return base.slice(0, 4)
+  return base
+    .filter(
+      (p) =>
+        (p.full_name || '').toLowerCase().includes(q) ||
+        (p.email || '').toLowerCase().includes(q) ||
+        (p.ticket_code || '').toLowerCase().includes(q)
+    )
+    .slice(0, 6)
+})
 const checkedInCount = computed(() => eventParticipants.value.filter((p) => p.checked_in).length)
 const totalParticipants = computed(() => eventParticipants.value.length)
 const waitingCount = computed(() => Math.max(0, totalParticipants.value - checkedInCount.value))
@@ -123,9 +137,20 @@ function handleManual() {
   processCode(ticketInput.value.trim())
 }
 
-function testTicket(code) {
-  ticketInput.value = code
-  handleManual()
+function exportCheckinsCsv() {
+  const rows = [
+    ['Kode Tiket', 'Nama Peserta', 'Kategori Tiket', 'Gate/Station', 'Waktu Check-in'],
+    ...recentCheckIns.value.map((l) => [l.ticket_code, l.participant_name, l.ticket_type, l.station, l.checked_in_at])
+  ]
+  const csv = rows.map((r) => r.map((v) => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',')).join('\n')
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `checkins-${eventId.value}.csv`
+  link.click()
+  URL.revokeObjectURL(url)
+  toast.success('Log check-in CSV berhasil diekspor.')
 }
 
 onMounted(() => {
@@ -323,41 +348,48 @@ onBeforeUnmount(() => {
             </button>
           </form>
 
-          <!-- Quick Test Samples -->
-          <div class="space-y-2 pt-2 border-t border-black/10">
-            <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
-              UJI CEPAT SAMPEL TIKET:
-            </span>
-            <div class="grid grid-cols-2 gap-2">
+          <!-- Live Participant Lookup -->
+          <div class="space-y-2.5 pt-2 border-t border-black/10">
+            <div class="flex items-center justify-between gap-2">
+              <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                CARI PESERTA BELUM CHECK-IN:
+              </span>
               <button
                 type="button"
-                @click="testTicket('EVT26-9841-AB')"
-                class="rounded-full border border-black bg-[#72a5e4] px-3 py-1.5 text-[11px] font-bold text-black hover:bg-[#5c93d9] truncate text-center cursor-pointer"
+                @click="exportCheckinsCsv"
+                class="rounded-full border border-black bg-white px-3 py-1 text-[10px] font-bold text-black hover:bg-slate-100 cursor-pointer"
               >
-                EVT26-9841-AB (Active)
-              </button>
-              <button
-                type="button"
-                @click="testTicket('EVT26-3310-XY')"
-                class="rounded-full border border-black bg-white px-3 py-1.5 text-[11px] font-semibold text-slate-700 hover:bg-slate-100 truncate text-center cursor-pointer"
-              >
-                EVT26-3310-XY (Used)
-              </button>
-              <button
-                type="button"
-                @click="testTicket('EVT26-7721-KL')"
-                class="rounded-full border border-black bg-[#72a5e4] px-3 py-1.5 text-[11px] font-bold text-black hover:bg-[#5c93d9] truncate text-center cursor-pointer"
-              >
-                EVT26-7721-KL (Active)
-              </button>
-              <button
-                type="button"
-                @click="testTicket('EVT26-4402-MN')"
-                class="rounded-full border border-black bg-white px-3 py-1.5 text-[11px] font-semibold text-slate-700 hover:bg-slate-100 truncate text-center cursor-pointer"
-              >
-                EVT26-4402-MN (Used)
+                Export CSV
               </button>
             </div>
+            <input
+              v-model="participantQuery"
+              type="text"
+              placeholder="Cari nama, email, atau kode tiket peserta..."
+              class="w-full rounded-xl border border-black bg-[#fafaf9] px-3.5 py-2 text-xs text-black focus:outline-hidden"
+            />
+            <div v-if="matchingPendingParticipants.length" class="space-y-1.5 max-h-44 overflow-y-auto">
+              <div
+                v-for="p in matchingPendingParticipants"
+                :key="p.id"
+                class="flex items-center justify-between gap-2 rounded-xl border border-black/20 bg-[#fafaf9] px-3 py-2 text-xs"
+              >
+                <div class="min-w-0">
+                  <p class="font-bold text-black truncate">{{ p.full_name }}</p>
+                  <p class="text-[10px] font-mono text-slate-500 truncate">{{ p.ticket_code }} • {{ p.email }}</p>
+                </div>
+                <button
+                  type="button"
+                  @click="processCode(p.ticket_code)"
+                  class="rounded-full border border-black bg-[#72a5e4] px-3 py-1 text-[11px] font-bold text-black hover:bg-[#5c93d9] shrink-0 cursor-pointer"
+                >
+                  Check-in
+                </button>
+              </div>
+            </div>
+            <p v-else class="text-[11px] text-slate-500">
+              Tidak ada peserta menunggu check-in yang cocok.
+            </p>
           </div>
         </div>
 
