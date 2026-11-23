@@ -409,7 +409,7 @@ async function handleSubmitPaymentProof() {
           </div>
 
           <div class="shrink-0 p-2 rounded-xl border border-black/15 bg-white">
-            <QrCodeCanvas :value="getTicketQrValue(tkt)" :size="140" />
+            <QrCodeCanvas :value="getTicketQrValue(tkt)" :src="tkt.qr_data_url" :size="140" />
           </div>
         </div>
       </div>

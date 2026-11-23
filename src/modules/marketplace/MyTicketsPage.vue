@@ -181,7 +181,7 @@ onMounted(() => {
             class="p-2 border border-black/10 rounded-xl bg-white shadow-xs hover:border-black transition-all duration-200 hover:scale-103 cursor-pointer"
             title="Klik untuk perbesar QR Code"
           >
-            <QrCodeCanvas :value="getTicketQrValue(tkt)" :size="120" />
+            <QrCodeCanvas :value="getTicketQrValue(tkt)" :src="tkt.qr_data_url" :size="120" />
           </button>
           <span class="text-[11px] font-mono font-medium text-slate-700 tracking-wider">
             {{ tkt.ticket_code }}
@@ -231,7 +231,7 @@ onMounted(() => {
 
           <div class="flex justify-center">
             <div class="p-3 rounded-2xl border border-black bg-white">
-              <QrCodeCanvas :value="getTicketQrValue(enlargedTicket)" :size="240" />
+              <QrCodeCanvas :value="getTicketQrValue(enlargedTicket)" :src="enlargedTicket.qr_data_url" :size="240" />
             </div>
           </div>
 

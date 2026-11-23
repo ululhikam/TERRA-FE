@@ -4,12 +4,17 @@ import { generateTicketQrDataUrl } from '@/utils/qrCode'
 
 const props = defineProps({
   value: { type: String, required: true },
+  src: { type: String, default: '' },
   size: { type: Number, default: 160 }
 })
 
 const dataUrl = ref('')
 
 async function generate() {
+  if (props.src) {
+    dataUrl.value = props.src
+    return
+  }
   if (!props.value) {
     dataUrl.value = ''
     return
@@ -25,13 +30,13 @@ async function generate() {
 }
 
 onMounted(generate)
-watch(() => [props.value, props.size], generate)
+watch(() => [props.value, props.src, props.size], generate)
 </script>
 
 <template>
   <img
-    v-if="dataUrl"
-    :src="dataUrl"
+    v-if="props.src || dataUrl"
+    :src="props.src || dataUrl"
     :width="size"
     :height="size"
     alt="Ticket QR Code"
