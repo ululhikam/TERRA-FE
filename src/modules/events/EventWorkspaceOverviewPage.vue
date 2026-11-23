@@ -9,24 +9,53 @@ const store = useEventWorkspaceStore()
 
 const event = computed(() => store.events.find((e) => e.id === route.params.eventId) || store.activeEvent)
 
+const eventTasks = computed(() =>
+  store.tasks.filter((t) => !t.event_id || !event.value?.id || t.event_id === event.value.id)
+)
+
 const daysRemaining = computed(() => {
-  return 26
+  const start = event.value?.start_at || event.value?.start_date
+  if (!start) return 0
+  const diff = Math.ceil((new Date(start).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+  return Math.max(0, diff)
 })
 
-const priorityTasks = [
-  { id: 't1', phase: 'PRE-EVENT', status: 'In Progress', title: 'Persiapan Acara (2 Minggu)', pic: 'Hikam Pratama', due: '2026-11-15', pct: '80% selesai' },
-  { id: 't2', phase: 'PRE-EVENT', status: 'In Progress', title: 'Booking Venue & Kontrak Hall B JCC', pic: 'Hikam Pratama', due: '2026-11-15', pct: '50% selesai' },
-  { id: 't3', phase: 'MARKETING', status: 'In Progress', title: 'Marketing & Publikasi Tiket', pic: 'Rina Kusuma', due: '2026-12-01', pct: '35% selesai' },
-  { id: 't4', phase: 'MARKETING', status: 'In Progress', title: 'Kampanye Sosial Media & Partner Blast', pic: 'Rina Kusuma', due: '2026-11-24', pct: '60% selesai' }
-]
+const ticketsSold = computed(() =>
+  (event.value?.ticket_types || []).reduce((s, t) => s + (Number(t.sold_quantity) || 0), 0)
+)
+const ticketsTotal = computed(() =>
+  (event.value?.ticket_types || []).reduce((s, t) => s + (Number(t.quantity) || 0), 0) || event.value?.capacity || 0
+)
 
-const readinessChecks = [
-  'Profil & Lokasi Venue Event Lengkap',
-  'Minimal 3 Modul Operasional Aktif',
-  'Konfigurasi Jenis Tiket & Kuota Siap',
-  'Milestone Timeline Panitia Ditetapkan',
-  'Disetujui & Dipublikasikan di Marketplace'
-]
+const priorityTasks = computed(() =>
+  eventTasks.value
+    .slice(0, 4)
+    .map((t) => ({
+      id: t.id,
+      phase: (t.phase || 'GENERAL').toUpperCase(),
+      status: t.status || 'To Do',
+      title: t.title,
+      pic: t.assigned_to || '-',
+      due: t.due_date || t.due_at || '-',
+      pct: `${t.progress ?? 0}% selesai`
+    }))
+)
+
+const readinessChecks = computed(() => {
+  const evt = event.value || {}
+  return [
+    { label: 'Profil & Lokasi Venue Event Lengkap', ok: Boolean(evt.title && (evt.location_name || evt.venue_name)) },
+    { label: 'Minimal 3 Modul Operasional Aktif', ok: (evt.enabled_modules || []).length >= 3 },
+    { label: 'Konfigurasi Jenis Tiket & Kuota Siap', ok: (evt.ticket_types || []).length > 0 },
+    { label: 'Milestone Timeline Panitia Ditetapkan', ok: eventTasks.value.length > 0 },
+    { label: 'Disetujui & Dipublikasikan di Marketplace', ok: evt.publication_status === 'Published' }
+  ]
+})
+
+const readinessPct = computed(() => {
+  const done = readinessChecks.value.filter((c) => c.ok).length
+  return Math.round((done / readinessChecks.value.length) * 100)
+})
 </script>
 
 <template>
@@ -40,10 +69,10 @@ const readinessChecks = [
         </span>
         <div class="flex items-center gap-2">
           <span class="rounded-full border border-black bg-white px-3.5 py-0.5 text-[10px] font-bold text-black">
-            Published
+            {{ event.status || 'Active' }}
           </span>
           <span class="rounded-full border border-black bg-white px-3.5 py-0.5 text-[10px] font-bold text-black">
-            Published
+            {{ event.publication_status || 'Unpublished' }}
           </span>
         </div>
       </div>
@@ -76,8 +105,8 @@ const readinessChecks = [
 
       <!-- Bottom Row inside Banner -->
       <div class="pt-3 border-t border-black/20 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs font-bold text-black">
-        <span>{{ event.category }} • {{ event.location_type === 'hybrid' ? 'Hybrid' : 'Offline' }} • Public</span>
-        <span>Tiket Terjual: 351 / 600 • Task Panitia: 11 tugas</span>
+        <span>{{ event.category || 'Umum' }} • {{ event.location_type || 'offline' }} • {{ event.visibility || 'public' }}</span>
+        <span>Tiket Terjual: {{ ticketsSold }} / {{ ticketsTotal }} • Task Panitia: {{ eventTasks.length }} tugas</span>
       </div>
     </div>
 
@@ -114,20 +143,23 @@ const readinessChecks = [
 
         <div class="space-y-2 pt-1">
           <div class="flex items-baseline gap-1.5">
-            <span class="text-4xl font-black text-black font-sans leading-none">100%</span>
+            <span class="text-4xl font-black text-black font-sans leading-none">{{ readinessPct }}%</span>
             <span class="text-xs text-slate-600 font-semibold">Siap</span>
           </div>
-          <div class="h-1.5 w-full rounded-full bg-[#72a5e4]" />
+          <div class="h-1.5 w-full rounded-full bg-slate-200 overflow-hidden">
+            <div class="h-full bg-[#72a5e4] transition-all" :style="{ width: `${readinessPct}%` }" />
+          </div>
         </div>
 
         <div class="space-y-2.5 pt-2">
           <div
-            v-for="(label, idx) in readinessChecks"
+            v-for="(chk, idx) in readinessChecks"
             :key="idx"
-            class="rounded-lg bg-[#72a5e4]/20 px-4 py-3 flex items-center gap-3 text-xs font-bold text-black"
+            class="rounded-lg px-4 py-3 flex items-center gap-3 text-xs font-bold text-black"
+            :class="chk.ok ? 'bg-[#72a5e4]/20' : 'bg-slate-100 text-slate-500'"
           >
-            <span>✓</span>
-            <span>{{ label }}</span>
+            <span>{{ chk.ok ? '✓' : '○' }}</span>
+            <span>{{ chk.label }}</span>
           </div>
         </div>
       </div>

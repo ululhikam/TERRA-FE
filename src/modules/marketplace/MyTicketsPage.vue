@@ -15,13 +15,21 @@ onMounted(() => {
 
 <template>
   <div class="mx-auto max-w-5xl px-4 sm:px-6 py-10 space-y-8">
-    <div class="space-y-1">
-      <h1 class="text-3xl sm:text-4xl font-bold tracking-tight text-black font-editorial">
-        Tiket Digital Saya
-      </h1>
-      <p class="text-xs sm:text-sm text-slate-600">
-        Tunjukkan QR Code di bawah ini kepada panitia saat check-in di lokasi event.
-      </p>
+    <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+      <div class="space-y-1">
+        <h1 class="text-3xl sm:text-4xl font-bold tracking-tight text-black font-editorial">
+          Tiket Digital Saya
+        </h1>
+        <p class="text-xs sm:text-sm text-slate-600">
+          Tunjukkan QR Code di bawah ini kepada panitia saat check-in di lokasi event.
+        </p>
+      </div>
+      <RouterLink
+        to="/profile"
+        class="inline-flex items-center justify-center rounded-full border border-black bg-white px-5 py-2 text-xs font-bold text-black hover:bg-slate-100 shrink-0"
+      >
+        Lihat Profil &amp; Riwayat Pesanan &rarr;
+      </RouterLink>
     </div>
 
     <div v-if="store.myTickets.length > 0" class="space-y-6">
@@ -38,10 +46,16 @@ onMounted(() => {
         <div class="space-y-3 flex-1">
           <div class="flex items-center gap-3">
             <span
-              v-if="tkt.status === 'valid' || tkt.status === 'active'"
+              v-if="['active', 'valid'].includes(String(tkt.status || '').toLowerCase())"
               class="rounded-full border border-black bg-[#72a5e4] px-3 py-0.5 text-xs font-bold text-black"
             >
               Active
+            </span>
+            <span
+              v-else-if="String(tkt.status || '').toLowerCase() === 'cancelled'"
+              class="rounded-full border border-black bg-rose-100 px-3 py-0.5 text-xs font-bold text-rose-800"
+            >
+              Cancelled
             </span>
             <span
               v-else

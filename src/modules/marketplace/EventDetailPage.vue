@@ -1,9 +1,10 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter, RouterLink } from 'vue-router'
 import { useEventWorkspaceStore } from '@/stores/eventWorkspace'
 import { formatDateTime, formatCurrency } from '@/utils/formatters'
 import { useToastStore } from '@/stores/toast'
+import EventCompanionForum from './components/EventCompanionForum.vue'
 import { ArrowLeft } from 'lucide-vue-next'
 
 const route = useRoute()
@@ -14,6 +15,10 @@ const toast = useToastStore()
 const event = computed(() =>
   store.events.find((e) => e.slug === route.params.slug || e.id === route.params.slug) || store.events[0]
 )
+
+onMounted(() => {
+  store.fetchEventPublic(route.params.slug).catch(() => {})
+})
 
 const selectedTicketId = ref('')
 const quantity = ref(1)
@@ -175,6 +180,12 @@ function shareEvent() {
             </div>
           </div>
         </div>
+
+        <!-- Forum Teman Berangkat Bareng ke Event -->
+        <EventCompanionForum
+          :event-key="event.slug || event.id"
+          :event-title="event.title"
+        />
       </div>
 
       <!-- Right Column (4 Cols): Organizer Box + Sticky Pilih Tiket -->

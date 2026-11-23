@@ -1,6 +1,8 @@
 <script setup>
+import { onMounted } from 'vue'
 import { RouterLink, RouterView, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { useEventWorkspaceStore } from '@/stores/eventWorkspace'
 import TerraLogo from '@/components/common/TerraLogo.vue'
 import {
   ShieldCheck,
@@ -13,7 +15,12 @@ import {
 } from 'lucide-vue-next'
 
 const authStore = useAuthStore()
+const store = useEventWorkspaceStore()
 const router = useRouter()
+
+onMounted(() => {
+  store.fetchAdminWorkspace().catch(() => {})
+})
 
 async function handleLogout() {
   await authStore.logout()
@@ -71,6 +78,14 @@ async function handleLogout() {
             >
               <Users class="h-4 w-4 shrink-0 text-black" />
               <span>Users &amp; Categories</span>
+            </RouterLink>
+            <RouterLink
+              to="/admin/pricing"
+              active-class="bg-[#72a5e4] border border-black text-black font-semibold"
+              class="flex items-center gap-2.5 rounded-xl px-3 py-2 text-xs text-slate-800 hover:bg-slate-100 transition-colors"
+            >
+              <ShieldCheck class="h-4 w-4 shrink-0 text-black" />
+              <span>Pricing &amp; Verifikasi</span>
             </RouterLink>
           </nav>
         </div>

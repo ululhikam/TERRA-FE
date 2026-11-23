@@ -2,7 +2,6 @@
 import { ref, computed } from 'vue'
 import { useRoute, RouterLink } from 'vue-router'
 import { useEventWorkspaceStore } from '@/stores/eventWorkspace'
-import { MOCK_CATEGORIES } from '@/services/mockData'
 import { formatDate, formatCurrency } from '@/utils/formatters'
 import EmptyState from '@/components/common/EmptyState.vue'
 import { Search } from 'lucide-vue-next'
@@ -84,7 +83,7 @@ function getPriceDisplay(evt) {
           class="w-full rounded-full border border-black bg-white px-4 py-2.5 text-xs text-black focus:outline-hidden appearance-none cursor-pointer"
         >
           <option value="">Semua Kategori</option>
-          <option v-for="c in MOCK_CATEGORIES" :key="c.id" :value="c.name">{{ c.name }}</option>
+          <option v-for="c in store.categories" :key="c.id" :value="c.name">{{ c.name }}</option>
         </select>
         <span class="pointer-events-none absolute right-4 top-2.5 text-xs text-black">⌄</span>
       </div>

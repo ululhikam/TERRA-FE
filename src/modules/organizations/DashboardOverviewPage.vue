@@ -3,13 +3,22 @@ import { computed } from 'vue'
 import { RouterLink } from 'vue-router'
 import { useEventWorkspaceStore } from '@/stores/eventWorkspace'
 import { useAuthStore } from '@/stores/auth'
-import { formatDate } from '@/utils/formatters'
+import { formatDate, formatCurrency } from '@/utils/formatters'
 import { ExternalLink } from 'lucide-vue-next'
 
 const store = useEventWorkspaceStore()
 const authStore = useAuthStore()
 
 const activeEvents = computed(() => store.events.slice(0, 3))
+const totalSoldTickets = computed(() =>
+  store.events.reduce(
+    (sum, evt) => sum + (evt.ticket_types || []).reduce((s, t) => s + (Number(t.sold_quantity) || 0), 0),
+    0
+  )
+)
+const totalEstimatedRevenue = computed(() =>
+  store.events.reduce((sum, evt) => sum + store.getPaidTicketRevenue(evt.id), 0)
+)
 </script>
 
 <template>
@@ -21,7 +30,7 @@ const activeEvents = computed(() => store.events.slice(0, 3))
           ORGANIZER STUDIO OVERVIEW
         </span>
         <h1 class="text-2xl sm:text-3xl font-bold tracking-tight text-black font-editorial">
-          Selamat datang,<br />{{ authStore.user?.full_name || 'Hikam Pratama (Organizer)' }}!
+          Selamat datang,<br />{{ authStore.user?.full_name || authStore.user?.email || 'Organizer' }}!
         </h1>
         <p class="text-xs sm:text-sm text-slate-900 leading-relaxed">
           Kelola seluruh rangkaian acara, pantau penjualan tiket berbayar &amp; gratis secara real-time, dan atur tim kerja melalui sistem modular terpadu.
@@ -44,11 +53,11 @@ const activeEvents = computed(() => store.events.slice(0, 3))
       </div>
     </div>
 
-    <!-- 4 Stats Cards Grid -->
+    <!-- 4 Stats Cards Grid (100% Live Data from Backend) -->
     <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
       <div class="rounded-2xl border border-black bg-white p-6 space-y-2">
         <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">TOTAL ORGANISASI AKTIF</span>
-        <span class="text-3xl font-black text-black leading-none block">2</span>
+        <span class="text-3xl font-black text-black leading-none block">{{ store.organizations.length }}</span>
         <p class="text-[11px] text-slate-500 pt-2 border-t border-black/10">Organisasi penyelenggara</p>
       </div>
 
@@ -59,20 +68,14 @@ const activeEvents = computed(() => store.events.slice(0, 3))
       </div>
 
       <div class="rounded-2xl border border-black bg-white p-6 space-y-2">
-        <div class="flex items-center justify-between">
-          <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">TOTAL TIKET TERDISTRIBUSI</span>
-          <span class="text-[10px] font-bold text-black">+18.4%</span>
-        </div>
-        <span class="text-3xl font-black text-black leading-none block">1366</span>
-        <p class="text-[11px] text-slate-500 pt-2 border-t border-black/10">Semua jenis tiket</p>
+        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">TOTAL TIKET TERDISTRIBUSI</span>
+        <span class="text-3xl font-black text-black leading-none block">{{ totalSoldTickets }}</span>
+        <p class="text-[11px] text-slate-500 pt-2 border-t border-black/10">Semua jenis tiket terjual</p>
       </div>
 
       <div class="rounded-2xl border border-black bg-white p-6 space-y-2">
-        <div class="flex items-center justify-between">
-          <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">ESTIMASI OMSET TIKET</span>
-          <span class="text-[10px] font-bold text-black">+24.2%</span>
-        </div>
-        <span class="text-xl sm:text-2xl font-black text-black leading-none block truncate">Rp 178.820.000</span>
+        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">ESTIMASI OMSET TIKET</span>
+        <span class="text-xl sm:text-2xl font-black text-black leading-none block truncate">{{ formatCurrency(totalEstimatedRevenue) }}</span>
         <p class="text-[11px] text-slate-500 pt-2 border-t border-black/10">Revenue tiket berbayar</p>
       </div>
     </div>

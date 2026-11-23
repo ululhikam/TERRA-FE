@@ -1,7 +1,10 @@
 import axios from 'axios'
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api/v1',
+  baseURL:
+    import.meta.env.VITE_API_BASE_URL ||
+    import.meta.env.VITE_BASE_API_URL ||
+    'http://localhost:3000/api/v1',
   timeout: 15000,
   headers: {
     'Content-Type': 'application/json'
@@ -9,9 +12,16 @@ const api = axios.create({
 })
 
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('terra_access_token') || localStorage.getItem('terra_demo_token')
+  const token = localStorage.getItem('terra_access_token')
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
+  }
+  if (config.data instanceof FormData) {
+    if (typeof config.headers.delete === 'function') {
+      config.headers.delete('Content-Type')
+    } else {
+      delete config.headers['Content-Type']
+    }
   }
   return config
 })

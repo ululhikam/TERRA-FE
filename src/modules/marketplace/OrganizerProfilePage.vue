@@ -46,9 +46,9 @@ const orgEvents = computed(() =>
               {{ organization.description }}
             </p>
             <div class="pt-1 flex flex-wrap gap-3 text-[11px] text-slate-900">
-              <span>{{ organization.email || 'hello@nusantaratech.id' }}</span>
-              <span>•</span>
-              <span>{{ organization.website || 'https://nusantaratech.id' }}</span>
+              <span>{{ organization.email || '-' }}</span>
+              <span v-if="organization.website">•</span>
+              <span v-if="organization.website">{{ organization.website }}</span>
             </div>
           </div>
         </div>

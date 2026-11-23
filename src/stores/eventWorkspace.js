@@ -1,86 +1,59 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import api from '@/services/api'
-import {
-  MOCK_EVENTS,
-  MOCK_ORGANIZATIONS,
-  MOCK_TICKETS,
-  MOCK_PARTICIPANTS,
-  MOCK_TASKS,
-  MOCK_FINANCE,
-  MODULE_CATALOG
-} from '@/services/mockData'
+import { MODULE_CATALOG } from '@/constants/modules'
 
 export const useEventWorkspaceStore = defineStore('eventWorkspace', () => {
-  const organizations = ref(structuredClone(MOCK_ORGANIZATIONS))
-  const events = ref(structuredClone(MOCK_EVENTS))
-  const myTickets = ref(structuredClone(MOCK_TICKETS))
-  const participants = ref(structuredClone(MOCK_PARTICIPANTS))
-  const tasks = ref(structuredClone(MOCK_TASKS))
-  const finance = ref(structuredClone(MOCK_FINANCE))
-  const vendors = ref([
-    { id: 'v-1', event_id: 'evt-1', name: 'Nusantara AV Production', category: 'Audio & LED Stage', contact: '0812-8899-1122', value: 'Rp 12.500.000', status: 'Confirmed' },
-    { id: 'v-2', event_id: 'evt-1', name: 'Prima Catering Service', category: 'F&B & Konsumsi VIP', contact: '0813-4455-6677', value: 'Rp 6.500.000', status: 'Confirmed' },
-    { id: 'v-3', event_id: 'evt-1', name: 'Karya Cetak Nusantara', category: 'Lanyard & Backdrop', contact: '0819-1122-3344', value: 'Rp 4.200.000', status: 'Pending' }
-  ])
-  const sponsors = ref([
-    { id: 's-1', event_id: 'evt-1', name: 'CloudTech Indonesia', tier: 'Platinum Sponsor', contribution: 'Rp 45.000.000', pic: 'Aditya (Head of DevRel)', status: 'Confirmed' },
-    { id: 's-2', event_id: 'evt-1', name: 'DevPay Gateway', tier: 'Gold Sponsor', contribution: 'Rp 20.000.000', pic: 'Dina (Brand Lead)', status: 'Pending' }
-  ])
-  const documents = ref([
-    { id: 'd-1', event_id: 'evt-1', file_name: 'Proposal_Sponsorship_Summit_2026.pdf', category: 'Sponsorship', visibility: 'Internal', size: '2.4 MB', updated: '2026-11-10' },
-    { id: 'd-2', event_id: 'evt-1', file_name: 'Layout_Denah_Hall_B_JCC.pdf', category: 'Operasional', visibility: 'Internal', size: '4.8 MB', updated: '2026-11-12' },
-    { id: 'd-3', event_id: 'evt-1', file_name: 'Perjanjian_Kerjasama_AV.docx', category: 'Legal & Vendor', visibility: 'Internal', size: '540 KB', updated: '2026-11-14' }
-  ])
-  const teamMembers = ref([
-    { id: 'tm-1', event_id: 'evt-1', name: 'Hikam Pratama', email: 'hikam@example.com', role: 'Owner', department: 'Executive Core', permissions: ['View Event', 'Edit Event', 'Manage Timeline', 'Manage Tickets', 'View Participants', 'Manage Check-in', 'View Finance', 'Manage Team'] },
-    { id: 'tm-2', event_id: 'evt-1', name: 'Rina Kusuma', email: 'rina@example.com', role: 'Manager', department: 'Program & Timeline', permissions: ['View Event', 'Manage Timeline', 'View Participants'] },
-    { id: 'tm-3', event_id: 'evt-1', name: 'Budi Santoso', email: 'budi@example.com', role: 'Staff', department: 'Gate & Check-in Desk', permissions: ['View Event', 'Manage Check-in'] }
-  ])
+  const organizations = ref([])
+  const events = ref([])
+  const categories = ref([])
+  const myTickets = ref([])
+  const myOrders = ref([])
+  const participants = ref([])
+  const tasks = ref([])
+  const finance = ref({ budget: 0, incomes: [], expenses: [] })
+  const vendors = ref([])
+  const sponsors = ref([])
+  const documents = ref([])
+  const surveys = ref([])
+  const teamMembers = ref([])
+  const checkinLogs = ref([])
 
-  const checkinLogs = ref([
-    {
-      id: 'chk-1',
-      event_id: 'evt-1',
-      ticket_code: 'EVT26-3310-XY',
-      participant_name: 'Nadia Putri',
-      ticket_type: 'Community Free Pass',
-      station: 'Gate A - Main Lobby',
-      checked_in_at: '08:42 WIB'
-    },
-    {
-      id: 'chk-2',
-      event_id: 'evt-1',
-      ticket_code: 'EVT26-4402-MN',
-      participant_name: 'Siti Rahmawati',
-      ticket_type: 'VIP Executive Pass',
-      station: 'Gate B - VIP Lounge',
-      checked_in_at: '08:55 WIB'
-    }
-  ])
+  // Admin Console state
+  const adminDashboard = ref(null)
+  const adminUsers = ref([])
+  const adminVerifications = ref([])
+  const adminReports = ref([])
 
+  const loading = ref(false)
   const apiConnected = ref(false)
   const supabaseStatus = ref({ configured: false, connected: false, mode: 'checking' })
-  const activeEventId = ref('evt-1')
+  const activeEventId = ref('')
 
-  const activeEvent = computed(() =>
-    events.value.find((e) => e.id === activeEventId.value) || events.value[0]
+  const activeEvent = computed(
+    () => events.value.find((e) => e.id === activeEventId.value) || events.value[0] || null
   )
 
   function setActiveEvent(eventId) {
     activeEventId.value = eventId
   }
 
-  function mergeById(localList, remoteList) {
-    if (!Array.isArray(remoteList) || remoteList.length === 0) return localList
-    const map = new Map(localList.map((item) => [item.id, item]))
-    remoteList.forEach((remote) => {
-      map.set(remote.id, { ...(map.get(remote.id) || {}), ...remote })
-    })
-    return Array.from(map.values())
+  function upsertListItem(listRef, item) {
+    if (!item?.id) return
+    const idx = listRef.value.findIndex((x) => x.id === item.id)
+    if (idx === -1) {
+      listRef.value.unshift(item)
+    } else {
+      listRef.value[idx] = { ...listRef.value[idx], ...item }
+    }
   }
 
-  // ---------------- BACKEND SYNC HYDRATION ----------------
+  function replaceForEvent(listRef, eventId, remoteItems) {
+    const others = listRef.value.filter((item) => item.event_id && item.event_id !== eventId)
+    listRef.value = [...(remoteItems || []), ...others]
+  }
+
+  // ---------------- HEALTH & HYDRATION ----------------
   async function checkBackendHealth() {
     try {
       const res = await api.get('/health')
@@ -94,171 +67,217 @@ export const useEventWorkspaceStore = defineStore('eventWorkspace', () => {
   }
 
   async function fetchMarketplace() {
+    loading.value = true
     try {
-      const [evtRes, orgRes] = await Promise.all([
-        api.get('/marketplace/events', { params: { limit: 50 } }),
-        api.get('/marketplace/organizers')
+      const [evtsRes, orgsRes, catsRes] = await Promise.all([
+        api.get('/marketplace/events', { params: { limit: 100 } }),
+        api.get('/marketplace/organizers'),
+        api.get('/marketplace/categories')
       ])
+      if (Array.isArray(evtsRes?.data)) {
+        // Merge published marketplace events without wiping organizer drafts if logged in
+        const drafts = events.value.filter(
+          (e) => e.publication_status !== 'Published' && !evtsRes.data.some((r) => r.id === e.id)
+        )
+        events.value = [...evtsRes.data, ...drafts]
+        if (!activeEventId.value && events.value.length) {
+          activeEventId.value = events.value[0].id
+        }
+      }
+      if (Array.isArray(orgsRes?.data)) {
+        organizations.value = orgsRes.data
+      }
+      if (Array.isArray(catsRes?.data)) {
+        categories.value = catsRes.data
+      }
       apiConnected.value = true
-      if (Array.isArray(orgRes?.data) && orgRes.data.length) {
-        organizations.value = mergeById(organizations.value, orgRes.data)
-      }
-      if (Array.isArray(evtRes?.data) && evtRes.data.length) {
-        events.value = mergeById(events.value, evtRes.data)
-      }
-    } catch {
-      // Backend unreachable -> stay with local seed data
+    } finally {
+      loading.value = false
     }
   }
 
+  async function fetchEventPublic(slugOrId) {
+    if (!slugOrId) return null
+    const res = await api.get(`/marketplace/events/${slugOrId}`)
+    if (res?.data) {
+      upsertListItem(events, res.data)
+      return res.data
+    }
+    return null
+  }
+
   async function fetchOrganizerWorkspace() {
-    try {
-      const [evtRes, orgRes] = await Promise.all([
-        api.get('/events'),
-        api.get('/organizations')
-      ])
-      apiConnected.value = true
-      if (Array.isArray(orgRes?.data) && orgRes.data.length) {
-        organizations.value = orgRes.data
+    if (!localStorage.getItem('terra_access_token')) return
+    const [evtsRes, orgsRes] = await Promise.all([
+      api.get('/events'),
+      api.get('/organizations')
+    ])
+    if (Array.isArray(evtsRes?.data)) {
+      events.value = evtsRes.data
+      if (!activeEventId.value && events.value.length) {
+        activeEventId.value = events.value[0].id
       }
-      if (Array.isArray(evtRes?.data) && evtRes.data.length) {
-        events.value = evtRes.data
-      }
-    } catch {
-      // Unauthenticated or backend unreachable
+    }
+    if (Array.isArray(orgsRes?.data)) {
+      organizations.value = orgsRes.data
     }
   }
 
   async function fetchEventWorkspace(eventId) {
-    if (!eventId) return
+    if (!eventId || !localStorage.getItem('terra_access_token')) return
     activeEventId.value = eventId
-    try {
-      const evtRes = await api.get(`/events/${eventId}`)
-      apiConnected.value = true
-      if (evtRes?.data) {
-        const idx = events.value.findIndex((e) => e.id === eventId)
-        if (idx !== -1) events.value[idx] = { ...events.value[idx], ...evtRes.data }
-        else events.value.unshift(evtRes.data)
-      }
 
-      const evt = events.value.find((e) => e.id === eventId)
-      const mods = evt?.enabled_modules || []
-      const calls = []
+    const evtRes = await api.get(`/events/${eventId}`)
+    const evt = evtRes?.data
+    if (!evt) return
+    upsertListItem(events, evt)
 
-      if (mods.includes('timeline') || mods.includes('tasks')) {
-        calls.push(
-          api.get(`/events/${eventId}/tasks`).then((r) => {
-            if (Array.isArray(r?.data)) {
-              const others = tasks.value.filter((t) => t.event_id !== eventId)
-              tasks.value = [...r.data, ...others]
-            }
-          }).catch(() => {})
-        )
-      }
-      if (mods.includes('ticketing')) {
-        calls.push(
-          api.get(`/events/${eventId}/ticket-types`).then((r) => {
-            if (Array.isArray(r?.data) && evt) evt.ticket_types = r.data
-          }).catch(() => {})
-        )
-      }
-      if (mods.includes('participants')) {
-        calls.push(
-          api.get(`/events/${eventId}/participants`).then((r) => {
-            if (Array.isArray(r?.data)) {
-              const others = participants.value.filter((p) => p.event_id !== eventId)
-              participants.value = [...r.data, ...others]
-            }
-          }).catch(() => {})
-        )
-      }
-      if (mods.includes('check_in')) {
-        calls.push(
-          api.get(`/events/${eventId}/check-ins`).then((r) => {
-            if (Array.isArray(r?.data)) {
-              const others = checkinLogs.value.filter((c) => c.event_id !== eventId)
-              checkinLogs.value = [...r.data, ...others]
-            }
-          }).catch(() => {})
-        )
-      }
-      if (mods.includes('finance')) {
-        calls.push(
-          Promise.all([
-            api.get(`/events/${eventId}/finance/summary`),
-            api.get(`/events/${eventId}/finance/incomes`),
-            api.get(`/events/${eventId}/finance/expenses`)
-          ]).then(([sum, inc, exp]) => {
-            if (sum?.data?.budget !== undefined) finance.value.budget = sum.data.budget
-            if (Array.isArray(inc?.data)) finance.value.incomes = inc.data
-            if (Array.isArray(exp?.data)) finance.value.expenses = exp.data
-          }).catch(() => {})
-        )
-      }
-      if (mods.includes('vendors')) {
-        calls.push(
-          api.get(`/events/${eventId}/vendors`).then((r) => {
-            if (Array.isArray(r?.data)) {
-              const others = vendors.value.filter((v) => v.event_id !== eventId)
-              vendors.value = [...r.data, ...others]
-            }
-          }).catch(() => {})
-        )
-      }
-      if (mods.includes('sponsors')) {
-        calls.push(
-          api.get(`/events/${eventId}/sponsors`).then((r) => {
-            if (Array.isArray(r?.data)) {
-              const others = sponsors.value.filter((s) => s.event_id !== eventId)
-              sponsors.value = [...r.data, ...others]
-            }
-          }).catch(() => {})
-        )
-      }
-      if (mods.includes('documents')) {
-        calls.push(
-          api.get(`/events/${eventId}/documents`).then((r) => {
-            if (Array.isArray(r?.data)) {
-              const others = documents.value.filter((d) => d.event_id !== eventId)
-              documents.value = [...r.data, ...others]
-            }
-          }).catch(() => {})
-        )
-      }
-      if (mods.includes('team')) {
-        calls.push(
-          api.get(`/events/${eventId}/team`).then((r) => {
-            if (Array.isArray(r?.data)) {
-              const others = teamMembers.value.filter((m) => m.event_id !== eventId)
-              teamMembers.value = [...r.data, ...others]
-            }
-          }).catch(() => {})
-        )
-      }
+    const mods = evt.enabled_modules || []
+    const calls = []
 
-      await Promise.all(calls)
-    } catch {
-      // Offline / unauthenticated fallback
+    if (mods.includes('timeline') || mods.includes('tasks')) {
+      calls.push(
+        api.get(`/events/${eventId}/tasks`).then((r) => {
+          if (Array.isArray(r?.data)) replaceForEvent(tasks, eventId, r.data)
+        }).catch(() => {})
+      )
     }
+    if (mods.includes('ticketing')) {
+      calls.push(
+        api.get(`/events/${eventId}/ticket-types`).then((r) => {
+          if (Array.isArray(r?.data)) evt.ticket_types = r.data
+        }).catch(() => {})
+      )
+    }
+    if (mods.includes('participants')) {
+      calls.push(
+        api.get(`/events/${eventId}/participants`).then((r) => {
+          if (Array.isArray(r?.data)) replaceForEvent(participants, eventId, r.data)
+        }).catch(() => {})
+      )
+    }
+    if (mods.includes('check_in')) {
+      calls.push(
+        api.get(`/events/${eventId}/check-ins`).then((r) => {
+          if (Array.isArray(r?.data)) replaceForEvent(checkinLogs, eventId, r.data)
+        }).catch(() => {})
+      )
+    }
+    if (mods.includes('finance')) {
+      calls.push(
+        Promise.all([
+          api.get(`/events/${eventId}/finance/summary`),
+          api.get(`/events/${eventId}/finance/incomes`),
+          api.get(`/events/${eventId}/finance/expenses`)
+        ]).then(([sum, inc, exp]) => {
+          finance.value = {
+            budget: Number(sum?.data?.budget ?? 0),
+            incomes: Array.isArray(inc?.data) ? inc.data : [],
+            expenses: Array.isArray(exp?.data) ? exp.data : []
+          }
+        }).catch(() => {})
+      )
+    }
+    if (mods.includes('vendors')) {
+      calls.push(
+        api.get(`/events/${eventId}/vendors`).then((r) => {
+          if (Array.isArray(r?.data)) replaceForEvent(vendors, eventId, r.data)
+        }).catch(() => {})
+      )
+    }
+    if (mods.includes('sponsors')) {
+      calls.push(
+        api.get(`/events/${eventId}/sponsors`).then((r) => {
+          if (Array.isArray(r?.data)) replaceForEvent(sponsors, eventId, r.data)
+        }).catch(() => {})
+      )
+    }
+    if (mods.includes('documents')) {
+      calls.push(
+        api.get(`/events/${eventId}/documents`).then((r) => {
+          if (Array.isArray(r?.data)) replaceForEvent(documents, eventId, r.data)
+        }).catch(() => {})
+      )
+    }
+    if (mods.includes('team')) {
+      calls.push(
+        api.get(`/events/${eventId}/team`).then((r) => {
+          if (Array.isArray(r?.data)) replaceForEvent(teamMembers, eventId, r.data)
+        }).catch(() => {})
+      )
+    }
+    if (mods.includes('feedback') || mods.includes('surveys')) {
+      calls.push(
+        api.get(`/events/${eventId}/surveys`).then((r) => {
+          if (Array.isArray(r?.data)) replaceForEvent(surveys, eventId, r.data)
+        }).catch(() => {})
+      )
+    }
+
+    await Promise.all(calls)
   }
 
   async function fetchMyTickets() {
-    try {
-      const res = await api.get('/tickets/my')
-      apiConnected.value = true
-      if (Array.isArray(res?.data) && res.data.length) {
-        myTickets.value = res.data
-      }
-    } catch {
-      // Stay with local tickets
+    if (!localStorage.getItem('terra_access_token')) {
+      myTickets.value = []
+      return
+    }
+    const res = await api.get('/tickets/my')
+    if (Array.isArray(res?.data)) {
+      myTickets.value = res.data
     }
   }
 
-  // ---------------- MODULE ENGINE ----------------
+  async function fetchMyOrders() {
+    if (!localStorage.getItem('terra_access_token')) {
+      myOrders.value = []
+      return
+    }
+    const res = await api.get('/orders/my')
+    if (Array.isArray(res?.data)) {
+      myOrders.value = res.data
+    }
+  }
+
+  async function cancelMyOrder(orderId) {
+    const res = await api.post(`/orders/${orderId}/cancel`)
+    await Promise.all([fetchMyTickets(), fetchMyOrders()])
+    return res?.data
+  }
+
+  async function fetchAdminWorkspace() {
+    if (!localStorage.getItem('terra_access_token')) return
+    const [dash, usersRes, orgsRes, verRes, evtsRes, catsRes, repsRes] = await Promise.all([
+      api.get('/admin/dashboard'),
+      api.get('/admin/users'),
+      api.get('/admin/organizations'),
+      api.get('/admin/verifications'),
+      api.get('/admin/events'),
+      api.get('/admin/categories'),
+      api.get('/admin/reports')
+    ])
+    if (dash?.data) adminDashboard.value = dash.data
+    if (Array.isArray(usersRes?.data)) adminUsers.value = usersRes.data
+    if (Array.isArray(orgsRes?.data)) organizations.value = orgsRes.data
+    if (Array.isArray(verRes?.data)) adminVerifications.value = verRes.data
+    if (Array.isArray(evtsRes?.data)) events.value = evtsRes.data
+    if (Array.isArray(catsRes?.data)) categories.value = catsRes.data
+    if (Array.isArray(repsRes?.data)) adminReports.value = repsRes.data
+  }
+
+  // ---------------- MODULES ENGINE ----------------
   function isModuleEnabled(eventId, moduleKey) {
     const evt = events.value.find((e) => e.id === eventId)
     if (!evt) return false
-    return evt.enabled_modules.includes(moduleKey)
+    return (evt.enabled_modules || []).includes(moduleKey)
+  }
+
+  function hasPermission(eventId, perm) {
+    if (!perm) return true
+    const evt = events.value.find((e) => e.id === eventId)
+    if (!evt) return false
+    if (!Array.isArray(evt.my_permissions)) return true
+    return evt.my_permissions.includes(perm)
   }
 
   async function toggleModule(eventId, moduleKey) {
@@ -266,55 +285,30 @@ export const useEventWorkspaceStore = defineStore('eventWorkspace', () => {
     if (!evt) return { ok: false, message: 'Event tidak ditemukan.' }
 
     const mod = MODULE_CATALOG.find((m) => m.key === moduleKey)
-    if (!mod) return { ok: false, message: 'Modul tidak valid.' }
-    if (mod.isCore) return { ok: false, message: 'Event Profile wajib aktif.' }
-
-    const nextEnabled = !evt.enabled_modules.includes(moduleKey)
+    if (!mod) return { ok: false, message: 'Modul tidak dikenali.' }
+    const willEnable = !(evt.enabled_modules || []).includes(moduleKey)
 
     try {
       const res = await api.patch(`/events/${eventId}/modules/${moduleKey}`, {
-        is_enabled: nextEnabled
+        enabled: willEnable
       })
-      if (res?.data?.enabled_modules) {
+      if (Array.isArray(res?.data?.enabled_modules)) {
         evt.enabled_modules = res.data.enabled_modules
+      }
+      if (willEnable) {
+        fetchEventWorkspace(eventId)
       }
       return {
         ok: true,
-        enabled: nextEnabled,
-        message: nextEnabled
-          ? `Modul ${mod.name} diaktifkan.`
-          : `Modul ${mod.name} dinonaktifkan. Data historis tetap tersimpan.`
+        enabled: willEnable,
+        message: res?.message || (willEnable ? `Modul ${mod.name} diaktifkan.` : `Modul ${mod.name} dinonaktifkan.`)
       }
     } catch (err) {
-      if (err?.code && err.code !== 'NETWORK_ERROR') {
-        return { ok: false, message: err.message }
-      }
-      // Fallback local toggle when offline
-      if (nextEnabled) {
-        const missingDeps = mod.dependsOn.filter((dep) => !evt.enabled_modules.includes(dep))
-        if (missingDeps.length > 0) {
-          return {
-            ok: false,
-            message: `Modul ini membutuhkan modul: ${missingDeps.join(', ')} untuk diaktifkan terlebih dahulu.`
-          }
-        }
-        evt.enabled_modules.push(moduleKey)
-        return { ok: true, enabled: true, message: `Modul ${mod.name} diaktifkan.` }
-      } else {
-        const dependents = MODULE_CATALOG.filter((m) => m.dependsOn.includes(moduleKey)).map((m) => m.key)
-        evt.enabled_modules = evt.enabled_modules.filter(
-          (k) => k !== moduleKey && !dependents.includes(k)
-        )
-        return {
-          ok: true,
-          enabled: false,
-          message: `Modul ${mod.name} dinonaktifkan. Data historis tetap tersimpan.`
-        }
-      }
+      return { ok: false, message: err?.message || 'Gagal mengubah konfigurasi modul.' }
     }
   }
 
-  // ---------------- FINANCE HELPERS ----------------
+  // ---------------- FINANCE ENGINE ----------------
   function getPaidTicketBreakdown(eventId) {
     const evt = events.value.find((e) => e.id === eventId)
     if (!evt) return []
@@ -324,165 +318,204 @@ export const useEventWorkspaceStore = defineStore('eventWorkspace', () => {
         id: t.id,
         name: t.name,
         price: Number(t.price),
-        sold_quantity: Number(t.sold_quantity),
-        revenue: Number(t.price) * Number(t.sold_quantity)
+        sold: Number(t.sold_quantity) || 0,
+        revenue: (Number(t.price) || 0) * (Number(t.sold_quantity) || 0)
       }))
   }
 
   function getPaidTicketRevenue(eventId) {
-    return getPaidTicketBreakdown(eventId).reduce((sum, item) => sum + item.revenue, 0)
+    return getPaidTicketBreakdown(eventId).reduce((sum, t) => sum + t.revenue, 0)
   }
 
   async function addFinanceRecord(eventId, type, payload) {
-    const endpoint = type === 'income'
-      ? `/events/${eventId}/finance/incomes`
-      : `/events/${eventId}/finance/expenses`
-    try {
-      const res = await api.post(endpoint, payload)
-      if (res?.data) {
-        if (type === 'income') finance.value.incomes.unshift(res.data)
-        else finance.value.expenses.unshift(res.data)
-        return res.data
-      }
-    } catch {
-      // Offline fallback
-    }
-    const item = {
-      id: 'tx-' + Date.now(),
-      event_id: eventId,
+    const endpoint =
+      type === 'income'
+        ? `/events/${eventId}/finance/incomes`
+        : `/events/${eventId}/finance/expenses`
+    const res = await api.post(endpoint, {
       ...payload,
-      date: payload.date || new Date().toISOString().slice(0, 10)
+      amount: Number(payload.amount)
+    })
+    const created = res?.data
+    if (created) {
+      if (type === 'income') finance.value.incomes.unshift(created)
+      else finance.value.expenses.unshift(created)
     }
-    if (type === 'income') finance.value.incomes.unshift(item)
-    else finance.value.expenses.unshift(item)
-    return item
+    return created
   }
 
-  // ---------------- ORGANIZATIONS & EVENTS CRUD ----------------
+  async function setEventBudget(eventId, amount) {
+    const res = await api.post(`/events/${eventId}/finance/budgets`, {
+      amount: Number(amount || 0)
+    })
+    finance.value.budget = Number(res?.data?.amount ?? amount ?? 0)
+    return res?.data || { event_id: eventId, amount: finance.value.budget }
+  }
+
+  async function updateFinanceRecord(type, id, patch) {
+    const path = type === 'income' ? `/finance/incomes/${id}` : `/finance/expenses/${id}`
+    const payload = { ...patch }
+    if (payload.amount !== undefined) payload.amount = Number(payload.amount)
+    const res = await api.patch(path, payload)
+    const list = type === 'income' ? finance.value.incomes : finance.value.expenses
+    const idx = list.findIndex((item) => item.id === id)
+    if (idx !== -1 && res?.data) {
+      list[idx] = { ...list[idx], ...res.data }
+    }
+    return res?.data || null
+  }
+
+  async function deleteFinanceRecord(type, id) {
+    const path = type === 'income' ? `/finance/incomes/${id}` : `/finance/expenses/${id}`
+    await api.delete(path)
+    if (type === 'income') {
+      finance.value.incomes = finance.value.incomes.filter((item) => item.id !== id)
+    } else {
+      finance.value.expenses = finance.value.expenses.filter((item) => item.id !== id)
+    }
+  }
+
+  // ---------------- ORGANIZATIONS & EVENTS ----------------
   async function createOrganization(payload) {
-    try {
-      const res = await api.post('/organizations', payload)
-      if (res?.data) {
-        organizations.value.unshift(res.data)
-        return res.data
-      }
-    } catch {
-      // Fallback
+    const res = await api.post('/organizations', payload)
+    if (res?.data) {
+      organizations.value.unshift(res.data)
+      return res.data
     }
-    const org = {
-      id: 'org-' + Date.now(),
-      ...payload,
-      logo_url: 'https://images.unsplash.com/photo-1560179707-f14e90ef3623?w=200&q=80',
-      cover_url: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=1200&q=80',
-      verification_status: 'pending',
-      member_count: 1,
-      event_count: 0
+    return null
+  }
+
+  async function updateOrganization(orgId, payload) {
+    const res = await api.patch(`/organizations/${orgId}`, payload)
+    if (res?.data) {
+      upsertListItem(organizations, res.data)
+      return res.data
     }
-    organizations.value.unshift(org)
-    return org
+    return null
+  }
+
+  async function deleteOrganization(orgId) {
+    await api.delete(`/organizations/${orgId}`)
+    organizations.value = organizations.value.filter((o) => o.id !== orgId)
+  }
+
+  async function requestOrgVerification(orgId, docs = []) {
+    const res = await api.post(`/organizations/${orgId}/verification`, { documents: docs })
+    const org = organizations.value.find((o) => o.id === orgId)
+    if (org && org.verification_status !== 'verified') {
+      org.verification_status = 'pending'
+    }
+    return res?.data || null
+  }
+
+  async function fetchOrgMembers(orgId) {
+    const res = await api.get(`/organizations/${orgId}/members`)
+    const list = Array.isArray(res?.data) ? res.data : []
+    const org = organizations.value.find((o) => o.id === orgId)
+    if (org) {
+      org.members = list
+      org.member_count = list.length
+    }
+    return list
+  }
+
+  async function addOrgMember(orgId, payload) {
+    const res = await api.post(`/organizations/${orgId}/members`, payload)
+    const org = organizations.value.find((o) => o.id === orgId)
+    if (org && res?.data) {
+      if (!Array.isArray(org.members)) org.members = []
+      org.members.push(res.data)
+      org.member_count = org.members.length
+    }
+    return res?.data || null
+  }
+
+  async function updateOrgMember(orgId, memberId, patch) {
+    const res = await api.patch(`/organizations/${orgId}/members/${memberId}`, patch)
+    const org = organizations.value.find((o) => o.id === orgId)
+    if (org?.members && res?.data) {
+      const m = org.members.find((item) => item.id === memberId)
+      if (m) Object.assign(m, res.data)
+    }
+    return res?.data || null
+  }
+
+  async function removeOrgMember(orgId, memberId) {
+    await api.delete(`/organizations/${orgId}/members/${memberId}`)
+    const org = organizations.value.find((o) => o.id === orgId)
+    if (org?.members) {
+      org.members = org.members.filter((m) => m.id !== memberId)
+      org.member_count = org.members.length
+    }
   }
 
   async function createEvent(payload) {
-    try {
-      const res = await api.post('/events', payload)
-      if (res?.data) {
-        events.value.unshift(res.data)
-        activeEventId.value = res.data.id
-        return res.data
-      }
-    } catch {
-      // Fallback
+    const res = await api.post('/events', payload)
+    if (res?.data) {
+      events.value.unshift(res.data)
+      activeEventId.value = res.data.id
+      return res.data
     }
-    const newEvt = {
-      id: 'evt-' + Date.now(),
-      organization_id: payload.organization_id || organizations.value[0].id,
-      organization: organizations.value.find((o) => o.id === payload.organization_id) || organizations.value[0],
-      ...payload,
-      status: 'Draft',
-      publication_status: 'Published',
-      is_featured: false,
-      enabled_modules: ['event_profile', 'timeline', 'tasks', 'ticketing', 'participants'],
-      ticket_types: [],
-      schedules: [],
-      speakers: []
-    }
-    events.value.unshift(newEvt)
-    activeEventId.value = newEvt.id
-    return newEvt
+    return null
   }
 
   async function duplicateEvent(eventId) {
-    try {
-      const res = await api.post(`/events/${eventId}/duplicate`)
-      if (res?.data) {
-        events.value.unshift(res.data)
-        return res.data
-      }
-    } catch {
-      // Fallback
+    const res = await api.post(`/events/${eventId}/duplicate`)
+    if (res?.data) {
+      events.value.unshift(res.data)
+      return res.data
     }
-    const source = events.value.find((e) => e.id === eventId)
-    if (!source) return null
-    const copy = JSON.parse(JSON.stringify(source))
-    copy.id = 'evt-' + Date.now()
-    copy.title = `${source.title} (Copy)`
-    copy.slug = `${source.slug}-copy-${Math.floor(100 + Math.random() * 900)}`
-    copy.status = 'Draft'
-    copy.publication_status = 'Unpublished'
-    copy.ticket_types = (copy.ticket_types || []).map((t) => ({ ...t, id: 'tkt-' + Math.random(), sold_quantity: 0 }))
-    events.value.unshift(copy)
-    return copy
+    return null
   }
 
   async function updateEventProfile(eventId, payload) {
-    try {
-      const res = await api.patch(`/events/${eventId}`, payload)
-      if (res?.data) {
-        const idx = events.value.findIndex((e) => e.id === eventId)
-        if (idx !== -1) events.value[idx] = { ...events.value[idx], ...res.data }
-        return events.value[idx]
-      }
-    } catch {
-      // Offline fallback
+    const res = await api.patch(`/events/${eventId}`, payload)
+    if (res?.data) {
+      upsertListItem(events, res.data)
+      return res.data
     }
-    const idx = events.value.findIndex((e) => e.id === eventId)
-    if (idx === -1) return null
-    events.value[idx] = {
-      ...events.value[idx],
-      ...payload
+    return null
+  }
+
+  async function deleteEvent(eventId) {
+    await api.delete(`/events/${eventId}`)
+    events.value = events.value.filter((e) => e.id !== eventId)
+    if (activeEventId.value === eventId) {
+      activeEventId.value = events.value[0]?.id || ''
     }
-    return events.value[idx]
+  }
+
+  async function submitEventReview(eventId) {
+    const res = await api.post(`/events/${eventId}/submit-review`)
+    if (res?.data) upsertListItem(events, res.data)
+    return res?.data || null
+  }
+
+  async function publishEvent(eventId) {
+    const res = await api.post(`/events/${eventId}/publish`)
+    if (res?.data) upsertListItem(events, res.data)
+    return res?.data || null
+  }
+
+  async function unpublishEvent(eventId) {
+    const res = await api.post(`/events/${eventId}/unpublish`)
+    if (res?.data) upsertListItem(events, res.data)
+    return res?.data || null
   }
 
   // ---------------- TASKS & TIMELINE ----------------
   async function addTask(payload) {
     const eventId = payload.event_id || activeEventId.value
-    try {
-      const res = await api.post(`/events/${eventId}/tasks`, payload)
-      if (res?.data) {
-        tasks.value.push(res.data)
-        return res.data
-      }
-    } catch {
-      // Fallback
+    const res = await api.post(`/events/${eventId}/tasks`, payload)
+    if (res?.data) {
+      tasks.value.push(res.data)
+      return res.data
     }
-    const task = {
-      id: (payload.parent_id ? 'tsk-' : 'chk-') + Date.now(),
-      event_id: eventId,
-      is_group: !payload.parent_id,
-      due_at: payload.due_date || payload.due_at || '2026-12-01',
-      ...payload
-    }
-    tasks.value.push(task)
-    return task
+    return null
   }
 
   async function updateTask(taskId, patch) {
-    try {
-      await api.patch(`/tasks/${taskId}`, patch)
-    } catch {
-      // Offline fallback
-    }
+    const res = await api.patch(`/tasks/${taskId}`, patch)
     const task = tasks.value.find((t) => t.id === taskId)
     if (task) {
       if (task.is_group && patch.shift_days) {
@@ -504,320 +537,492 @@ export const useEventWorkspaceStore = defineStore('eventWorkspace', () => {
           }
         })
       }
-      const cleanPatch = { ...patch }
-      delete cleanPatch.shift_days
-      if (cleanPatch.due_date && !cleanPatch.due_at) cleanPatch.due_at = cleanPatch.due_date
-      if (cleanPatch.due_at && !cleanPatch.due_date) cleanPatch.due_date = cleanPatch.due_at
-      Object.assign(task, cleanPatch)
+      if (res?.data) {
+        Object.assign(task, res.data)
+      }
     }
-    return task
+    return task || res?.data
   }
 
   async function deleteTask(taskId) {
-    try {
-      await api.delete(`/tasks/${taskId}`)
-    } catch {
-      // Offline fallback
-    }
+    await api.delete(`/tasks/${taskId}`)
     tasks.value = tasks.value.filter((t) => t.id !== taskId && t.parent_id !== taskId)
   }
 
   // ---------------- TICKETING, PARTICIPANTS & ORDERS ----------------
   async function addTicketType(eventId, payload) {
     const evt = events.value.find((e) => e.id === eventId)
-    try {
-      const res = await api.post(`/events/${eventId}/ticket-types`, payload)
-      if (res?.data && evt) {
-        evt.ticket_types.push(res.data)
-        return res.data
-      }
-    } catch {
-      // Fallback
+    const res = await api.post(`/events/${eventId}/ticket-types`, payload)
+    if (res?.data && evt) {
+      if (!Array.isArray(evt.ticket_types)) evt.ticket_types = []
+      evt.ticket_types.push(res.data)
+      return res.data
     }
-    const item = {
-      id: 'tkt-' + Date.now(),
-      event_id: eventId,
-      currency: 'IDR',
-      sold_quantity: 0,
-      min_per_order: 1,
-      max_per_order: 3,
-      status: 'On Sale',
-      ...payload
-    }
-    if (evt) evt.ticket_types.push(item)
-    return item
+    return null
   }
 
   async function toggleTicketTypeStatus(tkt) {
     const nextStatus = tkt.status === 'On Sale' ? 'Disabled' : 'On Sale'
-    try {
-      await api.patch(`/ticket-types/${tkt.id}`, { status: nextStatus })
-    } catch {
-      // Offline fallback
-    }
+    await api.patch(`/ticket-types/${tkt.id}`, { status: nextStatus })
     tkt.status = nextStatus
     return tkt
   }
 
-  async function addManualParticipant(eventId, { full_name, email, phone, ticket_type }) {
-    try {
-      const res = await api.post(`/events/${eventId}/participants`, {
-        full_name,
-        email,
-        phone,
-        ticket_type
+  async function updateTicketType(ticketTypeId, patch) {
+    const res = await api.patch(`/ticket-types/${ticketTypeId}`, patch)
+    if (res?.data) {
+      events.value.forEach((evt) => {
+        if (Array.isArray(evt.ticket_types)) {
+          const t = evt.ticket_types.find((item) => item.id === ticketTypeId)
+          if (t) Object.assign(t, res.data)
+        }
       })
-      if (res?.data) {
-        participants.value.unshift(res.data)
-        return res.data
-      }
-    } catch {
-      // Fallback
+      return res.data
     }
-    const code = `EVT26-${Math.floor(1000 + Math.random() * 9000)}-${Math.random().toString(36).substring(2, 4).toUpperCase()}`
-    const p = {
-      id: 'pt-' + Date.now(),
-      event_id: eventId,
+    return null
+  }
+
+  async function deleteTicketType(ticketTypeId) {
+    await api.delete(`/ticket-types/${ticketTypeId}`)
+    events.value.forEach((evt) => {
+      if (Array.isArray(evt.ticket_types)) {
+        evt.ticket_types = evt.ticket_types.filter((item) => item.id !== ticketTypeId)
+      }
+    })
+  }
+
+  async function addManualParticipant(eventId, { full_name, email, phone, ticket_type }) {
+    const res = await api.post(`/events/${eventId}/participants`, {
       full_name,
       email,
       phone,
-      ticket_type: ticket_type || 'Manual Registration',
-      ticket_code: code,
-      order_number: 'MAN-' + Math.floor(10000 + Math.random() * 90000),
-      registration_status: 'Confirmed',
-      checked_in: false
+      ticket_type
+    })
+    if (res?.data) {
+      const created = {
+        ...res.data.participant,
+        ticket_code: res.data.ticket?.ticket_code || res.data.participant?.ticket_code,
+        ticket_type: res.data.participant?.ticket_type || ticket_type
+      }
+      participants.value.unshift(created)
+      if (res.data.ticket) {
+        myTickets.value.unshift(res.data.ticket)
+      }
+      return created
     }
-    participants.value.unshift(p)
-    return p
+    return null
+  }
+
+  async function updateParticipant(participantId, patch) {
+    const res = await api.patch(`/participants/${participantId}`, patch)
+    const item = participants.value.find((p) => p.id === participantId)
+    if (item && res?.data) {
+      Object.assign(item, res.data)
+    }
+    return res?.data || item
+  }
+
+  async function deleteParticipant(participantId) {
+    await api.delete(`/participants/${participantId}`)
+    participants.value = participants.value.filter((p) => p.id !== participantId)
   }
 
   async function placeOrder({ eventId, ticketTypeId, quantity, attendee }) {
-    try {
-      const res = await api.post('/orders', {
-        event_id: eventId,
-        ticket_type_id: ticketTypeId,
-        quantity,
-        attendee
-      })
-      if (res?.data) {
-        const { order, participant, tickets: created } = res.data
-        if (Array.isArray(created) && created.length) {
-          myTickets.value.unshift(...created)
-        }
-        if (participant) participants.value.unshift(participant)
-        const evt = events.value.find((e) => e.id === eventId)
-        const tkt = evt?.ticket_types?.find((t) => t.id === ticketTypeId)
-        if (tkt) {
-          tkt.sold_quantity += quantity
-          if (tkt.sold_quantity >= tkt.quantity) tkt.status = 'Sold Out'
-        }
-        return { orderNumber: order.order_number, tickets: created }
-      }
-    } catch (err) {
-      if (err?.code && err.code !== 'NETWORK_ERROR') {
-        throw new Error(err.message)
-      }
-    }
-
-    // Offline fallback
-    const evt = events.value.find((e) => e.id === eventId)
-    if (!evt) throw new Error('Event tidak ditemukan.')
-    const tkt = evt.ticket_types.find((t) => t.id === ticketTypeId)
-    if (!tkt) throw new Error('Jenis tiket tidak ditemukan.')
-    const remaining = tkt.quantity - tkt.sold_quantity
-    if (remaining < quantity) throw new Error('Kuota tiket tidak mencukupi.')
-
-    tkt.sold_quantity += quantity
-    if (tkt.sold_quantity >= tkt.quantity) tkt.status = 'Sold Out'
-
-    const orderNumber = 'ORD-' + new Date().toISOString().slice(0, 10).replace(/-/g, '') + '-' + Math.floor(100 + Math.random() * 900)
-    const createdTickets = []
-
-    for (let i = 0; i < quantity; i++) {
-      const code = `EVT26-${Math.floor(1000 + Math.random() * 9000)}-${Math.random().toString(36).substring(2, 4).toUpperCase()}`
-      const ticketObj = {
-        id: 'tc-' + Date.now() + '-' + i,
-        ticket_code: code,
-        qr_payload: `TERRA:${code}:${evt.id}`,
-        event_id: evt.id,
-        event_title: evt.title,
-        event_date: evt.start_at,
-        location: evt.location_name,
-        ticket_type: tkt.name,
-        participant_name: attendee.full_name,
-        participant_email: attendee.email,
-        order_number: orderNumber,
-        status: 'Active'
-      }
-      myTickets.value.unshift(ticketObj)
-      createdTickets.push(ticketObj)
-      participants.value.unshift({
-        id: 'pt-' + Date.now() + '-' + i,
-        event_id: evt.id,
+    const res = await api.post('/orders', {
+      event_id: eventId,
+      ticket_type_id: ticketTypeId,
+      quantity,
+      attendee: {
         full_name: attendee.full_name,
         email: attendee.email,
-        phone: attendee.phone,
-        ticket_type: tkt.name,
-        ticket_code: code,
-        order_number: orderNumber,
-        registration_status: 'Confirmed',
-        checked_in: false
-      })
+        phone: attendee.phone
+      }
+    })
+
+    const data = res?.data
+    const issued = data?.tickets || []
+    if (issued.length) {
+      myTickets.value.unshift(...issued)
     }
 
-    return { orderNumber, tickets: createdTickets }
+    const evt = events.value.find((e) => e.id === eventId)
+    const tt = evt?.ticket_types?.find((t) => t.id === ticketTypeId)
+    if (tt) {
+      tt.sold_quantity = Number(tt.sold_quantity || 0) + Number(quantity)
+    }
+
+    return {
+      orderNumber: data?.order?.order_number,
+      tickets: issued,
+      emailStatus: data?.email_status || null
+    }
   }
 
+  // ---------------- CHECK-IN VALIDATION ----------------
   async function checkInTicket(codeOrQr, station = 'Gate A - Main Lobby') {
     try {
-      const res = await api.post('/tickets/check-in', {
-        code: codeOrQr,
-        station
-      })
-      if (res?.data?.ticket) {
-        const tk = res.data.ticket
-        const participant = participants.value.find((p) => p.ticket_code === tk.ticket_code)
-        if (participant) participant.checked_in = true
-        const myTk = myTickets.value.find((t) => t.ticket_code === tk.ticket_code)
-        if (myTk) myTk.status = 'Used'
-        if (res.data.checkin) {
-          checkinLogs.value.unshift(res.data.checkin)
-        }
-        return {
-          success: true,
-          ok: true,
-          status: 'SUCCESS',
-          participant: participant || { full_name: tk.participant_name },
-          message: res.message || `Check-in berhasil: ${tk.participant_name}`
-        }
+      const res = await api.post('/tickets/check-in', { code: codeOrQr, station })
+      const data = res?.data
+      if (data?.checkin) {
+        checkinLogs.value.unshift({
+          id: data.checkin.id,
+          event_id: data.checkin.event_id,
+          ticket_code: data.ticket?.ticket_code || codeOrQr,
+          participant_name: data.participant?.full_name || 'Peserta',
+          ticket_type: data.participant?.ticket_type || data.ticket?.ticket_type || 'Tiket Event',
+          station: data.checkin.checkin_location || station,
+          checked_in_at: data.checkin.checked_in_at
+        })
+      }
+      const p = participants.value.find(
+        (x) => x.ticket_code === (data?.ticket?.ticket_code || codeOrQr)
+      )
+      if (p) p.checked_in = true
+      const mt = myTickets.value.find(
+        (t) => t.ticket_code === (data?.ticket?.ticket_code || codeOrQr)
+      )
+      if (mt) mt.status = 'Used'
+      return {
+        success: true,
+        ok: true,
+        status: 'success',
+        participant: data?.participant,
+        ticket: data?.ticket,
+        message: res?.message || 'Check-in berhasil! Peserta diizinkan masuk.'
       }
     } catch (err) {
-      if (err?.code && err.code !== 'NETWORK_ERROR') {
-        return { success: false, ok: false, status: err.code, message: err.message }
-      }
-    }
-
-    // Offline fallback
-    const cleanCode = codeOrQr.includes('TERRA:') ? codeOrQr.split(':')[1] : codeOrQr.trim()
-    const participant = participants.value.find((p) => p.ticket_code.toUpperCase() === cleanCode.toUpperCase())
-    if (!participant) {
-      return { success: false, ok: false, status: 'INVALID', message: `Tiket "${cleanCode}" tidak ditemukan.` }
-    }
-    if (participant.checked_in) {
       return {
         success: false,
         ok: false,
-        status: 'DUPLICATE',
-        message: `Tiket ${participant.ticket_code} (${participant.full_name}) sudah digunakan sebelumnya.`
+        status: err?.code === 'DUPLICATE_CHECKIN' ? 'duplicate' : 'error',
+        message: err?.message || 'Tiket tidak valid.'
       }
-    }
-    participant.checked_in = true
-    const ticket = myTickets.value.find((t) => t.ticket_code === participant.ticket_code)
-    if (ticket) ticket.status = 'Used'
-    const timeStr = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB'
-    checkinLogs.value.unshift({
-      id: 'chk-' + Date.now(),
-      ticket_code: participant.ticket_code,
-      participant_name: participant.full_name,
-      ticket_type: participant.ticket_type,
-      station,
-      checked_in_at: timeStr
-    })
-    return {
-      success: true,
-      ok: true,
-      status: 'SUCCESS',
-      participant,
-      message: `Check-in berhasil: ${participant.full_name} (${participant.ticket_type}) di ${station}.`
     }
   }
 
-  // ---------------- OPERATIONS, TEAM & ADMIN ----------------
+  // ---------------- OPERATIONS (VENDORS, SPONSORS, DOCS) & TEAM ----------------
   async function addVendor(eventId, payload) {
-    try {
-      const res = await api.post(`/events/${eventId}/vendors`, payload)
-      if (res?.data) {
-        vendors.value.unshift(res.data)
-        return res.data
-      }
-    } catch {
-      // Fallback
+    const res = await api.post(`/events/${eventId}/vendors`, payload)
+    if (res?.data) {
+      vendors.value.unshift(res.data)
+      return res.data
     }
-    const item = { id: 'v-' + Date.now(), event_id: eventId, ...payload }
-    vendors.value.unshift(item)
-    return item
+    return null
+  }
+
+  async function updateVendor(vendorId, patch) {
+    const res = await api.patch(`/vendors/${vendorId}`, patch)
+    const item = vendors.value.find((v) => v.id === vendorId)
+    if (item && res?.data) Object.assign(item, res.data)
+    return res?.data || item
+  }
+
+  async function deleteVendor(vendorId) {
+    await api.delete(`/vendors/${vendorId}`)
+    vendors.value = vendors.value.filter((v) => v.id !== vendorId)
+  }
+
+  async function addSponsor(eventId, payload) {
+    const res = await api.post(`/events/${eventId}/sponsors`, payload)
+    if (res?.data) {
+      sponsors.value.unshift(res.data)
+      return res.data
+    }
+    return null
+  }
+
+  async function updateSponsor(sponsorId, patch) {
+    const res = await api.patch(`/sponsors/${sponsorId}`, patch)
+    const item = sponsors.value.find((s) => s.id === sponsorId)
+    if (item && res?.data) Object.assign(item, res.data)
+    return res?.data || item
+  }
+
+  async function deleteSponsor(sponsorId) {
+    await api.delete(`/sponsors/${sponsorId}`)
+    sponsors.value = sponsors.value.filter((s) => s.id !== sponsorId)
+  }
+
+  async function uploadMedia(file, { folder = 'general', bucketType = 'media' } = {}) {
+    if (!file) throw new Error('File tidak ditemukan.')
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('folder', folder)
+    formData.append('bucket_type', bucketType)
+    const res = await api.post('/media/upload', formData)
+    return res?.data
+  }
+
+  async function addDocument(eventId, payload) {
+    let res
+    if (payload?.file instanceof File) {
+      const formData = new FormData()
+      formData.append('file', payload.file)
+      if (payload.category) formData.append('category', payload.category)
+      if (payload.visibility) formData.append('visibility', payload.visibility)
+      if (payload.file_name) formData.append('file_name', payload.file_name)
+      res = await api.post(`/events/${eventId}/documents`, formData)
+    } else {
+      res = await api.post(`/events/${eventId}/documents`, payload)
+    }
+    if (res?.data) {
+      documents.value.unshift(res.data)
+      return res.data
+    }
+    return null
+  }
+
+  async function downloadDocument(doc) {
+    const res = await api.get(`/documents/${doc.id}/download`)
+    return res?.data?.signed_url || null
+  }
+
+  async function deleteDocument(docId) {
+    await api.delete(`/documents/${docId}`)
+    documents.value = documents.value.filter((d) => d.id !== docId)
+  }
+
+  async function fetchSurveys(eventId) {
+    const res = await api.get(`/events/${eventId}/surveys`)
+    if (Array.isArray(res?.data)) {
+      replaceForEvent(surveys, eventId, res.data)
+      return res.data
+    }
+    return []
+  }
+
+  async function createSurvey(eventId, payload) {
+    const res = await api.post(`/events/${eventId}/surveys`, payload)
+    if (res?.data) {
+      surveys.value.unshift(res.data)
+      return res.data
+    }
+    return null
   }
 
   async function inviteTeamMember(eventId, payload) {
-    try {
-      const res = await api.post(`/events/${eventId}/team`, payload)
-      if (res?.data) {
-        teamMembers.value.push(res.data)
-        return res.data
-      }
-    } catch {
-      // Fallback
+    const res = await api.post(`/events/${eventId}/team`, payload)
+    const data = res?.data
+    const member = data?.member || data
+    if (member) {
+      teamMembers.value.push(member)
     }
-    const member = {
-      id: 'tm-' + Date.now(),
-      event_id: eventId,
-      permissions: payload.role === 'Staff' ? ['View Event', 'Manage Check-in'] : ['View Event', 'Edit Event', 'Manage Timeline'],
-      ...payload
+    return {
+      member,
+      invite_url: data?.invite_url || null,
+      email_status: data?.email_status || null,
+      message: res?.message || 'Undangan anggota panitia berhasil dibuat.'
     }
-    teamMembers.value.push(member)
-    return member
   }
 
   async function updateTeamMember(eventId, memberId, patch) {
-    try {
-      await api.patch(`/events/${eventId}/team/${memberId}`, patch)
-    } catch {
-      // Fallback
-    }
+    const res = await api.patch(`/events/${eventId}/team/${memberId}`, patch)
     const member = teamMembers.value.find((m) => m.id === memberId)
-    if (member) Object.assign(member, patch)
+    if (member && res?.data) {
+      Object.assign(member, res.data)
+    }
     return member
   }
 
   async function removeTeamMember(eventId, memberId) {
-    try {
-      await api.delete(`/events/${eventId}/team/${memberId}`)
-    } catch {
-      // Fallback
-    }
+    await api.delete(`/events/${eventId}/team/${memberId}`)
     teamMembers.value = teamMembers.value.filter((m) => m.id !== memberId)
   }
 
+  // ---------------- ADMIN MODERATION, VERIFICATION, CATEGORIES, USERS ----------------
   async function updateModeration(eventId, action) {
-    try {
-      await api.post(`/admin/events/${eventId}/${action}`, { notes: `Moderated as ${action}` })
-    } catch {
-      // Fallback
+    const res = await api.post(`/admin/events/${eventId}/${action}`, {
+      notes: `Moderated as ${action}`
+    })
+    if (res?.data?.event) {
+      upsertListItem(events, res.data.event)
     }
+  }
+
+  async function reviewVerification(idOrOrgId, status, notes = '') {
+    const res = await api.post(`/admin/verifications/${idOrOrgId}/review`, { status, notes })
+    if (res?.data?.organization) {
+      upsertListItem(organizations, res.data.organization)
+    }
+    if (res?.data?.verification) {
+      upsertListItem(adminVerifications, res.data.verification)
+    }
+    return res?.data
+  }
+
+  async function createCategory(payload) {
+    const res = await api.post('/admin/categories', payload)
+    if (res?.data) {
+      categories.value.push(res.data)
+      return res.data
+    }
+    return null
+  }
+
+  async function deleteCategory(categoryId) {
+    await api.delete(`/admin/categories/${categoryId}`)
+    categories.value = categories.value.filter((c) => c.id !== categoryId)
+  }
+
+  async function toggleUserStatus(user) {
+    const nextSuspended = !user.is_suspended
+    const res = await api.patch(`/admin/users/${user.id}/status`, {
+      is_suspended: nextSuspended
+    })
+    if (res?.data) {
+      Object.assign(user, res.data)
+    }
+    return user
+  }
+
+  async function createAdminOrganizer(payload) {
+    const res = await api.post('/admin/organizers', payload)
+    const data = res?.data
+    if (data?.organizer) {
+      adminUsers.value.unshift(data.organizer)
+    }
+    if (data?.organization) {
+      organizations.value.unshift(data.organization)
+    }
+    return data
+  }
+
+  async function updateOrganizerSubscription(organizerId, payload) {
+    const res = await api.patch(`/admin/organizers/${organizerId}/subscription`, payload)
+    const target = adminUsers.value.find((u) => u.id === organizerId)
+    if (target && res?.data) {
+      Object.assign(target, res.data)
+    }
+    return res?.data
+  }
+
+  async function fetchCompanionPosts(slugOrId) {
+    const res = await api.get(`/marketplace/events/${slugOrId}/companions`)
+    return Array.isArray(res?.data) ? res.data : []
+  }
+
+  async function createCompanionPost(slugOrId, payload) {
+    const res = await api.post(`/marketplace/events/${slugOrId}/companions`, payload)
+    return res?.data || null
+  }
+
+  async function updateCompanionPost(postId, payload) {
+    const res = await api.patch(`/marketplace/companions/${postId}`, payload)
+    return res?.data || null
+  }
+
+  async function deleteCompanionPost(postId) {
+    const res = await api.delete(`/marketplace/companions/${postId}`)
+    return res?.data || null
+  }
+
+  async function replyCompanionPost(postId, message) {
+    const res = await api.post(`/marketplace/companions/${postId}/replies`, { message })
+    return res?.data || null
+  }
+
+  // ---------------- TERRA PRICING, ENTITLEMENTS & BILLING ----------------
+  async function fetchPricingCatalog() {
+    const res = await api.get('/pricing/catalog')
+    return res?.data || null
+  }
+
+  async function previewBillingCheckout(payload) {
+    const res = await api.post('/pricing/preview', payload)
+    return res?.data || null
+  }
+
+  async function fetchEventEntitlement(eventId) {
+    const res = await api.get(`/events/${eventId}/subscription`)
     const evt = events.value.find((e) => e.id === eventId)
-    if (!evt) return
-    if (action === 'approve') {
-      evt.publication_status = 'Published'
-      evt.status = 'Published'
-    } else if (action === 'reject') {
-      evt.publication_status = 'Rejected'
-    } else if (action === 'suspend') {
-      evt.publication_status = 'Suspended'
-    }
+    if (evt && res?.data) evt.entitlement = res.data
+    return res?.data || null
+  }
+
+  async function activateEventTrial(eventId) {
+    const res = await api.post(`/events/${eventId}/subscription/trial`)
+    const evt = events.value.find((e) => e.id === eventId)
+    if (evt && res?.data) evt.entitlement = res.data
+    return res?.data || null
+  }
+
+  async function applyBundleCreditToEvent(eventId, bundleCreditId) {
+    const res = await api.post(`/events/${eventId}/subscription/apply-bundle`, { bundle_credit_id: bundleCreditId })
+    const evt = events.value.find((e) => e.id === eventId)
+    if (evt && res?.data) evt.entitlement = res.data
+    return res?.data || null
+  }
+
+  async function downgradeEventPlan(eventId, planCode) {
+    const res = await api.post(`/events/${eventId}/subscription/downgrade`, { plan_code: planCode })
+    const evt = events.value.find((e) => e.id === eventId)
+    if (evt && res?.data) evt.entitlement = res.data
+    return res?.data || null
+  }
+
+  async function fetchOrganizerBillingHistory() {
+    const res = await api.get('/billing/transactions')
+    return res?.data || { transactions: [], bundle_credits: [], audit_logs: [] }
+  }
+
+  async function createBillingCheckout(payload) {
+    const res = await api.post('/billing/checkout', payload)
+    return res?.data || null
+  }
+
+  async function uploadBillingProof(txId, file, paymentNotes = '') {
+    const formData = new FormData()
+    formData.append('file', file)
+    if (paymentNotes) formData.append('payment_notes', paymentNotes)
+    const res = await api.post(`/billing/transactions/${txId}/proof`, formData)
+    return res?.data || null
+  }
+
+  async function fetchAdminPricingOverview() {
+    const res = await api.get('/admin/pricing/overview')
+    return res?.data || null
+  }
+
+  async function adminUpdatePricingPlan(code, patch) {
+    const res = await api.patch(`/admin/pricing/plans/${code}`, patch)
+    return res?.data || null
+  }
+
+  async function adminSaveBundle(payload) {
+    const res = await api.post('/admin/pricing/bundles', payload)
+    return res?.data || null
+  }
+
+  async function adminSavePromo(payload) {
+    const res = await api.post('/admin/pricing/promos', payload)
+    return res?.data || null
+  }
+
+  async function adminVerifyBillingTransaction(txId, payload) {
+    const res = await api.post(`/admin/billing/transactions/${txId}/verify`, payload)
+    return res?.data || null
   }
 
   return {
     organizations,
     events,
+    categories,
     myTickets,
+    myOrders,
     participants,
     tasks,
     finance,
     vendors,
     sponsors,
     documents,
+    surveys,
     teamMembers,
     checkinLogs,
+    adminDashboard,
+    adminUsers,
+    adminVerifications,
+    adminReports,
+    loading,
     apiConnected,
     supabaseStatus,
     activeEventId,
@@ -825,30 +1030,89 @@ export const useEventWorkspaceStore = defineStore('eventWorkspace', () => {
     setActiveEvent,
     checkBackendHealth,
     fetchMarketplace,
+    fetchEventPublic,
     fetchOrganizerWorkspace,
     fetchEventWorkspace,
     fetchMyTickets,
+    fetchMyOrders,
+    cancelMyOrder,
+    fetchAdminWorkspace,
     isModuleEnabled,
+    hasPermission,
     toggleModule,
     getPaidTicketBreakdown,
     getPaidTicketRevenue,
     addFinanceRecord,
+    setEventBudget,
+    updateFinanceRecord,
+    deleteFinanceRecord,
     createOrganization,
+    updateOrganization,
+    deleteOrganization,
+    requestOrgVerification,
+    fetchOrgMembers,
+    addOrgMember,
+    updateOrgMember,
+    removeOrgMember,
     createEvent,
     duplicateEvent,
     updateEventProfile,
+    deleteEvent,
+    submitEventReview,
+    publishEvent,
+    unpublishEvent,
     addTask,
     updateTask,
     deleteTask,
     addTicketType,
     toggleTicketTypeStatus,
+    updateTicketType,
+    deleteTicketType,
     addManualParticipant,
+    updateParticipant,
+    deleteParticipant,
     placeOrder,
     checkInTicket,
     addVendor,
+    updateVendor,
+    deleteVendor,
+    addSponsor,
+    updateSponsor,
+    deleteSponsor,
+    uploadMedia,
+    addDocument,
+    downloadDocument,
+    deleteDocument,
+    fetchSurveys,
+    createSurvey,
     inviteTeamMember,
     updateTeamMember,
     removeTeamMember,
-    updateModeration
+    updateModeration,
+    reviewVerification,
+    createCategory,
+    deleteCategory,
+    toggleUserStatus,
+    createAdminOrganizer,
+    updateOrganizerSubscription,
+    fetchCompanionPosts,
+    createCompanionPost,
+    updateCompanionPost,
+    deleteCompanionPost,
+    replyCompanionPost,
+    fetchPricingCatalog,
+    previewBillingCheckout,
+    fetchEventEntitlement,
+    activateEventTrial,
+    applyBundleCreditToEvent,
+    downgradeEventPlan,
+    fetchOrganizerBillingHistory,
+    createBillingCheckout,
+    uploadBillingProof,
+    fetchAdminPricingOverview,
+    adminUpdatePricingPlan,
+    adminSaveBundle,
+    adminSavePromo,
+    adminVerifyBillingTransaction
   }
 })

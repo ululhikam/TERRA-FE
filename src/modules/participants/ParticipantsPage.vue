@@ -3,7 +3,7 @@ import { computed, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { useEventWorkspaceStore } from '@/stores/eventWorkspace'
 import { useToastStore } from '@/stores/toast'
-import { Download, X } from 'lucide-vue-next'
+import { Download, X, Pencil, Trash2 } from 'lucide-vue-next'
 
 const route = useRoute()
 const store = useEventWorkspaceStore()
@@ -12,9 +12,14 @@ const toast = useToastStore()
 const search = ref('')
 const checkinFilter = ref('all')
 const showManualForm = ref(false)
+const editingParticipantId = ref(null)
 const manualName = ref('')
 const manualEmail = ref('')
 const manualPhone = ref('')
+const manualTicketType = ref('')
+const manualStatus = ref('Confirmed')
+const manualCheckedIn = ref(false)
+const savingParticipant = ref(false)
 
 const eventId = computed(() => route.params.eventId || store.activeEvent?.id || 'evt-1')
 const event = computed(() => store.events.find((e) => e.id === eventId.value) || store.activeEvent)
@@ -37,19 +42,77 @@ const participantsList = computed(() => {
   return list
 })
 
-async function addManual() {
-  if (!manualName.value.trim() || !manualEmail.value.trim()) return
-  await store.addManualParticipant(eventId.value, {
-    full_name: manualName.value.trim(),
-    email: manualEmail.value.trim(),
-    phone: manualPhone.value || '081200000000',
-    ticket_type: event.value?.ticket_types?.[0]?.name || 'VIP Executive Pass'
-  })
+function openCreateParticipant() {
+  editingParticipantId.value = null
   manualName.value = ''
   manualEmail.value = ''
   manualPhone.value = ''
-  showManualForm.value = false
-  toast.success('Peserta manual on-the-spot berhasil didaftarkan.')
+  manualTicketType.value = event.value?.ticket_types?.[0]?.name || 'General Admission'
+  manualStatus.value = 'Confirmed'
+  manualCheckedIn.value = false
+  showManualForm.value = true
+}
+
+function openEditParticipant(p) {
+  editingParticipantId.value = p.id
+  manualName.value = p.full_name || ''
+  manualEmail.value = p.email || ''
+  manualPhone.value = p.phone || ''
+  manualTicketType.value = p.ticket_type || event.value?.ticket_types?.[0]?.name || ''
+  manualStatus.value = p.registration_status || 'Confirmed'
+  manualCheckedIn.value = Boolean(p.checked_in)
+  showManualForm.value = true
+}
+
+async function saveParticipant() {
+  if (!manualName.value.trim() || !manualEmail.value.trim()) return
+  savingParticipant.value = true
+  try {
+    if (editingParticipantId.value) {
+      await store.updateParticipant(editingParticipantId.value, {
+        full_name: manualName.value.trim(),
+        email: manualEmail.value.trim(),
+        phone: manualPhone.value || '',
+        ticket_type: manualTicketType.value || undefined,
+        registration_status: manualStatus.value,
+        checked_in: manualCheckedIn.value
+      })
+      toast.success(`Data peserta "${manualName.value.trim()}" diperbarui.`)
+    } else {
+      await store.addManualParticipant(eventId.value, {
+        full_name: manualName.value.trim(),
+        email: manualEmail.value.trim(),
+        phone: manualPhone.value || '081200000000',
+        ticket_type: manualTicketType.value || event.value?.ticket_types?.[0]?.name || 'General Admission'
+      })
+      toast.success('Peserta manual on-the-spot berhasil didaftarkan.')
+    }
+    showManualForm.value = false
+  } catch (err) {
+    toast.error(err?.message || 'Gagal menyimpan data peserta.')
+  } finally {
+    savingParticipant.value = false
+  }
+}
+
+async function toggleCheckIn(p) {
+  try {
+    const next = !p.checked_in
+    await store.updateParticipant(p.id, { checked_in: next })
+    toast.success(`${p.full_name} ditandai ${next ? 'Sudah Hadir' : 'Belum Check-in'}.`)
+  } catch (err) {
+    toast.error(err?.message || 'Gagal mengubah status kehadiran.')
+  }
+}
+
+async function removeParticipant(p) {
+  if (!window.confirm(`Hapus peserta "${p.full_name}" dari daftar event?`)) return
+  try {
+    await store.deleteParticipant(p.id)
+    toast.success(`Peserta "${p.full_name}" dihapus.`)
+  } catch (err) {
+    toast.error(err?.message || 'Gagal menghapus peserta.')
+  }
 }
 
 function exportCSV() {
@@ -99,7 +162,7 @@ function exportCSV() {
 
       <div class="flex items-center gap-2.5">
         <button
-          @click="showManualForm = true"
+          @click="openCreateParticipant"
           class="rounded-full bg-black px-5 py-2 text-xs font-semibold text-white hover:bg-slate-800 transition-colors"
         >
           + Daftar Manual
@@ -148,7 +211,8 @@ function exportCSV() {
               <th class="py-3.5 px-6">TIPE TIKET</th>
               <th class="py-3.5 px-6">KODE TIKET</th>
               <th class="py-3.5 px-6">STATUS ORDER</th>
-              <th class="py-3.5 px-6 text-right">KEHADIRAN DI GATE</th>
+              <th class="py-3.5 px-6">KEHADIRAN DI GATE</th>
+              <th class="py-3.5 px-6 text-right">AKSI</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-black/10">
@@ -162,24 +226,42 @@ function exportCSV() {
               <td class="py-4 px-6">
                 <span class="rounded-full border border-black bg-[#72a5e4] px-3 py-1 text-xs font-semibold text-black inline-flex items-center gap-1.5">
                   <span>●</span>
-                  <span>Confirmed</span>
+                  <span>{{ p.registration_status || 'Confirmed' }}</span>
                 </span>
               </td>
+              <td class="py-4 px-6">
+                <button
+                  @click="toggleCheckIn(p)"
+                  :title="p.checked_in ? 'Klik untuk batalkan check-in' : 'Klik untuk tandai hadir'"
+                  class="rounded-full border border-black px-3 py-1 text-xs inline-flex items-center gap-1.5 transition-colors"
+                  :class="p.checked_in ? 'bg-[#72a5e4] font-bold text-black' : 'bg-white font-semibold text-slate-700 hover:bg-slate-100'"
+                >
+                  <span>{{ p.checked_in ? '✓' : '●' }}</span>
+                  <span>{{ p.checked_in ? 'Hadir (Scanned)' : 'Belum Check-in' }}</span>
+                </button>
+              </td>
               <td class="py-4 px-6 text-right">
-                <span
-                  v-if="p.checked_in"
-                  class="rounded-full border border-black bg-[#72a5e4] px-3 py-1 text-xs font-bold text-black inline-flex items-center gap-1.5"
-                >
-                  <span>✓</span>
-                  <span>Hadir (Scanned)</span>
-                </span>
-                <span
-                  v-else
-                  class="rounded-full border border-black bg-white px-3 py-1 text-xs font-semibold text-slate-700 inline-flex items-center gap-1.5"
-                >
-                  <span>●</span>
-                  <span>Belum Check-in</span>
-                </span>
+                <div class="inline-flex items-center gap-1.5">
+                  <button
+                    @click="openEditParticipant(p)"
+                    title="Edit Peserta"
+                    class="rounded-full border border-black p-1.5 text-black hover:bg-slate-100"
+                  >
+                    <Pencil class="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    @click="removeParticipant(p)"
+                    title="Hapus Peserta"
+                    class="rounded-full border border-black p-1.5 text-red-600 hover:bg-red-50"
+                  >
+                    <Trash2 class="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </td>
+            </tr>
+            <tr v-if="!participantsList.length">
+              <td colspan="6" class="py-8 px-6 text-center text-slate-500">
+                Belum ada peserta sesuai filter pencarian.
               </td>
             </tr>
           </tbody>
@@ -187,20 +269,22 @@ function exportCSV() {
       </div>
     </div>
 
-    <!-- Modal Registrasi Manual On-the-spot -->
+    <!-- Modal Registrasi / Edit Peserta -->
     <div
       v-if="showManualForm"
       class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-2xs"
     >
       <div class="w-full max-w-md rounded-3xl border-2 border-black bg-white p-6 sm:p-8 space-y-6">
         <div class="flex items-center justify-between border-b border-black/20 pb-3">
-          <h3 class="text-xl font-bold text-black font-editorial">Daftar Manual On-The-Spot</h3>
+          <h3 class="text-xl font-bold text-black font-editorial">
+            {{ editingParticipantId ? 'Edit Data Peserta' : 'Daftar Manual On-The-Spot' }}
+          </h3>
           <button @click="showManualForm = false" class="p-1 rounded-full border border-black hover:bg-slate-100">
             <X class="h-4 w-4" />
           </button>
         </div>
 
-        <form @submit.prevent="addManual" class="space-y-4 text-xs">
+        <form @submit.prevent="saveParticipant" class="space-y-4 text-xs">
           <div class="space-y-1">
             <label class="font-bold text-black">Nama Lengkap</label>
             <input
@@ -223,14 +307,55 @@ function exportCSV() {
             />
           </div>
 
-          <div class="space-y-1">
-            <label class="font-bold text-black">Nomor WhatsApp</label>
-            <input
-              v-model="manualPhone"
-              type="text"
-              placeholder="0812-xxxx-xxxx"
-              class="w-full rounded-xl border border-black p-2.5 text-black focus:outline-hidden"
-            />
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div class="space-y-1">
+              <label class="font-bold text-black">Nomor WhatsApp</label>
+              <input
+                v-model="manualPhone"
+                type="text"
+                placeholder="0812-xxxx-xxxx"
+                class="w-full rounded-xl border border-black p-2.5 text-black focus:outline-hidden"
+              />
+            </div>
+
+            <div class="space-y-1">
+              <label class="font-bold text-black">Tipe Tiket</label>
+              <select
+                v-if="event?.ticket_types?.length"
+                v-model="manualTicketType"
+                class="w-full rounded-xl border border-black p-2.5 text-black bg-white focus:outline-hidden"
+              >
+                <option v-for="t in event.ticket_types" :key="t.id" :value="t.name">
+                  {{ t.name }}
+                </option>
+              </select>
+              <input
+                v-else
+                v-model="manualTicketType"
+                type="text"
+                placeholder="General Admission"
+                class="w-full rounded-xl border border-black p-2.5 text-black focus:outline-hidden"
+              />
+            </div>
+          </div>
+
+          <div v-if="editingParticipantId" class="grid grid-cols-2 gap-3 pt-1">
+            <div class="space-y-1">
+              <label class="font-bold text-black">Status Registrasi</label>
+              <select
+                v-model="manualStatus"
+                class="w-full rounded-xl border border-black p-2.5 text-black bg-white focus:outline-hidden"
+              >
+                <option value="Confirmed">Confirmed</option>
+                <option value="Pending">Pending</option>
+                <option value="Cancelled">Cancelled</option>
+                <option value="Rejected">Rejected</option>
+              </select>
+            </div>
+            <label class="flex items-center gap-2 pt-5 font-bold text-black cursor-pointer">
+              <input v-model="manualCheckedIn" type="checkbox" class="h-4 w-4 accent-black" />
+              <span>Sudah Check-in</span>
+            </label>
           </div>
 
           <div class="pt-4 flex justify-end gap-3 border-t border-black/20">
@@ -243,9 +368,10 @@ function exportCSV() {
             </button>
             <button
               type="submit"
-              class="rounded-full bg-black px-6 py-2 font-bold text-white hover:bg-slate-800"
+              :disabled="savingParticipant"
+              class="rounded-full bg-black px-6 py-2 font-bold text-white hover:bg-slate-800 disabled:opacity-60"
             >
-              Daftarkan Peserta
+              {{ savingParticipant ? 'Menyimpan...' : editingParticipantId ? 'Simpan Perubahan' : 'Daftarkan Peserta' }}
             </button>
           </div>
         </form>

@@ -13,8 +13,8 @@ const route = useRoute()
 const authStore = useAuthStore()
 const toast = useToastStore()
 
-const email = ref('organizer@nusantaratech.id')
-const password = ref('password123')
+const email = ref('')
+const password = ref('')
 const loading = ref(false)
 const errorMsg = ref('')
 
@@ -41,6 +41,17 @@ async function handleSubmit() {
     const redirect = route.query.redirect || '/dashboard'
     router.push(redirect)
   } catch (err) {
+    if (err?.code === 'EMAIL_NOT_VERIFIED' && err?.details?.[0]?.otp_session_token) {
+      const ctx = err.details[0]
+      authStore.setPendingOtp({
+        email: ctx.email,
+        otp_session_token: ctx.otp_session_token,
+        portal: 'organizer'
+      })
+      toast.info('Email Organizer belum diverifikasi OTP.')
+      router.push({ name: 'verify-otp', query: { email: ctx.email, portal: 'organizer' } })
+      return
+    }
     errorMsg.value = err.message || 'Gagal masuk ke dashboard organizer.'
   } finally {
     loading.value = false
@@ -148,11 +159,18 @@ async function handleSubmit() {
           </button>
         </form>
 
-        <div class="pt-1 text-xs text-slate-500">
+        <div class="space-y-4 pt-1 text-xs text-slate-500">
           <p>
-            Belum terdaftar sebagai Organizer?
-            <RouterLink to="/organizer/register" class="font-bold text-black hover:underline">Buat Akun Organizer</RouterLink>
+            Belum memiliki akun Organizer?
+            <RouterLink to="/organizer/register" class="font-bold text-black hover:underline">Pilih Paket (Free Trial / 100k) &amp; Daftar</RouterLink>
           </p>
+
+          <div class="pt-4 border-t border-black/10 space-y-1">
+            <p class="text-slate-400 text-[11px]">Ingin membeli tiket atau melihat e-ticket?</p>
+            <RouterLink to="/login" class="font-bold text-black hover:underline inline-block">
+              Masuk dengan Google di Portal Peserta &rarr;
+            </RouterLink>
+          </div>
         </div>
       </div>
     </div>

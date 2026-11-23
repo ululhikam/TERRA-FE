@@ -95,12 +95,12 @@ function scrollToTop() {
             >
               About
             </a>
-            <a
-              href="/#pricing"
+            <RouterLink
+              to="/pricing"
               class="luxury-pill rounded-full border border-black bg-white px-4 py-1.5 text-xs font-semibold text-black"
             >
               Pricing
-            </a>
+            </RouterLink>
             <a
               href="/#how-it-works"
               class="luxury-pill rounded-full border border-black bg-white px-4 py-1.5 text-xs font-semibold text-black"
@@ -138,7 +138,7 @@ function scrollToTop() {
                 to="/profile"
                 class="luxury-pill rounded-full border border-black bg-white px-4 py-1.5 text-xs font-semibold text-black"
               >
-                {{ authStore.user?.full_name || 'Nadia Putri' }} (Peserta)
+                {{ authStore.user?.full_name || authStore.user?.email || 'Peserta' }} (Peserta)
               </RouterLink>
               <button
                 @click="handleLogout"
@@ -160,7 +160,7 @@ function scrollToTop() {
                 to="/dashboard"
                 class="luxury-pill rounded-full border border-black bg-white px-5 py-1.5 text-xs font-semibold text-black"
               >
-                {{ authStore.user?.full_name || 'Hikam Pratama' }}
+                {{ authStore.user?.full_name || authStore.user?.email || 'Organizer' }}
               </RouterLink>
               <button
                 @click="handleLogout"

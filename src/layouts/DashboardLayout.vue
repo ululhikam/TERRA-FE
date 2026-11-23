@@ -6,6 +6,7 @@ import { useAuthStore } from '@/stores/auth'
 import TerraLogo from '@/components/common/TerraLogo.vue'
 import {
   LayoutDashboard,
+  Crown,
   Building2,
   CalendarDays,
   Plus,
@@ -58,10 +59,23 @@ const currentEvent = computed(() => {
   if (!route.params.eventId) return null
   return store.events.find((e) => e.id === route.params.eventId) || store.activeEvent
 })
+const subscriptionBadgeLabel = computed(() => {
+  if (currentEvent.value?.entitlement) {
+    const ent = currentEvent.value.entitlement
+    if (ent.trial?.is_trial) return `Pro Trial • ${ent.trial.days_remaining} hr`
+    return `Paket ${ent.plan_name}`
+  }
+  return 'Free Plan • Per Event'
+})
 
 function hasModule(key) {
   if (!currentEvent.value) return false
   return currentEvent.value.enabled_modules.includes(key)
+}
+
+function hasPermission(perm) {
+  if (!currentEvent.value) return false
+  return store.hasPermission(currentEvent.value.id, perm)
 }
 
 function toggleSidebarCollapse() {
@@ -107,8 +121,9 @@ function resetScroll() {
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
   resetScroll()
+  authStore.fetchCurrentUser().catch(() => {})
   if (route.params.eventId) {
     store.fetchEventWorkspace(route.params.eventId)
   } else {
@@ -228,6 +243,16 @@ async function handleLogout() {
                 <Building2 class="h-4 w-4 shrink-0 text-black" />
                 <span v-if="!sidebarCollapsed" class="truncate">Organisasi Saya</span>
               </RouterLink>
+              <RouterLink
+                to="/dashboard/billing"
+                active-class="bg-[#72a5e4] border border-black text-black font-bold"
+                class="flex items-center gap-2.5 rounded-lg px-3 py-2 text-xs text-slate-800 hover:bg-black/5 transition-colors"
+                :class="sidebarCollapsed ? 'lg:justify-center lg:px-0' : ''"
+                title="Billing & Bundle"
+              >
+                <Crown class="h-4 w-4 shrink-0 text-black" />
+                <span v-if="!sidebarCollapsed" class="truncate">Billing &amp; Bundle</span>
+              </RouterLink>
             </nav>
           </div>
 
@@ -320,6 +345,7 @@ async function handleLogout() {
                 <span v-if="!sidebarCollapsed" class="truncate">Ringkasan Acara</span>
               </RouterLink>
               <RouterLink
+                v-if="hasPermission('Edit Event')"
                 :to="`/dashboard/events/${currentEvent.id}/profile`"
                 active-class="bg-[#72a5e4] border border-black text-black font-bold"
                 class="flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 hover:bg-black/5 transition-colors"
@@ -330,6 +356,7 @@ async function handleLogout() {
                 <span v-if="!sidebarCollapsed" class="truncate">Profil &amp; Info Acara</span>
               </RouterLink>
               <RouterLink
+                v-if="hasPermission('Edit Event')"
                 :to="`/dashboard/events/${currentEvent.id}/modules`"
                 active-class="bg-[#72a5e4] border border-black text-black font-bold"
                 class="flex items-center justify-between rounded-lg px-2.5 py-1.5 text-xs text-slate-800 hover:bg-black/5 transition-colors"
@@ -344,11 +371,28 @@ async function handleLogout() {
                   {{ currentEvent.enabled_modules.length }}
                 </span>
               </RouterLink>
+              <RouterLink
+                v-if="hasPermission('Edit Event')"
+                :to="`/dashboard/events/${currentEvent.id}/billing`"
+                active-class="bg-[#72a5e4] border border-black text-black font-bold"
+                class="flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 hover:bg-black/5 transition-colors"
+                :class="sidebarCollapsed ? 'lg:justify-center lg:px-0 lg:py-2' : ''"
+                title="Paket & Billing Event"
+              >
+                <Crown class="h-3.5 w-3.5 shrink-0 text-black" />
+                <span v-if="!sidebarCollapsed" class="truncate">Paket &amp; Billing</span>
+              </RouterLink>
             </nav>
           </div>
 
           <!-- JADWAL & PANITIA -->
-          <div v-if="hasModule('timeline') || hasModule('tasks') || hasModule('team')" class="space-y-1">
+          <div
+            v-if="
+              ((hasModule('timeline') || hasModule('tasks')) && hasPermission('Manage Timeline')) ||
+              (hasModule('team') && hasPermission('Manage Team'))
+            "
+            class="space-y-1"
+          >
             <p
               v-if="!sidebarCollapsed"
               class="px-2 text-[9px] font-bold uppercase tracking-wider text-slate-500 truncate"
@@ -357,7 +401,7 @@ async function handleLogout() {
             </p>
             <nav class="space-y-0.5">
               <RouterLink
-                v-if="hasModule('timeline')"
+                v-if="hasModule('timeline') && hasPermission('Manage Timeline')"
                 :to="`/dashboard/events/${currentEvent.id}/timeline`"
                 active-class="bg-[#72a5e4] border border-black text-black font-bold"
                 class="flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 hover:bg-black/5 transition-colors"
@@ -368,7 +412,7 @@ async function handleLogout() {
                 <span v-if="!sidebarCollapsed" class="truncate">Timeline Acara</span>
               </RouterLink>
               <RouterLink
-                v-if="hasModule('tasks')"
+                v-if="hasModule('tasks') && hasPermission('Manage Timeline')"
                 :to="`/dashboard/events/${currentEvent.id}/tasks`"
                 active-class="bg-[#72a5e4] border border-black text-black font-bold"
                 class="flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 hover:bg-black/5 transition-colors"
@@ -379,7 +423,7 @@ async function handleLogout() {
                 <span v-if="!sidebarCollapsed" class="truncate">Daftar Tugas</span>
               </RouterLink>
               <RouterLink
-                v-if="hasModule('team')"
+                v-if="hasModule('team') && hasPermission('Manage Team')"
                 :to="`/dashboard/events/${currentEvent.id}/team`"
                 active-class="bg-[#72a5e4] border border-black text-black font-bold"
                 class="flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 hover:bg-black/5 transition-colors"
@@ -393,7 +437,14 @@ async function handleLogout() {
           </div>
 
           <!-- TIKET & PESERTA -->
-          <div v-if="hasModule('ticketing') || hasModule('participants') || hasModule('check_in')" class="space-y-1">
+          <div
+            v-if="
+              (hasModule('ticketing') && hasPermission('Manage Tickets')) ||
+              (hasModule('participants') && hasPermission('View Participants')) ||
+              (hasModule('check_in') && hasPermission('Manage Check-in'))
+            "
+            class="space-y-1"
+          >
             <p
               v-if="!sidebarCollapsed"
               class="px-2 text-[9px] font-bold uppercase tracking-wider text-slate-500 truncate"
@@ -402,7 +453,7 @@ async function handleLogout() {
             </p>
             <nav class="space-y-0.5">
               <RouterLink
-                v-if="hasModule('ticketing')"
+                v-if="hasModule('ticketing') && hasPermission('Manage Tickets')"
                 :to="`/dashboard/events/${currentEvent.id}/tickets`"
                 active-class="bg-[#72a5e4] border border-black text-black font-bold"
                 class="flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 hover:bg-black/5 transition-colors"
@@ -413,7 +464,7 @@ async function handleLogout() {
                 <span v-if="!sidebarCollapsed" class="truncate">Jenis Tiket</span>
               </RouterLink>
               <RouterLink
-                v-if="hasModule('participants')"
+                v-if="hasModule('participants') && hasPermission('View Participants')"
                 :to="`/dashboard/events/${currentEvent.id}/participants`"
                 active-class="bg-[#72a5e4] border border-black text-black font-bold"
                 class="flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 hover:bg-black/5 transition-colors"
@@ -424,7 +475,7 @@ async function handleLogout() {
                 <span v-if="!sidebarCollapsed" class="truncate">Daftar Peserta</span>
               </RouterLink>
               <RouterLink
-                v-if="hasModule('check_in')"
+                v-if="hasModule('check_in') && hasPermission('Manage Check-in')"
                 :to="`/dashboard/events/${currentEvent.id}/check-in`"
                 active-class="bg-[#72a5e4] border border-black text-black font-bold"
                 class="flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 hover:bg-black/5 transition-colors"
@@ -438,7 +489,16 @@ async function handleLogout() {
           </div>
 
           <!-- KEUANGAN & LOGISTIK -->
-          <div v-if="hasModule('finance') || hasModule('vendors') || hasModule('sponsors') || hasModule('documents') || hasModule('feedback')" class="space-y-1">
+          <div
+            v-if="
+              (hasModule('finance') && hasPermission('View Finance')) ||
+              hasModule('vendors') ||
+              hasModule('sponsors') ||
+              hasModule('documents') ||
+              hasModule('feedback')
+            "
+            class="space-y-1"
+          >
             <p
               v-if="!sidebarCollapsed"
               class="px-2 text-[9px] font-bold uppercase tracking-wider text-slate-500 truncate"
@@ -447,7 +507,7 @@ async function handleLogout() {
             </p>
             <nav class="space-y-0.5">
               <RouterLink
-                v-if="hasModule('finance')"
+                v-if="hasModule('finance') && hasPermission('View Finance')"
                 :to="`/dashboard/events/${currentEvent.id}/finance`"
                 active-class="bg-[#72a5e4] border border-black text-black font-bold"
                 class="flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 hover:bg-black/5 transition-colors"
@@ -547,10 +607,15 @@ async function handleLogout() {
       </div>
 
       <!-- User Profile & Logout -->
-      <div class="flex items-center gap-4 shrink-0">
+      <div class="flex items-center gap-3 shrink-0">
+        <span
+          class="hidden md:inline-flex items-center gap-1 rounded-full border border-black bg-[#72a5e4] px-3 py-1 text-[10px] font-bold text-black"
+        >
+          {{ subscriptionBadgeLabel }}
+        </span>
         <div class="text-left hidden sm:block">
-          <p class="text-xs font-bold text-black">{{ authStore.user?.full_name || 'Hikam Pratama (Organizer)' }}</p>
-          <p class="text-[11px] text-slate-500 truncate max-w-[180px]">{{ authStore.user?.email || 'organizer@nusantaratech.id' }}</p>
+          <p class="text-xs font-bold text-black">{{ authStore.user?.full_name || authStore.user?.email || 'Organizer' }}</p>
+          <p class="text-[11px] text-slate-500 truncate max-w-[180px]">{{ authStore.user?.email || '' }}</p>
         </div>
         <button class="p-1 text-black hover:text-slate-600">
           <User class="h-4 w-4" />

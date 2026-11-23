@@ -1,9 +1,9 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useEventWorkspaceStore } from '@/stores/eventWorkspace'
 import { useToastStore } from '@/stores/toast'
-import { X } from 'lucide-vue-next'
+import { X, Copy, Check, Mail, Pencil } from 'lucide-vue-next'
 
 const route = useRoute()
 const store = useEventWorkspaceStore()
@@ -20,6 +20,13 @@ const allPermissions = [
   'Manage Team'
 ]
 
+const rolePresets = {
+  Staff: ['View Event', 'Manage Check-in'],
+  Manager: ['View Event', 'Edit Event', 'Manage Timeline', 'View Participants'],
+  Admin: [...allPermissions],
+  Owner: [...allPermissions]
+}
+
 const members = computed(() =>
   store.teamMembers.filter((m) => !m.event_id || m.event_id === route.params.eventId)
 )
@@ -28,20 +35,71 @@ const email = ref('')
 const name = ref('')
 const role = ref('Staff')
 const department = ref('Ticketing & Gate')
+const selectedPermissions = ref([...rolePresets.Staff])
 const showForm = ref(false)
+const submitting = ref(false)
+const lastInvite = ref(null)
+const copiedLink = ref(false)
+
+watch(role, (nextRole) => {
+  selectedPermissions.value = [...(rolePresets[nextRole] || ['View Event'])]
+})
+
+function toggleDraftPermission(perm) {
+  if (perm === 'View Event') return
+  if (selectedPermissions.value.includes(perm)) {
+    selectedPermissions.value = selectedPermissions.value.filter((p) => p !== perm)
+  } else {
+    selectedPermissions.value = [...selectedPermissions.value, perm]
+  }
+}
+
+async function copyInviteUrl() {
+  if (!lastInvite.value?.invite_url) return
+  try {
+    await navigator.clipboard.writeText(lastInvite.value.invite_url)
+    copiedLink.value = true
+    toast.success('Tautan undangan disalin.')
+    setTimeout(() => {
+      copiedLink.value = false
+    }, 2000)
+  } catch {
+    toast.info('Silakan salin tautan secara manual.')
+  }
+}
 
 async function inviteMember() {
   if (!email.value.trim()) return
-  await store.inviteTeamMember(route.params.eventId, {
-    name: name.value.trim() || email.value.split('@')[0],
-    email: email.value.trim(),
-    role: role.value,
-    department: department.value
-  })
-  email.value = ''
-  name.value = ''
-  showForm.value = false
-  toast.success('Undangan anggota panitia berhasil dikirim.')
+  submitting.value = true
+  try {
+    const invitedEmail = email.value.trim()
+    const result = await store.inviteTeamMember(route.params.eventId, {
+      name: name.value.trim() || invitedEmail.split('@')[0],
+      email: invitedEmail,
+      role: role.value,
+      department: department.value,
+      permissions: selectedPermissions.value
+    })
+    lastInvite.value = {
+      email: invitedEmail,
+      invite_url: result?.invite_url,
+      email_status: result?.email_status
+    }
+    email.value = ''
+    name.value = ''
+    role.value = 'Staff'
+    selectedPermissions.value = [...rolePresets.Staff]
+    showForm.value = false
+    if (result?.email_status?.sent) {
+      toast.success(`Undangan email dikirim ke ${invitedEmail} via Resend.`)
+    } else {
+      toast.info('Panitia ditambahkan. Salin tautan undangan atau lengkapi RESEND_API_KEY di .env.')
+    }
+  } catch (err) {
+    toast.error(err?.message || 'Gagal mengundang anggota panitia.')
+  } finally {
+    submitting.value = false
+  }
 }
 
 async function togglePermission(member, perm) {
@@ -56,8 +114,41 @@ async function togglePermission(member, perm) {
 }
 
 async function removeMember(memberId) {
-  await store.removeTeamMember(route.params.eventId, memberId)
-  toast.success('Anggota berhasil dihapus dari kepanitiaan.')
+  if (!window.confirm('Hapus anggota ini dari kepanitiaan event?')) return
+  try {
+    await store.removeTeamMember(route.params.eventId, memberId)
+    toast.success('Anggota berhasil dihapus dari kepanitiaan.')
+  } catch (err) {
+    toast.error(err?.message || 'Gagal menghapus anggota.')
+  }
+}
+
+const editingMember = ref(null)
+const editRole = ref('Staff')
+const editDept = ref('')
+const savingMemberEdit = ref(false)
+
+function openEditMember(member) {
+  editingMember.value = member
+  editRole.value = member.role || 'Staff'
+  editDept.value = member.department || ''
+}
+
+async function saveMemberEdit() {
+  if (!editingMember.value) return
+  savingMemberEdit.value = true
+  try {
+    await store.updateTeamMember(route.params.eventId, editingMember.value.id, {
+      role: editRole.value,
+      department: editDept.value.trim() || 'Operasional'
+    })
+    editingMember.value = null
+    toast.success('Role & departemen panitia diperbarui.')
+  } catch (err) {
+    toast.error(err?.message || 'Gagal memperbarui anggota panitia.')
+  } finally {
+    savingMemberEdit.value = false
+  }
 }
 </script>
 
@@ -90,6 +181,46 @@ async function removeMember(memberId) {
       </button>
     </div>
 
+    <!-- Invite Status & Link Banner -->
+    <div
+      v-if="lastInvite"
+      class="rounded-2xl border border-black bg-[#fafaf9] p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+    >
+      <div class="space-y-1 text-xs">
+        <div class="flex items-center gap-2 font-bold text-black">
+          <Mail class="h-4 w-4 text-black" />
+          <span v-if="lastInvite.email_status?.sent">
+            Email undangan berhasil dikirim via Resend ke {{ lastInvite.email }}
+          </span>
+          <span v-else>
+            Anggota {{ lastInvite.email }} ditambahkan (Email Resend: {{ lastInvite.email_status?.reason || 'Belum dikonfigurasi' }})
+          </span>
+        </div>
+        <p v-if="lastInvite.invite_url" class="text-[11px] text-slate-600 break-all">
+          Link undangan: <code class="font-mono text-black">{{ lastInvite.invite_url }}</code>
+        </p>
+      </div>
+      <div class="flex items-center gap-2 shrink-0">
+        <button
+          v-if="lastInvite.invite_url"
+          type="button"
+          @click="copyInviteUrl"
+          class="inline-flex items-center gap-1.5 rounded-full border border-black bg-[#72a5e4] px-4 py-1.5 text-xs font-bold text-black hover:bg-[#5c93d9]"
+        >
+          <Check v-if="copiedLink" class="h-3.5 w-3.5" />
+          <Copy v-else class="h-3.5 w-3.5" />
+          <span>{{ copiedLink ? 'Tersalin' : 'Salin Link' }}</span>
+        </button>
+        <button
+          type="button"
+          @click="lastInvite = null"
+          class="rounded-full border border-black bg-white p-1.5 hover:bg-slate-100"
+        >
+          <X class="h-3.5 w-3.5" />
+        </button>
+      </div>
+    </div>
+
     <!-- Member Cards -->
     <div class="space-y-4">
       <div
@@ -108,10 +239,24 @@ async function removeMember(memberId) {
             </div>
           </div>
 
-          <div class="flex items-center gap-2">
+          <div class="flex items-center gap-2 flex-wrap">
+            <span
+              class="rounded-full border border-black px-3 py-1 text-[11px] font-bold"
+              :class="member.status === 'Pending' ? 'bg-amber-100 text-amber-900' : 'bg-emerald-100 text-emerald-900'"
+            >
+              {{ member.status || 'Active' }}
+            </span>
             <span class="rounded-full border border-black bg-white px-4 py-1 text-xs font-semibold text-black">
               {{ member.role }}
             </span>
+            <button
+              v-if="member.role !== 'Owner'"
+              @click="openEditMember(member)"
+              title="Edit Role & Departemen"
+              class="inline-flex items-center gap-1 rounded-full border border-black bg-white px-3 py-1 text-xs font-semibold text-black hover:bg-slate-100"
+            >
+              <Pencil class="h-3 w-3" /> Edit
+            </button>
             <button
               v-if="member.role !== 'Owner'"
               @click="removeMember(member.id)"
@@ -142,6 +287,61 @@ async function removeMember(memberId) {
             </button>
           </div>
         </div>
+      </div>
+    </div>
+
+    <!-- Modal Edit Role & Departemen Panitia -->
+    <div
+      v-if="editingMember"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-2xs"
+    >
+      <div class="w-full max-w-sm rounded-3xl border-2 border-black bg-white p-6 space-y-5">
+        <div class="flex items-center justify-between border-b border-black/20 pb-3">
+          <div>
+            <h3 class="text-lg font-bold text-black font-editorial">Edit Anggota Panitia</h3>
+            <p class="text-[11px] text-slate-500">{{ editingMember.name }} ({{ editingMember.email }})</p>
+          </div>
+          <button @click="editingMember = null" class="p-1 rounded-full border border-black hover:bg-slate-100">
+            <X class="h-4 w-4" />
+          </button>
+        </div>
+
+        <form @submit.prevent="saveMemberEdit" class="space-y-4 text-xs">
+          <div class="space-y-1">
+            <label class="font-bold text-black">Peran (Role)</label>
+            <select v-model="editRole" class="w-full rounded-xl border border-black p-2.5 text-black bg-white">
+              <option value="Admin">Admin</option>
+              <option value="Manager">Manager</option>
+              <option value="Staff">Staff</option>
+              <option value="Viewer">Viewer</option>
+            </select>
+          </div>
+          <div class="space-y-1">
+            <label class="font-bold text-black">Divisi / Departemen</label>
+            <input
+              v-model="editDept"
+              type="text"
+              placeholder="Contoh: Acara, Humas, Logistik"
+              class="w-full rounded-xl border border-black p-2.5 text-black focus:outline-hidden"
+            />
+          </div>
+          <div class="pt-3 flex justify-end gap-2 border-t border-black/20">
+            <button
+              type="button"
+              @click="editingMember = null"
+              class="rounded-full border border-black bg-white px-4 py-2 font-semibold text-black hover:bg-slate-100"
+            >
+              Batal
+            </button>
+            <button
+              type="submit"
+              :disabled="savingMemberEdit"
+              class="rounded-full bg-black px-5 py-2 font-bold text-white hover:bg-slate-800 disabled:opacity-60"
+            >
+              {{ savingMemberEdit ? 'Menyimpan...' : 'Simpan Perubahan' }}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
 
@@ -205,6 +405,26 @@ async function removeMember(memberId) {
             </div>
           </div>
 
+          <div class="space-y-1.5 pt-1">
+            <label class="font-bold text-black block">
+              Atur Hak Akses Event (Sesuai Aturan Organizer)
+            </label>
+            <div class="flex flex-wrap gap-1.5">
+              <button
+                v-for="perm in allPermissions"
+                :key="perm"
+                type="button"
+                @click="toggleDraftPermission(perm)"
+                class="rounded-full border border-black px-2.5 py-1 text-[11px] font-semibold transition-colors"
+                :class="selectedPermissions.includes(perm) ? 'bg-[#72a5e4] text-black font-bold' : 'bg-white text-slate-600 hover:bg-slate-50'"
+              >
+                <span v-if="selectedPermissions.includes(perm)">✓ </span>
+                <span v-else>+ </span>
+                {{ perm }}
+              </button>
+            </div>
+          </div>
+
           <div class="pt-4 flex justify-end gap-3 border-t border-black/20">
             <button
               type="button"
@@ -215,9 +435,10 @@ async function removeMember(memberId) {
             </button>
             <button
               type="submit"
-              class="rounded-full bg-black px-6 py-2 font-bold text-white hover:bg-slate-800"
+              :disabled="submitting"
+              class="rounded-full bg-black px-6 py-2 font-bold text-white hover:bg-slate-800 disabled:opacity-50"
             >
-              Kirim Undangan
+              {{ submitting ? 'Mengirim...' : 'Kirim Undangan' }}
             </button>
           </div>
         </form>

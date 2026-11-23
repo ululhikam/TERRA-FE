@@ -18,6 +18,10 @@ const password = ref('')
 const loading = ref(false)
 const errorMsg = ref('')
 
+function handleGoogleRegister() {
+  authStore.startGoogleAuth('/events')
+}
+
 const schema = z.object({
   full_name: z.string().min(2, 'Nama lengkap minimal 2 karakter'),
   email: z.string().email('Format email tidak valid'),
@@ -37,10 +41,26 @@ async function handleSubmit() {
   }
   loading.value = true
   try {
-    await authStore.register({ ...parsed.data, role: 'customer' })
+    const res = await authStore.register({ ...parsed.data, role: 'customer' })
+    if (res?.requires_otp) {
+      toast.info('Kode OTP verifikasi telah dikirim ke email Anda.')
+      router.push({ name: 'verify-otp', query: { email: parsed.data.email, portal: 'customer' } })
+      return
+    }
     toast.success('Akun peserta berhasil dibuat!')
     router.push('/events')
   } catch (err) {
+    if (err?.code === 'EMAIL_NOT_VERIFIED' && err?.details?.[0]?.otp_session_token) {
+      const ctx = err.details[0]
+      authStore.setPendingOtp({
+        email: ctx.email,
+        otp_session_token: ctx.otp_session_token,
+        portal: 'customer'
+      })
+      toast.info(err.message || 'Email belum terverifikasi OTP.')
+      router.push({ name: 'verify-otp', query: { email: ctx.email, portal: 'customer' } })
+      return
+    }
     errorMsg.value = err.message || 'Gagal mendaftar.'
   } finally {
     loading.value = false
@@ -108,7 +128,7 @@ async function handleSubmit() {
                 type="text"
                 required
                 class="w-full rounded-xl border border-black bg-white pl-10 pr-4 py-3 text-xs sm:text-sm text-black placeholder:text-slate-400 focus:outline-hidden"
-                placeholder="Nadia Putri"
+                placeholder="Nama lengkap Anda"
               />
             </div>
           </div>
@@ -122,7 +142,7 @@ async function handleSubmit() {
                 type="email"
                 required
                 class="w-full rounded-xl border border-black bg-white pl-10 pr-4 py-3 text-xs sm:text-sm text-black placeholder:text-slate-400 focus:outline-hidden"
-                placeholder="nadia@example.com"
+                placeholder="email@domain.com"
               />
             </div>
           </div>
@@ -149,6 +169,26 @@ async function handleSubmit() {
             {{ loading ? 'Mendaftar...' : 'Daftar Akun Peserta' }}
           </button>
         </form>
+
+        <div class="relative flex items-center py-1">
+          <div class="flex-grow border-t border-black/15" />
+          <span class="mx-3 shrink text-[11px] font-semibold uppercase tracking-wider text-slate-400">atau</span>
+          <div class="flex-grow border-t border-black/15" />
+        </div>
+
+        <button
+          type="button"
+          @click="handleGoogleRegister"
+          class="w-full flex items-center justify-center gap-2.5 rounded-full border border-black bg-white py-3 text-xs sm:text-sm font-bold text-black hover:bg-slate-100 transition-colors cursor-pointer"
+        >
+          <svg class="h-4 w-4 shrink-0" viewBox="0 0 24 24" aria-hidden="true">
+            <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z" />
+            <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.11-6.72-4.96H1.29v3.14C3.26 21.3 7.31 24 12 24z" />
+            <path fill="#FBBC05" d="M5.28 14.24c-.24-.72-.38-1.49-.38-2.24s.14-1.52.38-2.24V6.62H1.29C.47 8.24 0 10.06 0 12s.47 3.76 1.29 5.38l3.99-3.14z" />
+            <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.31 0 3.26 2.7 1.29 6.62l3.99 3.14c.95-2.85 3.6-4.96 6.72-4.96z" />
+          </svg>
+          <span>Daftar dengan Google</span>
+        </button>
 
         <div class="pt-1 text-xs text-slate-500">
           <p>

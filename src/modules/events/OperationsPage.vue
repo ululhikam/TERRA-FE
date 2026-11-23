@@ -3,7 +3,7 @@ import { computed, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { useEventWorkspaceStore } from '@/stores/eventWorkspace'
 import { useToastStore } from '@/stores/toast'
-import { X, Plus, Download } from 'lucide-vue-next'
+import { X, Plus, Download, Pencil, Trash2 } from 'lucide-vue-next'
 
 const route = useRoute()
 const store = useEventWorkspaceStore()
@@ -20,26 +20,222 @@ const sponsors = computed(() =>
 const documents = computed(() =>
   store.documents.filter((d) => !d.event_id || d.event_id === eventId.value)
 )
+const surveys = computed(() =>
+  store.surveys.filter((s) => !s.event_id || s.event_id === eventId.value)
+)
 
+// Vendor CRUD state
 const showVendorModal = ref(false)
+const editingVendorId = ref(null)
 const newName = ref('')
 const newCat = ref('Logistik & Venue')
 const newContact = ref('')
 const newValue = ref('Rp 5.000.000')
+const vendorStatus = ref('Confirmed')
+const savingVendor = ref(false)
 
-async function addVendor() {
-  if (!newName.value.trim()) return
-  await store.addVendor(eventId.value, {
-    name: newName.value.trim(),
-    category: newCat.value,
-    contact: newContact.value || '0812-0000-1234',
-    value: newValue.value || 'Rp 5.000.000',
-    status: 'Confirmed'
-  })
+// Sponsor CRUD state
+const showSponsorModal = ref(false)
+const editingSponsorId = ref(null)
+const spName = ref('')
+const spTier = ref('Gold')
+const spPic = ref('')
+const spContribution = ref('Rp 10.000.000')
+const spStatus = ref('Pending')
+const savingSponsor = ref(false)
+
+// Document state
+const showDocModal = ref(false)
+const docFile = ref(null)
+const docCategory = ref('Operasional')
+const docVisibility = ref('internal')
+const uploadingDoc = ref(false)
+
+// Survey state
+const showSurveyModal = ref(false)
+const surveyTitle = ref('')
+const surveyDesc = ref('')
+const savingSurvey = ref(false)
+
+function openCreateVendor() {
+  editingVendorId.value = null
   newName.value = ''
+  newCat.value = 'Logistik & Venue'
   newContact.value = ''
-  showVendorModal.value = false
-  toast.success('Vendor baru berhasil ditambahkan.')
+  newValue.value = 'Rp 5.000.000'
+  vendorStatus.value = 'Confirmed'
+  showVendorModal.value = true
+}
+
+function openEditVendor(v) {
+  editingVendorId.value = v.id
+  newName.value = v.name || ''
+  newCat.value = v.category || ''
+  newContact.value = v.contact || ''
+  newValue.value = v.value || ''
+  vendorStatus.value = v.status || 'Confirmed'
+  showVendorModal.value = true
+}
+
+async function saveVendor() {
+  if (!newName.value.trim()) return
+  savingVendor.value = true
+  try {
+    const payload = {
+      name: newName.value.trim(),
+      category: newCat.value || 'Logistik',
+      contact: newContact.value || '-',
+      value: newValue.value || 'Rp 0',
+      status: vendorStatus.value
+    }
+    if (editingVendorId.value) {
+      await store.updateVendor(editingVendorId.value, payload)
+      toast.success(`Vendor "${payload.name}" diperbarui.`)
+    } else {
+      await store.addVendor(eventId.value, payload)
+      toast.success('Vendor baru berhasil ditambahkan.')
+    }
+    showVendorModal.value = false
+  } catch (err) {
+    toast.error(err?.message || 'Gagal menyimpan data vendor.')
+  } finally {
+    savingVendor.value = false
+  }
+}
+
+async function removeVendor(v) {
+  if (!window.confirm(`Hapus vendor "${v.name}"?`)) return
+  try {
+    await store.deleteVendor(v.id)
+    toast.success(`Vendor "${v.name}" dihapus.`)
+  } catch (err) {
+    toast.error(err?.message || 'Gagal menghapus vendor.')
+  }
+}
+
+function openCreateSponsor() {
+  editingSponsorId.value = null
+  spName.value = ''
+  spTier.value = 'Gold'
+  spPic.value = ''
+  spContribution.value = 'Rp 10.000.000'
+  spStatus.value = 'Pending'
+  showSponsorModal.value = true
+}
+
+function openEditSponsor(s) {
+  editingSponsorId.value = s.id
+  spName.value = s.name || ''
+  spTier.value = s.tier || 'Gold'
+  spPic.value = s.pic || ''
+  spContribution.value = s.contribution || ''
+  spStatus.value = s.status || 'Pending'
+  showSponsorModal.value = true
+}
+
+async function saveSponsor() {
+  if (!spName.value.trim()) return
+  savingSponsor.value = true
+  try {
+    const payload = {
+      name: spName.value.trim(),
+      tier: spTier.value || 'Silver',
+      pic: spPic.value || '-',
+      contribution: spContribution.value || 'Rp 0',
+      status: spStatus.value
+    }
+    if (editingSponsorId.value) {
+      await store.updateSponsor(editingSponsorId.value, payload)
+      toast.success(`Sponsor "${payload.name}" diperbarui.`)
+    } else {
+      await store.addSponsor(eventId.value, payload)
+      toast.success(`Sponsor "${payload.name}" ditambahkan.`)
+    }
+    showSponsorModal.value = false
+  } catch (err) {
+    toast.error(err?.message || 'Gagal menyimpan data sponsor.')
+  } finally {
+    savingSponsor.value = false
+  }
+}
+
+async function removeSponsor(s) {
+  if (!window.confirm(`Hapus sponsor "${s.name}"?`)) return
+  try {
+    await store.deleteSponsor(s.id)
+    toast.success(`Sponsor "${s.name}" dihapus.`)
+  } catch (err) {
+    toast.error(err?.message || 'Gagal menghapus sponsor.')
+  }
+}
+
+async function handleUploadDoc() {
+  if (!docFile.value) {
+    toast.error('Pilih file dokumen terlebih dahulu.')
+    return
+  }
+  uploadingDoc.value = true
+  try {
+    await store.addDocument(eventId.value, {
+      file: docFile.value,
+      category: docCategory.value,
+      visibility: docVisibility.value
+    })
+    docFile.value = null
+    showDocModal.value = false
+    toast.success('Dokumen berhasil diunggah ke Supabase Storage.')
+  } catch (err) {
+    toast.error(err?.message || 'Gagal mengunggah dokumen.')
+  } finally {
+    uploadingDoc.value = false
+  }
+}
+
+async function handleDownloadDoc(doc) {
+  try {
+    const signedUrl = await store.downloadDocument(doc)
+    if (signedUrl) {
+      window.open(signedUrl, '_blank', 'noopener')
+    }
+  } catch (err) {
+    toast.error(err?.message || 'Gagal mengambil tautan unduhan Supabase Storage.')
+  }
+}
+
+async function removeDoc(doc) {
+  if (!window.confirm(`Hapus dokumen "${doc.file_name || doc.name}"?`)) return
+  try {
+    await store.deleteDocument(doc.id)
+    toast.success('Dokumen dihapus.')
+  } catch (err) {
+    toast.error(err?.message || 'Gagal menghapus dokumen.')
+  }
+}
+
+function switchTab(tab) {
+  activeTab.value = tab
+  if (tab === 'feedback') {
+    store.fetchSurveys(eventId.value).catch(() => {})
+  }
+}
+
+async function saveSurvey() {
+  if (!surveyTitle.value.trim()) return
+  savingSurvey.value = true
+  try {
+    await store.createSurvey(eventId.value, {
+      title: surveyTitle.value.trim(),
+      description: surveyDesc.value.trim()
+    })
+    surveyTitle.value = ''
+    surveyDesc.value = ''
+    showSurveyModal.value = false
+    toast.success('Survei evaluasi berhasil dibuat.')
+  } catch (err) {
+    toast.error(err?.message || 'Gagal membuat survei. Pastikan modul Feedback aktif pada event.')
+  } finally {
+    savingSurvey.value = false
+  }
 }
 </script>
 
@@ -59,28 +255,28 @@ async function addVendor() {
     <!-- Tab Pills Bar -->
     <div class="flex flex-wrap items-center gap-2.5">
       <button
-        @click="activeTab = 'vendors'"
+        @click="switchTab('vendors')"
         class="rounded-full border border-black px-5 py-2 text-xs font-semibold transition-colors"
         :class="activeTab === 'vendors' ? 'bg-black text-white' : 'bg-white text-black hover:bg-slate-100'"
       >
         Vendor &amp; Mitra Layanan
       </button>
       <button
-        @click="activeTab = 'sponsors'"
+        @click="switchTab('sponsors')"
         class="rounded-full border border-black px-5 py-2 text-xs font-semibold transition-colors"
         :class="activeTab === 'sponsors' ? 'bg-black text-white' : 'bg-white text-black hover:bg-slate-100'"
       >
         Sponsorship &amp; Partners
       </button>
       <button
-        @click="activeTab = 'docs'"
+        @click="switchTab('docs')"
         class="rounded-full border border-black px-5 py-2 text-xs font-semibold transition-colors"
         :class="activeTab === 'docs' ? 'bg-black text-white' : 'bg-white text-black hover:bg-slate-100'"
       >
         Dokumen &amp; Lampiran
       </button>
       <button
-        @click="activeTab = 'feedback'"
+        @click="switchTab('feedback')"
         class="rounded-full border border-black px-5 py-2 text-xs font-semibold transition-colors"
         :class="activeTab === 'feedback' ? 'bg-black text-white' : 'bg-white text-black hover:bg-slate-100'"
       >
@@ -93,7 +289,7 @@ async function addVendor() {
       <div class="flex items-center justify-between">
         <span class="text-xs text-slate-600 font-medium">Total {{ vendors.length }} Vendor Terdaftar</span>
         <button
-          @click="showVendorModal = true"
+          @click="openCreateVendor"
           class="rounded-full bg-black px-5 py-2 text-xs font-semibold text-white hover:bg-slate-800 transition-colors"
         >
           + Tambah Vendor
@@ -110,7 +306,8 @@ async function addVendor() {
                 <th class="py-3.5 px-6">KATEGORI LAYANAN</th>
                 <th class="py-3.5 px-6">KONTAK PERSON</th>
                 <th class="py-3.5 px-6">ESTIMASI KONTRAK</th>
-                <th class="py-3.5 px-6 text-right">STATUS</th>
+                <th class="py-3.5 px-6">STATUS</th>
+                <th class="py-3.5 px-6 text-right">AKSI</th>
               </tr>
             </thead>
             <tbody class="divide-y divide-black/10">
@@ -119,14 +316,37 @@ async function addVendor() {
                 <td class="py-4 px-6 text-slate-700">{{ v.category }}</td>
                 <td class="py-4 px-6 font-mono text-slate-600">{{ v.contact }}</td>
                 <td class="py-4 px-6 font-bold text-black">{{ v.value }}</td>
-                <td class="py-4 px-6 text-right">
+                <td class="py-4 px-6">
                   <span
                     class="rounded-full border border-black px-3 py-1 text-xs font-semibold inline-flex items-center gap-1.5"
-                    :class="v.status === 'Confirmed' ? 'bg-[#72a5e4] text-black font-bold' : 'bg-white text-slate-700'"
+                    :class="v.status === 'Confirmed' || v.status === 'Completed' ? 'bg-[#72a5e4] text-black font-bold' : 'bg-white text-slate-700'"
                   >
                     <span>●</span>
                     <span>{{ v.status }}</span>
                   </span>
+                </td>
+                <td class="py-4 px-6 text-right">
+                  <div class="inline-flex items-center gap-1.5">
+                    <button
+                      @click="openEditVendor(v)"
+                      title="Edit Vendor"
+                      class="rounded-full border border-black p-1.5 text-black hover:bg-slate-100"
+                    >
+                      <Pencil class="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      @click="removeVendor(v)"
+                      title="Hapus Vendor"
+                      class="rounded-full border border-black p-1.5 text-red-600 hover:bg-red-50"
+                    >
+                      <Trash2 class="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                </td>
+              </tr>
+              <tr v-if="!vendors.length">
+                <td colspan="6" class="py-8 px-6 text-center text-slate-500">
+                  Belum ada vendor terdaftar pada event ini.
                 </td>
               </tr>
             </tbody>
@@ -139,6 +359,12 @@ async function addVendor() {
     <div v-else-if="activeTab === 'sponsors'" class="space-y-4">
       <div class="flex items-center justify-between">
         <span class="text-xs text-slate-600 font-medium">Total {{ sponsors.length }} Mitra Sponsor</span>
+        <button
+          @click="openCreateSponsor"
+          class="rounded-full bg-black px-5 py-2 text-xs font-semibold text-white hover:bg-slate-800 transition-colors"
+        >
+          + Tambah Sponsor
+        </button>
       </div>
       <div class="rounded-2xl border border-black bg-white overflow-hidden">
         <div class="overflow-x-auto">
@@ -149,7 +375,8 @@ async function addVendor() {
                 <th class="py-3.5 px-6">TIER SPONSOR</th>
                 <th class="py-3.5 px-6">PIC SPONSOR</th>
                 <th class="py-3.5 px-6">NILAI KONTRIBUSI</th>
-                <th class="py-3.5 px-6 text-right">STATUS</th>
+                <th class="py-3.5 px-6">STATUS</th>
+                <th class="py-3.5 px-6 text-right">AKSI</th>
               </tr>
             </thead>
             <tbody class="divide-y divide-black/10">
@@ -158,7 +385,7 @@ async function addVendor() {
                 <td class="py-4 px-6 text-slate-700">{{ s.tier }}</td>
                 <td class="py-4 px-6 text-slate-600">{{ s.pic }}</td>
                 <td class="py-4 px-6 font-bold text-black">{{ s.contribution }}</td>
-                <td class="py-4 px-6 text-right">
+                <td class="py-4 px-6">
                   <span
                     class="rounded-full border border-black px-3 py-1 text-xs font-semibold inline-flex items-center gap-1.5"
                     :class="s.status === 'Confirmed' ? 'bg-[#72a5e4] text-black font-bold' : 'bg-white text-slate-700'"
@@ -166,6 +393,29 @@ async function addVendor() {
                     <span>●</span>
                     <span>{{ s.status }}</span>
                   </span>
+                </td>
+                <td class="py-4 px-6 text-right">
+                  <div class="inline-flex items-center gap-1.5">
+                    <button
+                      @click="openEditSponsor(s)"
+                      title="Edit Sponsor"
+                      class="rounded-full border border-black p-1.5 text-black hover:bg-slate-100"
+                    >
+                      <Pencil class="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      @click="removeSponsor(s)"
+                      title="Hapus Sponsor"
+                      class="rounded-full border border-black p-1.5 text-red-600 hover:bg-red-50"
+                    >
+                      <Trash2 class="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                </td>
+              </tr>
+              <tr v-if="!sponsors.length">
+                <td colspan="6" class="py-8 px-6 text-center text-slate-500">
+                  Belum ada mitra sponsor tercatat.
                 </td>
               </tr>
             </tbody>
@@ -178,6 +428,12 @@ async function addVendor() {
     <div v-else-if="activeTab === 'docs'" class="space-y-4">
       <div class="flex items-center justify-between">
         <span class="text-xs text-slate-600 font-medium">Total {{ documents.length }} Dokumen Tersimpan</span>
+        <button
+          @click="showDocModal = true"
+          class="rounded-full bg-black px-5 py-2 text-xs font-semibold text-white hover:bg-slate-800 transition-colors cursor-pointer"
+        >
+          + Unggah Dokumen
+        </button>
       </div>
       <div class="rounded-2xl border border-black bg-white overflow-hidden">
         <div class="overflow-x-auto">
@@ -186,7 +442,7 @@ async function addVendor() {
               <tr>
                 <th class="py-3.5 px-6">NAMA DOKUMEN</th>
                 <th class="py-3.5 px-6">KATEGORI</th>
-                <th class="py-3.5 px-6">UKURAN</th>
+                <th class="py-3.5 px-6">VISIBILITAS</th>
                 <th class="py-3.5 px-6">DIPERBARUI</th>
                 <th class="py-3.5 px-6 text-right">AKSI</th>
               </tr>
@@ -195,12 +451,32 @@ async function addVendor() {
               <tr v-for="d in documents" :key="d.id" class="hover:bg-slate-50/50">
                 <td class="py-4 px-6 font-bold text-black">{{ d.file_name || d.name }}</td>
                 <td class="py-4 px-6 text-slate-700">{{ d.category }}</td>
-                <td class="py-4 px-6 text-slate-600">{{ d.size || 'PDF / Doc' }}</td>
+                <td class="py-4 px-6 text-slate-600 uppercase">{{ d.visibility || 'internal' }}</td>
                 <td class="py-4 px-6 text-slate-600">{{ d.updated || d.created_at?.slice(0, 10) || '-' }}</td>
                 <td class="py-4 px-6 text-right">
-                  <button class="rounded-full border border-black px-3 py-1 text-xs font-semibold hover:bg-slate-100">
-                    Unduh
-                  </button>
+                  <div class="inline-flex items-center gap-1.5">
+                    <button
+                      @click="handleDownloadDoc(d)"
+                      type="button"
+                      class="inline-flex items-center gap-1 rounded-full border border-black px-3 py-1 text-xs font-semibold hover:bg-slate-100 cursor-pointer"
+                    >
+                      <Download class="h-3 w-3" />
+                      <span>Unduh</span>
+                    </button>
+                    <button
+                      @click="removeDoc(d)"
+                      type="button"
+                      title="Hapus Dokumen"
+                      class="rounded-full border border-black p-1.5 text-red-600 hover:bg-red-50 cursor-pointer"
+                    >
+                      <Trash2 class="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                </td>
+              </tr>
+              <tr v-if="!documents.length">
+                <td colspan="5" class="py-8 px-6 text-center text-slate-500">
+                  Belum ada dokumen tersimpan pada event ini.
                 </td>
               </tr>
             </tbody>
@@ -209,28 +485,64 @@ async function addVendor() {
       </div>
     </div>
 
-    <!-- Active Tab: Feedback -->
-    <div v-else class="rounded-2xl border border-black bg-white p-8 text-center space-y-3">
-      <h3 class="text-base font-bold text-black">Survei &amp; Feedback Peserta</h3>
-      <p class="text-xs text-slate-600 max-w-md mx-auto">
-        Kuesioner evaluasi acara otomatis dibuka setelah sesi penutupan selesai. Hasil rating dan masukan peserta akan dirangkum di sini.
-      </p>
+    <!-- Active Tab: Feedback & Surveys -->
+    <div v-else class="space-y-4">
+      <div class="flex items-center justify-between">
+        <span class="text-xs text-slate-600 font-medium">Total {{ surveys.length }} Kuesioner Survei</span>
+        <button
+          @click="showSurveyModal = true"
+          class="rounded-full bg-black px-5 py-2 text-xs font-semibold text-white hover:bg-slate-800 transition-colors"
+        >
+          + Buat Survei Evaluasi
+        </button>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div
+          v-for="srv in surveys"
+          :key="srv.id"
+          class="rounded-2xl border border-black bg-white p-5 space-y-3"
+        >
+          <div class="flex items-start justify-between gap-3">
+            <div>
+              <h3 class="text-sm font-bold text-black">{{ srv.title }}</h3>
+              <p class="text-xs text-slate-600 mt-1">{{ srv.description || 'Survei evaluasi kepuasan peserta.' }}</p>
+            </div>
+            <span class="rounded-full border border-black bg-[#72a5e4] px-2.5 py-0.5 text-[10px] font-bold text-black shrink-0">
+              {{ srv.is_active ? 'Aktif' : 'Nonaktif' }}
+            </span>
+          </div>
+          <div class="pt-3 border-t border-black/10 flex items-center justify-between text-[11px] font-semibold text-slate-700">
+            <span>{{ (srv.responses || []).length }} Respons Masuk</span>
+            <span class="font-mono text-slate-400">ID: {{ srv.id }}</span>
+          </div>
+        </div>
+      </div>
+
+      <div v-if="!surveys.length" class="rounded-2xl border border-black bg-white p-8 text-center space-y-2">
+        <h3 class="text-base font-bold text-black">Survei &amp; Feedback Peserta</h3>
+        <p class="text-xs text-slate-600 max-w-md mx-auto">
+          Belum ada survei evaluasi dibuat. Klik "+ Buat Survei Evaluasi" (memerlukan modul Feedback &amp; Survey aktif).
+        </p>
+      </div>
     </div>
 
-    <!-- Modal Tambah Vendor -->
+    <!-- Modal Tambah / Edit Vendor -->
     <div
       v-if="showVendorModal"
       class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-2xs"
     >
       <div class="w-full max-w-md rounded-3xl border-2 border-black bg-white p-6 sm:p-8 space-y-6">
         <div class="flex items-center justify-between border-b border-black/20 pb-3">
-          <h3 class="text-xl font-bold text-black font-editorial">Tambah Rekanan Vendor</h3>
+          <h3 class="text-xl font-bold text-black font-editorial">
+            {{ editingVendorId ? 'Edit Rekanan Vendor' : 'Tambah Rekanan Vendor' }}
+          </h3>
           <button @click="showVendorModal = false" class="p-1 rounded-full border border-black hover:bg-slate-100">
             <X class="h-4 w-4" />
           </button>
         </div>
 
-        <form @submit.prevent="addVendor" class="space-y-4 text-xs">
+        <form @submit.prevent="saveVendor" class="space-y-4 text-xs">
           <div class="space-y-1">
             <label class="font-bold text-black">Nama Vendor / Perusahaan</label>
             <input
@@ -242,14 +554,25 @@ async function addVendor() {
             />
           </div>
 
-          <div class="space-y-1">
-            <label class="font-bold text-black">Kategori Layanan</label>
-            <input
-              v-model="newCat"
-              type="text"
-              placeholder="Audio & Lighting"
-              class="w-full rounded-xl border border-black p-2.5 text-black focus:outline-hidden"
-            />
+          <div class="grid grid-cols-2 gap-3">
+            <div class="space-y-1">
+              <label class="font-bold text-black">Kategori Layanan</label>
+              <input
+                v-model="newCat"
+                type="text"
+                placeholder="Audio & Lighting"
+                class="w-full rounded-xl border border-black p-2.5 text-black focus:outline-hidden"
+              />
+            </div>
+            <div class="space-y-1">
+              <label class="font-bold text-black">Status Kontrak</label>
+              <select v-model="vendorStatus" class="w-full rounded-xl border border-black p-2.5 text-black bg-white">
+                <option value="Pending">Pending</option>
+                <option value="Confirmed">Confirmed</option>
+                <option value="Completed">Completed</option>
+                <option value="Cancelled">Cancelled</option>
+              </select>
+            </div>
           </div>
 
           <div class="grid grid-cols-2 gap-4">
@@ -283,9 +606,216 @@ async function addVendor() {
             </button>
             <button
               type="submit"
-              class="rounded-full bg-black px-6 py-2 font-bold text-white hover:bg-slate-800"
+              :disabled="savingVendor"
+              class="rounded-full bg-black px-6 py-2 font-bold text-white hover:bg-slate-800 disabled:opacity-60"
             >
-              Simpan Vendor
+              {{ savingVendor ? 'Menyimpan...' : editingVendorId ? 'Simpan Perubahan' : 'Simpan Vendor' }}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Modal Tambah / Edit Sponsor -->
+    <div
+      v-if="showSponsorModal"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-2xs"
+    >
+      <div class="w-full max-w-md rounded-3xl border-2 border-black bg-white p-6 sm:p-8 space-y-6">
+        <div class="flex items-center justify-between border-b border-black/20 pb-3">
+          <h3 class="text-xl font-bold text-black font-editorial">
+            {{ editingSponsorId ? 'Edit Mitra Sponsor' : 'Tambah Mitra Sponsor' }}
+          </h3>
+          <button @click="showSponsorModal = false" class="p-1 rounded-full border border-black hover:bg-slate-100">
+            <X class="h-4 w-4" />
+          </button>
+        </div>
+
+        <form @submit.prevent="saveSponsor" class="space-y-4 text-xs">
+          <div class="space-y-1">
+            <label class="font-bold text-black">Nama Perusahaan / Sponsor</label>
+            <input
+              v-model="spName"
+              type="text"
+              required
+              placeholder="Contoh: Bank Kampus Indonesia"
+              class="w-full rounded-xl border border-black p-2.5 text-black focus:outline-hidden"
+            />
+          </div>
+
+          <div class="grid grid-cols-2 gap-3">
+            <div class="space-y-1">
+              <label class="font-bold text-black">Tier Sponsor</label>
+              <select v-model="spTier" class="w-full rounded-xl border border-black p-2.5 text-black bg-white">
+                <option value="Platinum">Platinum</option>
+                <option value="Gold">Gold</option>
+                <option value="Silver">Silver</option>
+                <option value="Media Partner">Media Partner</option>
+                <option value="Community Partner">Community Partner</option>
+              </select>
+            </div>
+            <div class="space-y-1">
+              <label class="font-bold text-black">Status</label>
+              <select v-model="spStatus" class="w-full rounded-xl border border-black p-2.5 text-black bg-white">
+                <option value="Pending">Pending</option>
+                <option value="Confirmed">Confirmed</option>
+                <option value="Cancelled">Cancelled</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-4">
+            <div class="space-y-1">
+              <label class="font-bold text-black">PIC Sponsor</label>
+              <input
+                v-model="spPic"
+                type="text"
+                placeholder="Nama & kontak PIC"
+                class="w-full rounded-xl border border-black p-2.5 text-black focus:outline-hidden"
+              />
+            </div>
+            <div class="space-y-1">
+              <label class="font-bold text-black">Nilai Kontribusi</label>
+              <input
+                v-model="spContribution"
+                type="text"
+                placeholder="Rp 10.000.000"
+                class="w-full rounded-xl border border-black p-2.5 text-black focus:outline-hidden"
+              />
+            </div>
+          </div>
+
+          <div class="pt-4 flex justify-end gap-3 border-t border-black/20">
+            <button
+              type="button"
+              @click="showSponsorModal = false"
+              class="rounded-full border border-black bg-white px-5 py-2 font-semibold text-black hover:bg-slate-100"
+            >
+              Batal
+            </button>
+            <button
+              type="submit"
+              :disabled="savingSponsor"
+              class="rounded-full bg-black px-6 py-2 font-bold text-white hover:bg-slate-800 disabled:opacity-60"
+            >
+              {{ savingSponsor ? 'Menyimpan...' : editingSponsorId ? 'Simpan Perubahan' : 'Simpan Sponsor' }}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Modal Buat Survei -->
+    <div
+      v-if="showSurveyModal"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-2xs"
+    >
+      <div class="w-full max-w-md rounded-3xl border-2 border-black bg-white p-6 sm:p-8 space-y-5">
+        <div class="flex items-center justify-between border-b border-black/20 pb-3">
+          <h3 class="text-xl font-bold text-black font-editorial">Buat Survei Evaluasi Event</h3>
+          <button @click="showSurveyModal = false" class="p-1 rounded-full border border-black hover:bg-slate-100">
+            <X class="h-4 w-4" />
+          </button>
+        </div>
+
+        <form @submit.prevent="saveSurvey" class="space-y-4 text-xs">
+          <div class="space-y-1">
+            <label class="font-bold text-black">Judul Kuesioner</label>
+            <input
+              v-model="surveyTitle"
+              type="text"
+              required
+              placeholder="Contoh: Evaluasi Kepuasan Peserta DEMAFEST 2026"
+              class="w-full rounded-xl border border-black p-2.5 text-black focus:outline-hidden"
+            />
+          </div>
+          <div class="space-y-1">
+            <label class="font-bold text-black">Deskripsi / Pertanyaan Ringkas</label>
+            <textarea
+              v-model="surveyDesc"
+              rows="3"
+              placeholder="Berikan penilaian acara, materi pembicara, dan fasilitas venue..."
+              class="w-full rounded-xl border border-black p-2.5 text-black focus:outline-hidden resize-none"
+            />
+          </div>
+          <div class="pt-3 flex justify-end gap-2 border-t border-black/20">
+            <button
+              type="button"
+              @click="showSurveyModal = false"
+              class="rounded-full border border-black bg-white px-4 py-2 font-semibold text-black hover:bg-slate-100"
+            >
+              Batal
+            </button>
+            <button
+              type="submit"
+              :disabled="savingSurvey"
+              class="rounded-full bg-black px-5 py-2 font-bold text-white hover:bg-slate-800 disabled:opacity-60"
+            >
+              {{ savingSurvey ? 'Menyimpan...' : 'Buat Survei' }}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Modal Unggah Dokumen ke Supabase Storage -->
+    <div
+      v-if="showDocModal"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-2xs"
+    >
+      <div class="w-full max-w-md rounded-3xl border-2 border-black bg-white p-6 sm:p-8 space-y-6">
+        <div class="flex items-center justify-between border-b border-black/20 pb-3">
+          <h3 class="text-xl font-bold text-black font-editorial">Unggah Dokumen Event</h3>
+          <button @click="showDocModal = false" class="p-1 rounded-full border border-black hover:bg-slate-100">
+            <X class="h-4 w-4" />
+          </button>
+        </div>
+
+        <form @submit.prevent="handleUploadDoc" class="space-y-4 text-xs">
+          <div class="space-y-1">
+            <label class="font-bold text-black">Pilih File (PDF / Office / Gambar, maks 4MB)</label>
+            <input
+              type="file"
+              required
+              accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.csv,.txt,image/*"
+              @change="(e) => { docFile = e.target.files?.[0] || null }"
+              class="w-full rounded-xl border border-black p-2.5 text-black bg-[#fafaf9]"
+            />
+          </div>
+
+          <div class="grid grid-cols-2 gap-4">
+            <div class="space-y-1">
+              <label class="font-bold text-black">Kategori</label>
+              <select v-model="docCategory" class="w-full rounded-xl border border-black p-2.5 text-black bg-white">
+                <option value="Operasional">Operasional</option>
+                <option value="Sponsorship">Sponsorship</option>
+                <option value="Legal & Perizinan">Legal &amp; Perizinan</option>
+                <option value="Materi Pembicara">Materi Pembicara</option>
+              </select>
+            </div>
+            <div class="space-y-1">
+              <label class="font-bold text-black">Visibilitas</label>
+              <select v-model="docVisibility" class="w-full rounded-xl border border-black p-2.5 text-black bg-white">
+                <option value="internal">Internal Panitia</option>
+                <option value="public">Publik</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="pt-4 flex justify-end gap-3 border-t border-black/20">
+            <button
+              type="button"
+              @click="showDocModal = false"
+              class="rounded-full border border-black bg-white px-5 py-2 font-semibold text-black hover:bg-slate-100"
+            >
+              Batal
+            </button>
+            <button
+              type="submit"
+              :disabled="uploadingDoc"
+              class="rounded-full bg-black px-6 py-2 font-bold text-white hover:bg-slate-800 disabled:opacity-50"
+            >
+              {{ uploadingDoc ? 'Mengunggah...' : 'Unggah ke Supabase' }}
             </button>
           </div>
         </form>

@@ -4,7 +4,7 @@ import { useRoute } from 'vue-router'
 import { useEventWorkspaceStore } from '@/stores/eventWorkspace'
 import { useToastStore } from '@/stores/toast'
 import { formatCurrency } from '@/utils/formatters'
-import { Power, X } from 'lucide-vue-next'
+import { Power, X, Pencil, Trash2 } from 'lucide-vue-next'
 
 const route = useRoute()
 const store = useEventWorkspaceStore()
@@ -16,26 +16,74 @@ const name = ref('')
 const price = ref(0)
 const quantity = ref(100)
 const description = ref('')
+const status = ref('On Sale')
+const editingTicketId = ref(null)
 const showForm = ref(false)
+const saving = ref(false)
 
-async function addTicketType() {
-  if (!name.value.trim() || !event.value) return
-  await store.addTicketType(event.value.id, {
-    name: name.value,
-    description: description.value || 'Tiket masuk resmi event.',
-    price: Number(price.value),
-    quantity: Number(quantity.value)
-  })
+function openCreateTicket() {
+  editingTicketId.value = null
   name.value = ''
   price.value = 0
+  quantity.value = 100
   description.value = ''
-  showForm.value = false
-  toast.success('Jenis tiket baru berhasil ditambahkan.')
+  status.value = 'On Sale'
+  showForm.value = true
+}
+
+function openEditTicket(tkt) {
+  editingTicketId.value = tkt.id
+  name.value = tkt.name || ''
+  price.value = Number(tkt.price || 0)
+  quantity.value = Number(tkt.quantity || 1)
+  description.value = tkt.description || ''
+  status.value = tkt.status || 'On Sale'
+  showForm.value = true
+}
+
+async function saveTicketType() {
+  if (!name.value.trim() || !event.value) return
+  saving.value = true
+  try {
+    const payload = {
+      name: name.value.trim(),
+      description: description.value || 'Tiket masuk resmi event.',
+      price: Number(price.value || 0),
+      quantity: Number(quantity.value || 1),
+      status: status.value
+    }
+    if (editingTicketId.value) {
+      await store.updateTicketType(editingTicketId.value, payload)
+      toast.success(`Tiket "${payload.name}" diperbarui.`)
+    } else {
+      await store.addTicketType(event.value.id, payload)
+      toast.success('Jenis tiket baru berhasil ditambahkan.')
+    }
+    showForm.value = false
+  } catch (err) {
+    toast.error(err?.message || 'Gagal menyimpan jenis tiket.')
+  } finally {
+    saving.value = false
+  }
+}
+
+async function removeTicket(tkt) {
+  if (!window.confirm(`Hapus jenis tiket "${tkt.name}"?`)) return
+  try {
+    await store.deleteTicketType(tkt.id)
+    toast.success(`Jenis tiket "${tkt.name}" dihapus.`)
+  } catch (err) {
+    toast.error(err?.message || 'Gagal menghapus jenis tiket.')
+  }
 }
 
 async function toggleTicketStatus(tkt) {
-  await store.toggleTicketTypeStatus(tkt)
-  toast.info(`Status tiket ${tkt.name} diubah menjadi ${tkt.status}.`)
+  try {
+    await store.toggleTicketTypeStatus(tkt)
+    toast.info(`Status tiket ${tkt.name} diubah menjadi ${tkt.status}.`)
+  } catch (err) {
+    toast.error(err?.message || 'Gagal mengubah status tiket.')
+  }
 }
 
 function getRevenue(tkt) {
@@ -68,7 +116,7 @@ function getRevenue(tkt) {
       </div>
 
       <button
-        @click="showForm = true"
+        @click="openCreateTicket"
         class="rounded-full bg-black px-6 py-2.5 text-xs font-semibold text-white hover:bg-slate-800 transition-colors shrink-0"
       >
         + Buat Jenis Tiket
@@ -131,7 +179,7 @@ function getRevenue(tkt) {
         </div>
 
         <!-- Status & Actions -->
-        <div class="flex items-center justify-between pt-3 border-t border-black/10">
+        <div class="flex items-center justify-between gap-2 pt-3 border-t border-black/10">
           <span
             class="rounded-full border border-black px-3 py-1 text-xs font-semibold flex items-center gap-1.5"
             :class="tkt.status === 'On Sale' ? 'bg-[#72a5e4] text-black font-bold' : 'bg-slate-100 text-slate-600'"
@@ -140,31 +188,49 @@ function getRevenue(tkt) {
             <span>{{ tkt.status }}</span>
           </span>
 
-          <button
-            @click="toggleTicketStatus(tkt)"
-            class="p-2 rounded-full border border-black text-black hover:bg-slate-100 transition-colors"
-            title="Ubah Status On Sale / Nonaktif"
-          >
-            <Power class="h-4 w-4" />
-          </button>
+          <div class="flex items-center gap-1.5">
+            <button
+              @click="openEditTicket(tkt)"
+              class="p-2 rounded-full border border-black text-black hover:bg-slate-100 transition-colors"
+              title="Edit Jenis Tiket"
+            >
+              <Pencil class="h-4 w-4" />
+            </button>
+            <button
+              @click="toggleTicketStatus(tkt)"
+              class="p-2 rounded-full border border-black text-black hover:bg-slate-100 transition-colors"
+              title="Ubah Status On Sale / Nonaktif"
+            >
+              <Power class="h-4 w-4" />
+            </button>
+            <button
+              @click="removeTicket(tkt)"
+              class="p-2 rounded-full border border-black text-red-600 hover:bg-red-50 transition-colors"
+              title="Hapus Jenis Tiket"
+            >
+              <Trash2 class="h-4 w-4" />
+            </button>
+          </div>
         </div>
       </div>
     </div>
 
-    <!-- Modal Buat Tiket Baru -->
+    <!-- Modal Buat / Edit Tiket -->
     <div
       v-if="showForm"
       class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-2xs"
     >
       <div class="w-full max-w-md rounded-3xl border-2 border-black bg-white p-6 sm:p-8 space-y-6">
         <div class="flex items-center justify-between border-b border-black/20 pb-3">
-          <h3 class="text-xl font-bold text-black font-editorial">Buat Jenis Tiket Baru</h3>
+          <h3 class="text-xl font-bold text-black font-editorial">
+            {{ editingTicketId ? 'Edit Jenis Tiket' : 'Buat Jenis Tiket Baru' }}
+          </h3>
           <button @click="showForm = false" class="p-1 rounded-full border border-black hover:bg-slate-100">
             <X class="h-4 w-4" />
           </button>
         </div>
 
-        <form @submit.prevent="addTicketType" class="space-y-4 text-xs">
+        <form @submit.prevent="saveTicketType" class="space-y-4 text-xs">
           <div class="space-y-1">
             <label class="font-bold text-black">Nama Tiket</label>
             <input
@@ -183,7 +249,7 @@ function getRevenue(tkt) {
                 v-model="price"
                 type="number"
                 min="0"
-                step="5000"
+                step="1000"
                 required
                 class="w-full rounded-xl border border-black p-2.5 text-black focus:outline-hidden"
               />
@@ -200,6 +266,21 @@ function getRevenue(tkt) {
                 class="w-full rounded-xl border border-black p-2.5 text-black focus:outline-hidden"
               />
             </div>
+          </div>
+
+          <div v-if="editingTicketId" class="space-y-1">
+            <label class="font-bold text-black">Status Penjualan</label>
+            <select
+              v-model="status"
+              class="w-full rounded-xl border border-black p-2.5 text-black bg-white focus:outline-hidden"
+            >
+              <option value="On Sale">On Sale</option>
+              <option value="Draft">Draft</option>
+              <option value="Scheduled">Scheduled</option>
+              <option value="Sold Out">Sold Out</option>
+              <option value="Sales Ended">Sales Ended</option>
+              <option value="Disabled">Disabled</option>
+            </select>
           </div>
 
           <div class="space-y-1">
@@ -222,9 +303,10 @@ function getRevenue(tkt) {
             </button>
             <button
               type="submit"
-              class="rounded-full bg-black px-6 py-2 font-bold text-white hover:bg-slate-800"
+              :disabled="saving"
+              class="rounded-full bg-black px-6 py-2 font-bold text-white hover:bg-slate-800 disabled:opacity-60"
             >
-              Simpan Tiket
+              {{ saving ? 'Menyimpan...' : editingTicketId ? 'Simpan Perubahan' : 'Simpan Tiket' }}
             </button>
           </div>
         </form>

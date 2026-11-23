@@ -9,22 +9,38 @@ const store = useEventWorkspaceStore()
 const authStore = useAuthStore()
 
 async function hydrateData() {
-  await Promise.all([
-    store.checkBackendHealth(),
-    store.fetchMarketplace()
-  ])
-  if (authStore.isOrganizer || authStore.isAdmin) {
-    await store.fetchOrganizerWorkspace()
+  try {
+    await Promise.all([
+      store.checkBackendHealth(),
+      store.fetchMarketplace()
+    ])
+  } catch {
+    // Handled via apiConnected state
   }
+
+  if (authStore.isAdmin) {
+    await store.fetchAdminWorkspace().catch(() => {})
+  } else if (authStore.isOrganizer) {
+    await store.fetchOrganizerWorkspace().catch(() => {})
+  }
+
   if (authStore.isAuthenticated) {
-    await store.fetchMyTickets()
+    await store.fetchMyTickets().catch(() => {})
   }
 }
 
 onMounted(hydrateData)
-watch(() => authStore.isAuthenticated, (authed) => {
-  if (authed) hydrateData()
-})
+watch(
+  () => authStore.isAuthenticated,
+  (authed) => {
+    if (authed) {
+      hydrateData()
+    } else {
+      store.myTickets = []
+      store.fetchMarketplace().catch(() => {})
+    }
+  }
+)
 </script>
 
 <template>

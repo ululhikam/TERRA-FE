@@ -1,9 +1,8 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useEventWorkspaceStore } from '@/stores/eventWorkspace'
 import { useToastStore } from '@/stores/toast'
-import { MOCK_CATEGORIES } from '@/services/mockData'
 import { slugify } from '@/utils/formatters'
 import { Calendar } from 'lucide-vue-next'
 
@@ -13,7 +12,22 @@ const toast = useToastStore()
 
 const title = ref('')
 const organizationId = ref(store.organizations[0]?.id || '')
-const category = ref(MOCK_CATEGORIES[0].name)
+const category = ref(store.categories[0]?.name || '')
+
+watch(
+  () => store.organizations,
+  (orgs) => {
+    if (!organizationId.value && orgs.length) organizationId.value = orgs[0].id
+  },
+  { immediate: true }
+)
+watch(
+  () => store.categories,
+  (cats) => {
+    if (!category.value && cats.length) category.value = cats[0].name
+  },
+  { immediate: true }
+)
 const locationType = ref('offline')
 const locationName = ref('')
 const address = ref('')
@@ -21,6 +35,31 @@ const startAt = ref('2026-12-28T09:00')
 const endAt = ref('2026-12-28T17:00')
 const capacity = ref(100)
 const description = ref('')
+const posterUrl = ref('')
+const bannerUrl = ref('')
+const uploadingMedia = ref('')
+
+async function handleEventMediaUpload(e, target) {
+  const file = e.target.files?.[0]
+  if (!file) return
+  uploadingMedia.value = target
+  try {
+    const uploaded = await store.uploadMedia(file, {
+      folder: target === 'poster' ? 'posters' : 'banners',
+      bucketType: 'media'
+    })
+    if (uploaded?.public_url) {
+      if (target === 'poster') posterUrl.value = uploaded.public_url
+      else bannerUrl.value = uploaded.public_url
+      toast.success('Gambar berhasil diunggah ke Supabase Storage.')
+    }
+  } catch (err) {
+    toast.error(err?.message || 'Gagal mengunggah gambar.')
+  } finally {
+    uploadingMedia.value = ''
+    e.target.value = ''
+  }
+}
 
 async function handleCreate() {
   if (!title.value.trim()) return
@@ -43,8 +82,8 @@ async function handleCreate() {
     capacity: Number(capacity.value) || 100,
     publication_status: 'Published',
     description: description.value,
-    poster_url: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=900&q=80',
-    banner_url: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=1400&q=80'
+    poster_url: posterUrl.value || 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=900&q=80',
+    banner_url: bannerUrl.value || posterUrl.value || 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=1400&q=80'
   })
   toast.success('Event berhasil dibuat! Silakan tentukan modul pengelolaan yang dibutuhkan.')
   router.push(`/dashboard/events/${evt.id}/modules`)
@@ -99,7 +138,7 @@ async function handleCreate() {
               v-model="category"
               class="w-full rounded-xl border border-black bg-white p-3 text-xs sm:text-sm text-black focus:outline-hidden appearance-none cursor-pointer"
             >
-              <option v-for="c in MOCK_CATEGORIES" :key="c.id" :value="c.name">{{ c.name }}</option>
+              <option v-for="c in store.categories" :key="c.id" :value="c.name">{{ c.name }}</option>
             </select>
             <span class="pointer-events-none absolute right-4 top-3 text-xs">⌄</span>
           </div>
@@ -176,6 +215,30 @@ async function handleCreate() {
           placeholder="Jelaskan detail acara, pembicara, dan manfaat untuk peserta..."
           class="w-full rounded-xl border border-black bg-white p-3 text-xs sm:text-sm text-black placeholder:text-slate-400 focus:outline-hidden resize-none"
         />
+      </div>
+
+      <!-- Media Poster & Banner (Upload ke Supabase Storage) -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div class="space-y-1.5">
+          <label class="block text-xs font-semibold text-slate-800">Poster Event (Supabase Storage)</label>
+          <div class="flex items-center gap-3">
+            <label class="rounded-full border border-black bg-white px-4 py-2 text-xs font-bold text-black hover:bg-slate-100 cursor-pointer shrink-0">
+              <span>{{ uploadingMedia === 'poster' ? 'Mengunggah...' : '↑ Upload Poster' }}</span>
+              <input type="file" accept="image/*" class="hidden" @change="handleEventMediaUpload($event, 'poster')" />
+            </label>
+            <span class="text-[11px] text-slate-500 truncate">{{ posterUrl || 'Default poster jika kosong' }}</span>
+          </div>
+        </div>
+        <div class="space-y-1.5">
+          <label class="block text-xs font-semibold text-slate-800">Banner Cover 16:9 (Supabase Storage)</label>
+          <div class="flex items-center gap-3">
+            <label class="rounded-full border border-black bg-white px-4 py-2 text-xs font-bold text-black hover:bg-slate-100 cursor-pointer shrink-0">
+              <span>{{ uploadingMedia === 'banner' ? 'Mengunggah...' : '↑ Upload Banner' }}</span>
+              <input type="file" accept="image/*" class="hidden" @change="handleEventMediaUpload($event, 'banner')" />
+            </label>
+            <span class="text-[11px] text-slate-500 truncate">{{ bannerUrl || 'Mengikuti poster jika kosong' }}</span>
+          </div>
+        </div>
       </div>
 
       <!-- Bottom Button -->

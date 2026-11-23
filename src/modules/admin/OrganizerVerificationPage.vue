@@ -5,8 +5,8 @@ import { useToastStore } from '@/stores/toast'
 const store = useEventWorkspaceStore()
 const toast = useToastStore()
 
-function setStatus(org, status) {
-  org.verification_status = status
+async function setStatus(org, status) {
+  await store.reviewVerification(org.id, status)
   toast.success(`Status verifikasi ${org.name} diubah menjadi ${status}.`)
 }
 </script>

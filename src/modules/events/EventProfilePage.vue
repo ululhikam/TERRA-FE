@@ -3,7 +3,7 @@ import { computed, reactive, ref, watch } from 'vue'
 import { useRoute, RouterLink } from 'vue-router'
 import { useEventWorkspaceStore } from '@/stores/eventWorkspace'
 import { useToastStore } from '@/stores/toast'
-import { MOCK_CATEGORIES } from '@/services/mockData'
+import { slugify } from '@/utils/formatters'
 import { Trash2 } from 'lucide-vue-next'
 
 const route = useRoute()
@@ -60,7 +60,7 @@ function loadEventIntoForm(evt) {
   if (!evt) return
   form.title = evt.title || ''
   form.slug = evt.slug || ''
-  form.category = evt.category || MOCK_CATEGORIES[0].name
+  form.category = evt.category || store.categories[0]?.name || ''
   form.description = evt.description || ''
   form.poster_url = evt.poster_url || ''
   form.banner_url = evt.banner_url || ''
@@ -79,15 +79,60 @@ function loadEventIntoForm(evt) {
 
 watch(event, loadEventIntoForm, { immediate: true })
 
-function handleLocalImageUpload(e, targetField) {
+const uploadingField = ref('')
+
+async function handleImageUpload(e, targetField, folder = 'events') {
   const file = e.target.files?.[0]
   if (!file) return
-  const reader = new FileReader()
-  reader.onload = () => {
-    form[targetField] = String(reader.result)
-    toast.success('Gambar berhasil dimuat.')
+  uploadingField.value = targetField
+  try {
+    const uploaded = await store.uploadMedia(file, { folder, bucketType: 'media' })
+    if (uploaded?.public_url) {
+      form[targetField] = uploaded.public_url
+      toast.success('Gambar berhasil diunggah ke Supabase Storage.')
+    }
+  } catch (err) {
+    toast.error(err?.message || 'Gagal mengunggah gambar ke Supabase.')
+  } finally {
+    uploadingField.value = ''
+    e.target.value = ''
   }
-  reader.readAsDataURL(file)
+}
+
+async function handleGalleryUpload(e) {
+  const file = e.target.files?.[0]
+  if (!file) return
+  uploadingField.value = 'gallery'
+  try {
+    const uploaded = await store.uploadMedia(file, { folder: 'gallery', bucketType: 'media' })
+    if (uploaded?.public_url) {
+      form.gallery.push(uploaded.public_url)
+      toast.success('Foto galeri diunggah ke Supabase Storage.')
+    }
+  } catch (err) {
+    toast.error(err?.message || 'Gagal mengunggah foto galeri.')
+  } finally {
+    uploadingField.value = ''
+    e.target.value = ''
+  }
+}
+
+async function handleSpeakerAvatarUpload(e) {
+  const file = e.target.files?.[0]
+  if (!file) return
+  uploadingField.value = 'speaker_avatar'
+  try {
+    const uploaded = await store.uploadMedia(file, { folder: 'speakers', bucketType: 'media' })
+    if (uploaded?.public_url) {
+      newSpeaker.avatar_url = uploaded.public_url
+      toast.success('Foto pemateri diunggah ke Supabase Storage.')
+    }
+  } catch (err) {
+    toast.error(err?.message || 'Gagal mengunggah foto pemateri.')
+  } finally {
+    uploadingField.value = ''
+    e.target.value = ''
+  }
 }
 
 function addGalleryItem() {
@@ -219,8 +264,8 @@ async function saveChanges() {
           <div class="aspect-[4/5] w-full rounded-xl overflow-hidden bg-black relative">
             <img :src="form.poster_url" alt="Poster" class="w-full h-full object-cover" />
             <label class="absolute bottom-3 left-4 right-4 text-center rounded-full bg-black/80 py-2 text-xs font-bold text-white hover:bg-black cursor-pointer">
-              <span>↑ Unggah Foto Profil</span>
-              <input type="file" accept="image/*" class="hidden" @change="handleLocalImageUpload($event, 'poster_url')" />
+              <span>{{ uploadingField === 'poster_url' ? 'Mengunggah ke Supabase...' : '↑ Unggah Foto Profil' }}</span>
+              <input type="file" accept="image/*" class="hidden" :disabled="Boolean(uploadingField)" @change="handleImageUpload($event, 'poster_url', 'posters')" />
             </label>
           </div>
           <input
@@ -236,8 +281,8 @@ async function saveChanges() {
           <div class="aspect-[16/9] w-full rounded-xl overflow-hidden bg-black relative">
             <img :src="form.banner_url || form.poster_url" alt="Banner" class="w-full h-full object-cover" />
             <label class="absolute bottom-3 right-4 rounded-full bg-black/80 px-5 py-2 text-xs font-bold text-white hover:bg-black cursor-pointer">
-              <span>↑ Ganti Banner Cover</span>
-              <input type="file" accept="image/*" class="hidden" @change="handleLocalImageUpload($event, 'banner_url')" />
+              <span>{{ uploadingField === 'banner_url' ? 'Mengunggah ke Supabase...' : '↑ Ganti Banner Cover' }}</span>
+              <input type="file" accept="image/*" class="hidden" :disabled="Boolean(uploadingField)" @change="handleImageUpload($event, 'banner_url', 'banners')" />
             </label>
           </div>
           <input
@@ -255,9 +300,13 @@ async function saveChanges() {
           <input
             v-model="newGalleryUrl"
             type="text"
-            placeholder="Tempel URL gambar galeri..."
+            placeholder="Tempel URL gambar galeri atau unggah file..."
             class="flex-1 rounded-lg border border-black bg-[#fafaf9] p-3 text-xs text-black placeholder:text-slate-400 focus:outline-hidden"
           />
+          <label class="rounded-full border border-black bg-white px-5 py-3 text-xs font-bold text-black hover:bg-slate-100 shrink-0 text-center cursor-pointer">
+            <span>{{ uploadingField === 'gallery' ? 'Mengunggah...' : '↑ Unggah File' }}</span>
+            <input type="file" accept="image/*" class="hidden" :disabled="Boolean(uploadingField)" @change="handleGalleryUpload" />
+          </label>
           <button
             @click="addGalleryItem"
             type="button"
@@ -316,10 +365,14 @@ async function saveChanges() {
         </div>
       </div>
 
-      <div class="grid grid-cols-1 sm:grid-cols-4 gap-3 text-xs pt-2">
+      <div class="grid grid-cols-1 sm:grid-cols-5 gap-3 text-xs pt-2 items-center">
         <input v-model="newSpeaker.name" placeholder="Nama Pemateri..." class="rounded-lg border border-black p-2.5 bg-white" />
         <input v-model="newSpeaker.role_title" placeholder="Jabatan & Perusahaan..." class="rounded-lg border border-black p-2.5 bg-white" />
         <input v-model="newSpeaker.topic" placeholder="Topik Bahasan..." class="rounded-lg border border-black p-2.5 bg-white" />
+        <label class="rounded-lg border border-black p-2.5 bg-white text-center font-semibold cursor-pointer hover:bg-slate-50 truncate">
+          <span>{{ uploadingField === 'speaker_avatar' ? 'Mengunggah...' : newSpeaker.avatar_url ? '✓ Foto Siap' : '↑ Foto Pemateri' }}</span>
+          <input type="file" accept="image/*" class="hidden" :disabled="Boolean(uploadingField)" @change="handleSpeakerAvatarUpload" />
+        </label>
         <button @click="addSpeaker" type="button" class="rounded-full bg-black text-white font-bold py-2.5">
           + Tambah Pemateri
         </button>

@@ -30,8 +30,55 @@ const sellThroughRate = computed(() =>
 )
 
 const ticketRevenue = computed(() => store.getPaidTicketRevenue(event.value?.id))
+const totalIncome = computed(() => {
+  const extra = store.finance.incomes
+    .filter((i) => !i.event_id || i.event_id === event.value?.id)
+    .reduce((s, i) => s + Number(i.amount || 0), 0)
+  return ticketRevenue.value + extra
+})
+const totalExpense = computed(() =>
+  store.finance.expenses
+    .filter((e) => !e.event_id || e.event_id === event.value?.id)
+    .reduce((s, e) => s + Number(e.amount || 0), 0)
+)
+const netProfit = computed(() => totalIncome.value - totalExpense.value)
+
+const eventParticipants = computed(() =>
+  store.participants.filter((p) => !p.event_id || p.event_id === event.value?.id)
+)
+const checkedInCount = computed(() => eventParticipants.value.filter((p) => p.checked_in).length)
+const turnoutPct = computed(() =>
+  eventParticipants.value.length
+    ? Math.round((checkedInCount.value / eventParticipants.value.length) * 100)
+    : 0
+)
+
+const taskVelocityByPhase = computed(() => {
+  const eventTasks = store.tasks.filter((t) => !t.event_id || t.event_id === event.value?.id)
+  const phases = ['Pre-Event', 'Marketing', 'Production', 'Event Day', 'Post-Event']
+  return phases
+    .map((phase) => {
+      const group = eventTasks.filter((t) => t.phase === phase)
+      if (!group.length) return null
+      const avg = Math.round(group.reduce((s, t) => s + (Number(t.progress) || 0), 0) / group.length)
+      return { phase, count: group.length, avgPct: avg }
+    })
+    .filter(Boolean)
+})
 
 function exportCSV() {
+  const rows = [
+    ['Tiket', 'Harga', 'Terjual', 'Kuota', 'Pendapatan'],
+    ...ticketBreakdown.value.map((t) => [t.name, t.price, t.sold_quantity, t.quantity, t.revenue])
+  ]
+  const csv = rows.map((r) => r.map((v) => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',')).join('\n')
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `reports-${event.value?.id || 'event'}.csv`
+  link.click()
+  URL.revokeObjectURL(url)
   toast.success('Laporan performa event CSV berhasil diekspor.')
 }
 </script>
@@ -96,11 +143,11 @@ function exportCSV() {
       <div class="rounded-2xl border border-black bg-white p-6 space-y-3 flex flex-col justify-between">
         <div>
           <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">NET EVENT PROFIT MARGIN</span>
-          <span class="text-2xl font-black text-black leading-none mt-2 block">Rp 23.800.000</span>
+          <span class="text-2xl font-black text-black leading-none mt-2 block">{{ formatCurrency(netProfit) }}</span>
         </div>
         <div class="pt-3 border-t border-black/10 text-xs">
-          <p class="font-medium text-slate-700">Beban: Rp 48.200.000</p>
-          <span class="text-[10px] text-slate-400">+Surplus</span>
+          <p class="font-medium text-slate-700">Beban: {{ formatCurrency(totalExpense) }}</p>
+          <span class="text-[10px] text-slate-400">{{ netProfit >= 0 ? '+Surplus' : 'Defisit' }}</span>
         </div>
       </div>
 
@@ -108,10 +155,10 @@ function exportCSV() {
       <div class="rounded-2xl border border-black bg-white p-6 space-y-3 flex flex-col justify-between">
         <div>
           <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">ATTENDANCE TURNOUT</span>
-          <span class="text-2xl font-black text-black leading-none mt-2 block">50%</span>
+          <span class="text-2xl font-black text-black leading-none mt-2 block">{{ turnoutPct }}%</span>
         </div>
         <div class="pt-3 border-t border-black/10 text-xs">
-          <p class="font-medium text-slate-700">2 / 4 peserta hadir di gate</p>
+          <p class="font-medium text-slate-700">{{ checkedInCount }} / {{ eventParticipants.length }} peserta hadir di gate</p>
           <span class="text-[10px] text-slate-400">Konversi</span>
         </div>
       </div>
@@ -164,7 +211,7 @@ function exportCSV() {
           <div class="space-y-1">
             <div class="flex justify-between font-semibold text-black">
               <span>1. Total Kuota Tiket Tersedia</span>
-              <span>600 Kuota</span>
+              <span>{{ totalQuota }} Kuota</span>
             </div>
             <div class="h-6 rounded-lg bg-[#72a5e4] flex items-center px-3 text-[10px] font-bold text-black">
               100% Kuota Basis
@@ -174,10 +221,13 @@ function exportCSV() {
           <div class="space-y-1">
             <div class="flex justify-between font-semibold text-black">
               <span>2. Tiket Terjual / Terdaftar</span>
-              <span>351 Peserta (59%)</span>
+              <span>{{ totalSold }} Peserta ({{ sellThroughRate }}%)</span>
             </div>
-            <div class="h-6 rounded-lg bg-[#72a5e4]/70 flex items-center px-3 text-[10px] font-bold text-black" style="width: 59%">
-              59% Terjual
+            <div
+              class="h-6 rounded-lg bg-[#72a5e4]/70 flex items-center px-3 text-[10px] font-bold text-black transition-all"
+              :style="{ width: `${Math.max(10, sellThroughRate)}%` }"
+            >
+              {{ sellThroughRate }}% Terjual
             </div>
           </div>
         </div>
@@ -191,34 +241,17 @@ function exportCSV() {
         </div>
 
         <div class="space-y-4 text-xs">
-          <div class="space-y-1">
+          <div v-for="ph in taskVelocityByPhase" :key="ph.phase" class="space-y-1">
             <div class="flex justify-between font-semibold text-black">
-              <span>Pre-Event (4 task)</span>
-              <span>83% Selesai</span>
+              <span>{{ ph.phase }} ({{ ph.count }} task)</span>
+              <span>{{ ph.avgPct }}% Selesai</span>
             </div>
             <div class="h-2 w-full rounded-full bg-slate-100 overflow-hidden">
-              <div class="h-full bg-[#72a5e4]" style="width: 83%" />
+              <div class="h-full bg-[#72a5e4] transition-all" :style="{ width: `${ph.avgPct}%` }" />
             </div>
           </div>
-
-          <div class="space-y-1">
-            <div class="flex justify-between font-semibold text-black">
-              <span>Marketing (3 task)</span>
-              <span>45% Selesai</span>
-            </div>
-            <div class="h-2 w-full rounded-full bg-slate-100 overflow-hidden">
-              <div class="h-full bg-[#72a5e4]" style="width: 45%" />
-            </div>
-          </div>
-
-          <div class="space-y-1">
-            <div class="flex justify-between font-semibold text-black">
-              <span>Production (3 task)</span>
-              <span>43% Selesai</span>
-            </div>
-            <div class="h-2 w-full rounded-full bg-slate-100 overflow-hidden">
-              <div class="h-full bg-[#72a5e4]" style="width: 43%" />
-            </div>
+          <div v-if="!taskVelocityByPhase.length" class="text-slate-500">
+            Belum ada tugas/milestone pada event ini.
           </div>
         </div>
       </div>

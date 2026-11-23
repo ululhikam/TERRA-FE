@@ -15,15 +15,10 @@ const activeCategory = ref('All')
 const activeTab = ref('all')
 const scrollY = ref(0)
 
-const categories = [
-  { key: 'All', label: 'Semua Kategori (18)' },
-  { key: 'Teknologi & Startup', label: 'Teknologi & Startup' },
-  { key: 'Musik & Konser', label: 'Musik & Konser' },
-  { key: 'Seni & Desain', label: 'Seni & Desain' },
-  { key: 'Bisnis & Karir', label: 'Bisnis & Karir' },
-  { key: 'Komunitas & Meetup', label: 'Komunitas & Meetup' },
-  { key: 'Olahraga & Wellness', label: 'Olahraga & Wellness' }
-]
+const categories = computed(() => [
+  { key: 'All', label: `Semua Kategori (${store.categories.length})` },
+  ...store.categories.map((c) => ({ key: c.name, label: c.name }))
+])
 
 const publishedEvents = computed(() =>
   store.events.filter((e) => e.publication_status === 'Published')
@@ -927,10 +922,19 @@ onBeforeUnmount(() => {
             </div>
             <div class="md:col-span-5">
               <p class="text-xs text-slate-900 leading-relaxed">
-                Gunakan seluruh 13 modul manajemen event secara gratis untuk acara komunitas tanpa tiket berbayar.
+                Gunakan seluruh 13 modul manajemen event secara gratis untuk acara komunitas tanpa tiket berbayar, atau upgrade per event mulai Rp49.000.
               </p>
             </div>
           </div>
+        </div>
+
+        <div class="pt-2 flex justify-end">
+          <RouterLink
+            to="/pricing"
+            class="luxury-pill rounded-full border border-black bg-black px-6 py-2.5 text-xs font-bold text-white"
+          >
+            Lihat Semua Paket &amp; Opsi Pembayaran &rarr;
+          </RouterLink>
         </div>
       </div>
     </section>

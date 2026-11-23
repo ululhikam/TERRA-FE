@@ -4,8 +4,12 @@ import { useEventWorkspaceStore } from '@/stores/eventWorkspace'
 
 const store = useEventWorkspaceStore()
 const pendingCount = computed(() =>
+  store.adminDashboard?.pending_events ??
   store.events.filter((e) => e.publication_status === 'Pending Review').length
 )
+const totalOrganizations = computed(() => store.adminDashboard?.total_organizations ?? store.organizations.length)
+const totalEvents = computed(() => store.adminDashboard?.total_events ?? store.events.length)
+const totalIssuedTickets = computed(() => store.adminDashboard?.total_issued_tickets ?? store.myTickets.length)
 </script>
 
 <template>
@@ -21,13 +25,13 @@ const pendingCount = computed(() =>
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
       <div class="rounded-xl border border-black bg-[#72a5e4] p-6 space-y-2">
         <span class="text-[10px] font-bold uppercase tracking-wider text-black block">TOTAL ORGANISASI</span>
-        <span class="text-3xl font-black text-black leading-none block">{{ store.organizations.length }}</span>
+        <span class="text-3xl font-black text-black leading-none block">{{ totalOrganizations }}</span>
         <p class="text-[11px] text-slate-900 pt-2 border-t border-black/20">Terdaftar di platform</p>
       </div>
 
       <div class="rounded-xl border border-black bg-[#fafaf9] p-6 space-y-2">
         <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">TOTAL EVENT</span>
-        <span class="text-3xl font-black text-black leading-none block">{{ store.events.length }}</span>
+        <span class="text-3xl font-black text-black leading-none block">{{ totalEvents }}</span>
         <p class="text-[11px] text-slate-500 pt-2 border-t border-black/10">Seluruh status</p>
       </div>
 
@@ -39,7 +43,7 @@ const pendingCount = computed(() =>
 
       <div class="rounded-xl border border-black bg-[#fafaf9] p-6 space-y-2">
         <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">TOTAL TIKET TERBIT</span>
-        <span class="text-3xl font-black text-black leading-none block">{{ store.myTickets.length }}</span>
+        <span class="text-3xl font-black text-black leading-none block">{{ totalIssuedTickets }}</span>
         <p class="text-[11px] text-slate-500 pt-2 border-t border-black/10">Tiket QR aktif</p>
       </div>
     </div>
