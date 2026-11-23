@@ -54,7 +54,7 @@ function getPriceDisplay(evt) {
 <template>
   <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-10 space-y-8">
     <!-- Header -->
-    <div class="space-y-1">
+    <div v-reveal class="space-y-1">
       <h1 class="text-3xl sm:text-4xl font-bold tracking-tight text-black font-editorial">
         Jelajahi Event
       </h1>
@@ -64,7 +64,7 @@ function getPriceDisplay(evt) {
     </div>
 
     <!-- 4 Pill Filter Controls -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+    <div v-reveal="60" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
       <!-- Search -->
       <div class="relative">
         <Search class="absolute left-4 top-3 h-3.5 w-3.5 text-slate-400" />
@@ -118,10 +118,11 @@ function getPriceDisplay(evt) {
     <!-- 2-Column Event Grid -->
     <div v-if="filteredEvents.length" class="grid grid-cols-1 md:grid-cols-2 gap-6">
       <RouterLink
-        v-for="evt in filteredEvents"
+        v-for="(evt, idx) in filteredEvents"
         :key="evt.id"
+        v-reveal="idx * 70"
         :to="`/events/${evt.id}`"
-        class="group rounded-3xl border border-black bg-white overflow-hidden flex flex-col justify-between transition-transform hover:-translate-y-0.5"
+        class="interactive-surface group rounded-3xl border border-black bg-white overflow-hidden flex flex-col justify-between"
       >
         <!-- Media / Banner with Pill Tag -->
         <div class="relative aspect-video bg-black overflow-hidden border-b border-black">

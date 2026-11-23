@@ -643,7 +643,11 @@ async function handleLogout() {
         class="w-full"
         :class="isTimelinePage ? 'flex-1 min-h-0 flex flex-col' : 'pb-12'"
       >
-        <RouterView />
+        <RouterView v-slot="{ Component, route: currentRoute }">
+          <Transition name="page-fade" mode="out-in">
+            <component :is="Component" :key="currentRoute.fullPath" />
+          </Transition>
+        </RouterView>
       </div>
     </main>
   </div>

@@ -12,6 +12,42 @@ const mobileOpen = ref(false)
 const isScrolled = ref(false)
 const bubbleOpen = ref(false)
 const floatingNavRef = ref(null)
+const footerRef = ref(null)
+const footerGrowth = ref(0)
+let footerTarget = 0
+let footerRaf = null
+let prefersReducedMotion = false
+
+function clamp01(v) {
+  return Math.max(0, Math.min(1, v))
+}
+
+function stepFooterGrowth() {
+  const diff = footerTarget - footerGrowth.value
+  if (Math.abs(diff) < 0.001) {
+    footerGrowth.value = footerTarget
+    footerRaf = null
+    return
+  }
+  footerGrowth.value += diff * 0.14
+  footerRaf = requestAnimationFrame(stepFooterGrowth)
+}
+
+function updateFooterRootGrowth() {
+  if (route.path !== '/' || !footerRef.value) return
+  if (prefersReducedMotion) {
+    footerTarget = 1
+    footerGrowth.value = 1
+    return
+  }
+  const rect = footerRef.value.getBoundingClientRect()
+  const vh = window.innerHeight || 800
+  const raw = (vh * 0.88 - rect.top) / Math.max(220, rect.height * 0.85)
+  footerTarget = clamp01(raw)
+  if (!footerRaf) {
+    footerRaf = requestAnimationFrame(stepFooterGrowth)
+  }
+}
 
 function handleScroll() {
   const scrolled = window.scrollY > 72
@@ -19,6 +55,7 @@ function handleScroll() {
   if (!scrolled) {
     bubbleOpen.value = false
   }
+  updateFooterRootGrowth()
 }
 
 function handleDocumentClick(e) {
@@ -44,16 +81,20 @@ watch(
 )
 
 onMounted(() => {
+  prefersReducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches || false
   handleScroll()
   window.addEventListener('scroll', handleScroll, { passive: true })
+  window.addEventListener('resize', updateFooterRootGrowth, { passive: true })
   document.addEventListener('click', handleDocumentClick)
   document.addEventListener('keydown', handleKeydown)
 })
 
 onBeforeUnmount(() => {
   window.removeEventListener('scroll', handleScroll)
+  window.removeEventListener('resize', updateFooterRootGrowth)
   document.removeEventListener('click', handleDocumentClick)
   document.removeEventListener('keydown', handleKeydown)
+  if (footerRaf) cancelAnimationFrame(footerRaf)
 })
 
 async function handleLogout() {
@@ -422,17 +463,22 @@ function scrollToTop() {
 
     <!-- Main Content Area -->
     <main class="flex-1">
-      <RouterView />
+      <RouterView v-slot="{ Component, route: currentRoute }">
+        <Transition name="page-fade" mode="out-in">
+          <component :is="Component" :key="currentRoute.path" />
+        </Transition>
+      </RouterView>
     </main>
 
     <!-- =================================================================== -->
     <!-- LUXURY NEO-BRUTALIST FOOTER (CONNECTED TO SIDE RIBBONS & RAILS)     -->
     <!-- =================================================================== -->
     <footer
+      ref="footerRef"
       class="relative overflow-hidden z-20"
       :class="route.path === '/' ? 'mt-0' : 'mt-12 border-t border-black'"
     >
-      <!-- Connected Left & Right Ribbon Terminals Running Full-Height to Very Bottom Edge of Footer -->
+      <!-- Connected Left & Right Ribbon Terminals Growing Seamlessly into Footer -->
       <svg
         v-if="route.path === '/'"
         class="pointer-events-none block absolute inset-x-0 top-0 w-full h-full z-0"
@@ -440,38 +486,101 @@ function scrollToTop() {
         preserveAspectRatio="none"
         fill="none"
       >
-        <!-- Left ribbon starting at x=16..48,y=0 and sweeping continuously down to bottom edge (y=480) -->
-        <path
-          d="M 16,0 C 16,120 42,230 22,340 C 14,395 28,440 56,480 L 92,480 C 60,440 46,395 54,340 C 74,230 48,120 48,0 Z"
-          fill="#fafaf9"
-          stroke="#000000"
-          stroke-width="2.5"
-          vector-effect="non-scaling-stroke"
-        />
-        <line x1="17" y1="0" x2="47" y2="0" stroke="#fafaf9" stroke-width="4" vector-effect="non-scaling-stroke" />
+        <defs>
+          <clipPath id="terra-footer-grow">
+            <rect x="0" y="0" width="1440" :height="Math.max(0, footerGrowth * 490)" />
+          </clipPath>
+        </defs>
+
+        <g clip-path="url(#terra-footer-grow)">
+          <path
+            d="M 16,0 C 16,120 42,230 22,340 C 14,395 28,440 56,480 L 92,480 C 60,440 46,395 54,340 C 74,230 48,120 48,0 Z"
+            fill="#fafaf9"
+            stroke="#000000"
+            stroke-width="2.5"
+            vector-effect="non-scaling-stroke"
+          />
+          <line x1="17" y1="0" x2="47" y2="0" stroke="#fafaf9" stroke-width="4" vector-effect="non-scaling-stroke" />
+        </g>
+
         <path
           d="M 64,0 C 82,120 48,240 72,355 C 86,415 104,452 126,480"
+          pathLength="1"
+          :stroke-dasharray="1"
+          :stroke-dashoffset="Math.max(0, 1 - footerGrowth)"
           stroke="#000000"
           stroke-width="1.8"
-          stroke-dasharray="5 5"
+          stroke-linecap="round"
           vector-effect="non-scaling-stroke"
         />
-        <!-- Right ribbon starting at x=1392..1424,y=0 and sweeping continuously down to bottom edge (y=480) -->
         <path
-          d="M 1424,0 C 1424,120 1398,230 1418,340 C 1426,395 1412,440 1384,480 L 1348,480 C 1380,440 1394,395 1386,340 C 1366,230 1392,120 1392,0 Z"
-          fill="#fafaf9"
+          d="M 70,220 C 102,248 124,284 114,332 C 108,356 88,368 78,358"
+          pathLength="1"
+          :stroke-dasharray="1"
+          :stroke-dashoffset="Math.max(0, 1 - Math.max(0, (footerGrowth - 0.35) / 0.5))"
           stroke="#000000"
-          stroke-width="2.5"
+          stroke-width="1.6"
+          stroke-linecap="round"
+          fill="none"
           vector-effect="non-scaling-stroke"
         />
-        <line x1="1393" y1="0" x2="1423" y2="0" stroke="#fafaf9" stroke-width="4" vector-effect="non-scaling-stroke" />
+        <g
+          v-if="footerGrowth > 0.65"
+          :transform="`translate(78, 358) scale(${Math.min(1, (footerGrowth - 0.65) / 0.25)})`"
+        >
+          <path
+            d="M 0,-7 L 2,-2 L 7,0 L 2,2 L 0,7 L -2,2 L -7,0 L -2,-2 Z"
+            fill="#72a5e4"
+            stroke="#000000"
+            stroke-width="1.5"
+            stroke-linejoin="round"
+          />
+        </g>
+
+        <g clip-path="url(#terra-footer-grow)">
+          <path
+            d="M 1424,0 C 1424,120 1398,230 1418,340 C 1426,395 1412,440 1384,480 L 1348,480 C 1380,440 1394,395 1386,340 C 1366,230 1392,120 1392,0 Z"
+            fill="#fafaf9"
+            stroke="#000000"
+            stroke-width="2.5"
+            vector-effect="non-scaling-stroke"
+          />
+          <line x1="1393" y1="0" x2="1423" y2="0" stroke="#fafaf9" stroke-width="4" vector-effect="non-scaling-stroke" />
+        </g>
+
         <path
           d="M 1376,0 C 1358,120 1392,240 1368,355 C 1354,415 1336,452 1314,480"
+          pathLength="1"
+          :stroke-dasharray="1"
+          :stroke-dashoffset="Math.max(0, 1 - footerGrowth)"
           stroke="#000000"
           stroke-width="1.8"
-          stroke-dasharray="5 5"
+          stroke-linecap="round"
           vector-effect="non-scaling-stroke"
         />
+        <path
+          d="M 1370,220 C 1338,248 1316,284 1326,332 C 1332,356 1352,368 1362,358"
+          pathLength="1"
+          :stroke-dasharray="1"
+          :stroke-dashoffset="Math.max(0, 1 - Math.max(0, (footerGrowth - 0.35) / 0.5))"
+          stroke="#000000"
+          stroke-width="1.6"
+          stroke-linecap="round"
+          fill="none"
+          vector-effect="non-scaling-stroke"
+        />
+        <g
+          v-if="footerGrowth > 0.65"
+          :transform="`translate(1362, 358) scale(${Math.min(1, (footerGrowth - 0.65) / 0.25)})`"
+        >
+          <path
+            d="M 0,-7 L 2,-2 L 7,0 L 2,2 L 0,7 L -2,2 L -7,0 L -2,-2 Z"
+            fill="#72a5e4"
+            stroke="#000000"
+            stroke-width="1.5"
+            stroke-linejoin="round"
+          />
+        </g>
       </svg>
 
       <div class="mx-auto max-w-5xl px-8 sm:px-10 lg:px-8 pt-12 pb-10 border-x border-black/15 relative z-10 space-y-10">

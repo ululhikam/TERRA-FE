@@ -1,12 +1,62 @@
 <script setup>
-import { onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
+import { RouterLink } from 'vue-router'
 import { useEventWorkspaceStore } from '@/stores/eventWorkspace'
+import { useToastStore } from '@/stores/toast'
 import { formatDateTime } from '@/utils/formatters'
+import { downloadTicketQrPng, generateTicketQrPayload } from '@/utils/qrCode'
 import QrCodeCanvas from '@/components/common/QrCodeCanvas.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
-import { RouterLink } from 'vue-router'
+import { Download, Maximize2, Copy, X, FileText } from 'lucide-vue-next'
 
 const store = useEventWorkspaceStore()
+const toast = useToastStore()
+const enlargedTicket = ref(null)
+
+function isTicketActive(status) {
+  return ['valid', 'active'].includes(String(status || '').toLowerCase())
+}
+
+function isTicketCancelled(status) {
+  return String(status || '').toLowerCase() === 'cancelled'
+}
+
+function getTicketQrValue(tkt) {
+  return (
+    tkt.qr_payload ||
+    generateTicketQrPayload({
+      ticketCode: tkt.ticket_code,
+      eventId: tkt.event_id
+    })
+  )
+}
+
+async function handleDownloadQrPng(tkt) {
+  try {
+    await downloadTicketQrPng(tkt)
+    toast.success(`QR Code tiket ${tkt.ticket_code} (.png) berhasil diunduh.`)
+  } catch (err) {
+    toast.error(err.message || 'Gagal mengunduh QR Code.')
+  }
+}
+
+async function handleDownloadQrPdf(tkt) {
+  try {
+    await store.downloadTicketQrPdf(tkt)
+    toast.success(`PDF QR tiket ${tkt.ticket_code} berhasil diunduh.`)
+  } catch (err) {
+    toast.error(err.message || 'Gagal mengunduh PDF QR.')
+  }
+}
+
+async function handleCopyCode(text) {
+  try {
+    await navigator.clipboard?.writeText(text)
+    toast.success(`Kode "${text}" disalin ke clipboard.`)
+  } catch {
+    toast.error('Gagal menyalin kode.')
+  }
+}
 
 onMounted(() => {
   store.fetchMyTickets()
@@ -15,18 +65,18 @@ onMounted(() => {
 
 <template>
   <div class="mx-auto max-w-5xl px-4 sm:px-6 py-10 space-y-8">
-    <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+    <div v-reveal class="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
       <div class="space-y-1">
         <h1 class="text-3xl sm:text-4xl font-bold tracking-tight text-black font-editorial">
           Tiket Digital Saya
         </h1>
         <p class="text-xs sm:text-sm text-slate-600">
-          Tunjukkan QR Code di bawah ini kepada panitia saat check-in di lokasi event.
+          Tunjukkan QR Code di bawah ini kepada panitia saat check-in di lokasi event, atau unduh dalam format PDF/PNG.
         </p>
       </div>
       <RouterLink
         to="/profile"
-        class="inline-flex items-center justify-center rounded-full border border-black bg-white px-5 py-2 text-xs font-bold text-black hover:bg-slate-100 shrink-0"
+        class="luxury-pill inline-flex items-center justify-center rounded-full border border-black bg-white px-5 py-2 text-xs font-bold text-black hover:bg-slate-100 shrink-0"
       >
         Lihat Profil &amp; Riwayat Pesanan &rarr;
       </RouterLink>
@@ -34,9 +84,10 @@ onMounted(() => {
 
     <div v-if="store.myTickets.length > 0" class="space-y-6">
       <div
-        v-for="tkt in store.myTickets"
+        v-for="(tkt, idx) in store.myTickets"
         :key="tkt.id"
-        class="relative rounded-2xl border border-black bg-white overflow-hidden p-6 sm:p-8 flex flex-col md:flex-row items-stretch justify-between gap-6"
+        v-reveal="idx * 70"
+        class="interactive-surface relative rounded-2xl border border-black bg-white overflow-hidden p-6 sm:p-8 flex flex-col md:flex-row items-stretch justify-between gap-6"
       >
         <!-- Left Notch (Visual ticket accent) -->
         <div class="hidden md:block absolute -top-3 right-56 w-6 h-6 rounded-full border border-black bg-[#fafaf9]" />
@@ -44,15 +95,15 @@ onMounted(() => {
 
         <!-- Ticket Left Content -->
         <div class="space-y-3 flex-1">
-          <div class="flex items-center gap-3">
+          <div class="flex items-center gap-3 flex-wrap">
             <span
-              v-if="['active', 'valid'].includes(String(tkt.status || '').toLowerCase())"
+              v-if="isTicketActive(tkt.status)"
               class="rounded-full border border-black bg-[#72a5e4] px-3 py-0.5 text-xs font-bold text-black"
             >
               Active
             </span>
             <span
-              v-else-if="String(tkt.status || '').toLowerCase() === 'cancelled'"
+              v-else-if="isTicketCancelled(tkt.status)"
               class="rounded-full border border-black bg-rose-100 px-3 py-0.5 text-xs font-bold text-rose-800"
             >
               Cancelled
@@ -79,7 +130,44 @@ onMounted(() => {
             <div>{{ tkt.location }}</div>
           </div>
 
-          <p class="pt-2 text-[11px] text-slate-400">Order Ref: {{ tkt.order_number }}</p>
+          <div class="pt-2 flex flex-wrap items-center justify-between gap-3">
+            <p class="text-[11px] text-slate-400">Order Ref: {{ tkt.order_number }}</p>
+
+            <div class="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                @click="handleDownloadQrPdf(tkt)"
+                class="luxury-pill inline-flex items-center gap-1.5 rounded-full border border-black bg-[#72a5e4] px-3.5 py-1.5 text-[11px] font-bold text-black cursor-pointer"
+              >
+                <FileText class="h-3 w-3" />
+                PDF QR
+              </button>
+              <button
+                type="button"
+                @click="handleDownloadQrPng(tkt)"
+                class="luxury-pill inline-flex items-center gap-1.5 rounded-full border border-black bg-black px-3.5 py-1.5 text-[11px] font-bold text-white cursor-pointer"
+              >
+                <Download class="h-3 w-3" />
+                PNG
+              </button>
+              <button
+                type="button"
+                @click="enlargedTicket = tkt"
+                class="luxury-pill inline-flex items-center gap-1.5 rounded-full border border-black bg-white px-3 py-1.5 text-[11px] font-semibold text-black cursor-pointer"
+              >
+                <Maximize2 class="h-3 w-3" />
+                Perbesar
+              </button>
+              <button
+                type="button"
+                @click="handleCopyCode(tkt.ticket_code)"
+                class="luxury-pill inline-flex items-center gap-1.5 rounded-full border border-black bg-white px-3 py-1.5 text-[11px] font-semibold text-black cursor-pointer"
+              >
+                <Copy class="h-3 w-3" />
+                Salin
+              </button>
+            </div>
+          </div>
         </div>
 
         <!-- Dashed Divider (Desktop) -->
@@ -87,9 +175,14 @@ onMounted(() => {
 
         <!-- Ticket Right Content (QR & Code) -->
         <div class="flex flex-col items-center justify-center gap-2 shrink-0 md:w-44 pt-4 md:pt-0 border-t md:border-t-0 border-dashed border-slate-300">
-          <div class="p-2 border border-black/10 rounded-xl bg-white shadow-xs">
-            <QrCodeCanvas :value="tkt.qr_payload" :size="120" />
-          </div>
+          <button
+            type="button"
+            @click="enlargedTicket = tkt"
+            class="p-2 border border-black/10 rounded-xl bg-white shadow-xs hover:border-black transition-all duration-200 hover:scale-103 cursor-pointer"
+            title="Klik untuk perbesar QR Code"
+          >
+            <QrCodeCanvas :value="getTicketQrValue(tkt)" :size="120" />
+          </button>
           <span class="text-[11px] font-mono font-medium text-slate-700 tracking-wider">
             {{ tkt.ticket_code }}
           </span>
@@ -105,11 +198,76 @@ onMounted(() => {
       <template #action>
         <RouterLink
           to="/events"
-          class="rounded-full border border-black bg-[#72a5e4] px-6 py-2 text-xs font-bold text-black hover:bg-[#5c93d9]"
+          class="luxury-pill rounded-full border border-black bg-[#72a5e4] px-6 py-2 text-xs font-bold text-black"
         >
           Jelajahi Event
         </RouterLink>
       </template>
     </EmptyState>
+
+    <!-- Enlarged QR Modal -->
+    <Transition name="modal-pop">
+      <div
+        v-if="enlargedTicket"
+        @click.self="enlargedTicket = null"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-2xs"
+      >
+        <div class="w-full max-w-sm rounded-3xl border-2 border-black bg-white p-6 space-y-5 text-center shadow-[6px_6px_0px_#000]">
+          <div class="flex items-center justify-between border-b border-black/15 pb-3">
+            <span class="text-xs font-bold uppercase tracking-wider text-slate-500">QR Code Tiket</span>
+            <button
+              type="button"
+              @click="enlargedTicket = null"
+              class="p-1 rounded-full border border-black hover:bg-slate-100 cursor-pointer"
+            >
+              <X class="h-4 w-4" />
+            </button>
+          </div>
+
+          <div class="space-y-1">
+            <h3 class="text-base font-bold text-black">{{ enlargedTicket.event_title }}</h3>
+            <p class="text-xs text-slate-600">{{ enlargedTicket.ticket_type }} • {{ enlargedTicket.participant_name }}</p>
+          </div>
+
+          <div class="flex justify-center">
+            <div class="p-3 rounded-2xl border border-black bg-white">
+              <QrCodeCanvas :value="getTicketQrValue(enlargedTicket)" :size="240" />
+            </div>
+          </div>
+
+          <div class="space-y-1">
+            <p class="font-mono text-sm font-bold text-black">{{ enlargedTicket.ticket_code }}</p>
+            <p class="font-mono text-[10px] text-slate-400 break-all">{{ getTicketQrValue(enlargedTicket) }}</p>
+          </div>
+
+          <div class="flex flex-wrap items-center justify-center gap-2 pt-2">
+            <button
+              type="button"
+              @click="handleDownloadQrPdf(enlargedTicket)"
+              class="luxury-pill inline-flex items-center gap-1.5 rounded-full border border-black bg-[#72a5e4] px-4 py-2 text-xs font-bold text-black cursor-pointer"
+            >
+              <FileText class="h-3.5 w-3.5" />
+              PDF QR
+            </button>
+            <button
+              type="button"
+              @click="handleDownloadQrPng(enlargedTicket)"
+              class="luxury-pill inline-flex items-center gap-1.5 rounded-full bg-black px-4 py-2 text-xs font-bold text-white cursor-pointer"
+            >
+              <Download class="h-3.5 w-3.5" />
+              PNG
+            </button>
+            <button
+              type="button"
+              @click="handleCopyCode(getTicketQrValue(enlargedTicket))"
+              class="luxury-pill inline-flex items-center gap-1.5 rounded-full border border-black bg-white px-4 py-2 text-xs font-semibold text-black cursor-pointer"
+            >
+              <Copy class="h-3.5 w-3.5" />
+              Salin Payload
+            </button>
+          </div>
+        </div>
+      </div>
+    </Transition>
   </div>
 </template>

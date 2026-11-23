@@ -652,25 +652,65 @@ export const useEventWorkspaceStore = defineStore('eventWorkspace', () => {
     }
 
     return {
+      orderId: data?.order?.id || null,
       orderNumber: data?.order?.order_number,
       tickets: issued,
-      emailStatus: data?.email_status || null
+      emailStatus: data?.email_status || null,
+      emailNotification: data?.email_notification || data?.email_status || null
     }
   }
 
+  async function downloadQrPdfFromEndpoint(urlPath, fallbackFilename) {
+    const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api/v1'
+    const token = localStorage.getItem('terra_access_token') || localStorage.getItem('terra_demo_token')
+    const targetUrl = urlPath.startsWith('http') ? urlPath : `${baseUrl}${urlPath}`
+    const headers = token ? { Authorization: `Bearer ${token}` } : {}
+    const res = await fetch(targetUrl, { headers })
+    if (!res.ok) {
+      throw new Error('Gagal mengunduh file PDF QR dari server.')
+    }
+    const blob = await res.blob()
+    const blobUrl = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = blobUrl
+    link.download = fallbackFilename
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(blobUrl)
+  }
+
+  async function downloadTicketQrPdf(ticket) {
+    if (ticket?.pdf_download_url) {
+      return downloadQrPdfFromEndpoint(ticket.pdf_download_url, `tiket-qr-${ticket.ticket_code || 'ticket'}.pdf`)
+    }
+    return downloadQrPdfFromEndpoint(`/tickets/${ticket.id}/qr-pdf`, `tiket-qr-${ticket.ticket_code || 'ticket'}.pdf`)
+  }
+
+  async function downloadOrderQrPdf(orderId, orderNumber, pdfDownloadUrl = '') {
+    if (pdfDownloadUrl) {
+      return downloadQrPdfFromEndpoint(pdfDownloadUrl, `tiket-qr-${orderNumber || orderId}.pdf`)
+    }
+    return downloadQrPdfFromEndpoint(`/orders/${orderId}/qr-pdf`, `tiket-qr-${orderNumber || orderId}.pdf`)
+  }
+
   // ---------------- CHECK-IN VALIDATION ----------------
-  async function checkInTicket(codeOrQr, station = 'Gate A - Main Lobby') {
+  async function checkInTicket(codeOrQr, station = 'Gate A - Main Lobby', eventId = null) {
     try {
-      const res = await api.post('/tickets/check-in', { code: codeOrQr, station })
+      const res = await api.post('/tickets/check-in', {
+        code: codeOrQr,
+        station,
+        ...(eventId ? { event_id: eventId } : {})
+      })
       const data = res?.data
       if (data?.checkin) {
         checkinLogs.value.unshift({
           id: data.checkin.id,
           event_id: data.checkin.event_id,
           ticket_code: data.ticket?.ticket_code || codeOrQr,
-          participant_name: data.participant?.full_name || 'Peserta',
+          participant_name: data.participant?.full_name || data.ticket?.participant_name || 'Peserta',
           ticket_type: data.participant?.ticket_type || data.ticket?.ticket_type || 'Tiket Event',
-          station: data.checkin.checkin_location || station,
+          station: data.checkin.checkin_location || data.checkin.station || station,
           checked_in_at: data.checkin.checked_in_at
         })
       }
@@ -685,16 +725,21 @@ export const useEventWorkspaceStore = defineStore('eventWorkspace', () => {
       return {
         success: true,
         ok: true,
-        status: 'success',
-        participant: data?.participant,
+        status: 'SUCCESS',
+        participant: data?.participant || {
+          full_name: data?.ticket?.participant_name || 'Peserta',
+          ticket_type: data?.ticket?.ticket_type,
+          ticket_code: data?.ticket?.ticket_code
+        },
         ticket: data?.ticket,
+        checkin: data?.checkin,
         message: res?.message || 'Check-in berhasil! Peserta diizinkan masuk.'
       }
     } catch (err) {
       return {
         success: false,
         ok: false,
-        status: err?.code === 'DUPLICATE_CHECKIN' ? 'duplicate' : 'error',
+        status: err?.code || 'ERROR',
         message: err?.message || 'Tiket tidak valid.'
       }
     }
@@ -1072,6 +1117,8 @@ export const useEventWorkspaceStore = defineStore('eventWorkspace', () => {
     updateParticipant,
     deleteParticipant,
     placeOrder,
+    downloadTicketQrPdf,
+    downloadOrderQrPdf,
     checkInTicket,
     addVendor,
     updateVendor,
