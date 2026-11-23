@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter, RouterLink } from 'vue-router'
 import { useEventWorkspaceStore } from '@/stores/eventWorkspace'
 import { formatDate, formatCurrency } from '@/utils/formatters'
@@ -134,19 +134,40 @@ function handleWindowScroll() {
   scrollY.value = window.scrollY || 0
 }
 
+function observeRevealSections() {
+  if (!observer) {
+    document.querySelectorAll('.reveal-section').forEach((el) => el.classList.add('is-visible'))
+    return
+  }
+  document.querySelectorAll('.reveal-section:not(.is-visible)').forEach((el) => {
+    observer.observe(el)
+  })
+}
+
+watch(
+  () => [featuredEvent.value?.id, store.events.length],
+  () => {
+    nextTick(() => {
+      observeRevealSections()
+    })
+  }
+)
+
 onMounted(() => {
   window.addEventListener('scroll', handleWindowScroll, { passive: true })
-  observer = new IntersectionObserver(
-    (entries) => {
-      entries.forEach((entry) => {
-        if (entry.isIntersecting) {
-          entry.target.classList.add('is-visible')
-        }
-      })
-    },
-    { threshold: 0.08 }
-  )
-  document.querySelectorAll('.reveal-section').forEach((el) => observer.observe(el))
+  if (typeof IntersectionObserver !== 'undefined') {
+    observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('is-visible')
+          }
+        })
+      },
+      { threshold: 0.05 }
+    )
+  }
+  observeRevealSections()
 })
 
 onBeforeUnmount(() => {
@@ -339,7 +360,7 @@ onBeforeUnmount(() => {
         <RouterLink
           v-if="featuredEvent"
           :to="`/events/${featuredEvent.slug || featuredEvent.id}`"
-          class="reveal-section luxury-card group rounded-3xl border-2 border-black overflow-hidden grid grid-cols-1 md:grid-cols-12 bg-[#72a5e4] shadow-[5px_5px_0px_#000] block"
+          class="reveal-section is-visible luxury-card group rounded-3xl border-2 border-black overflow-hidden grid grid-cols-1 md:grid-cols-12 bg-[#72a5e4] shadow-[5px_5px_0px_#000]"
         >
           <div class="md:col-span-6 aspect-video md:aspect-auto bg-black border-b md:border-b-0 md:border-r border-black overflow-hidden">
             <img
