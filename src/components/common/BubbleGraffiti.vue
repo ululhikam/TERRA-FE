@@ -17,7 +17,8 @@ const tailSvgRef = ref(null)
 const leftContourRef = ref(null)
 const rightContourRef = ref(null)
 const tailHeight = ref(2400)
-const containerWidth = ref(1440)
+const containerWidth = ref(typeof window !== 'undefined' ? window.innerWidth || 1440 : 1440)
+const isMobileView = computed(() => (containerWidth.value || 1440) < 640)
 
 // Smoothly damped scroll-driven growth progress (0..1)
 const heroDraw = ref(0)
@@ -390,7 +391,7 @@ onBeforeUnmount(() => {
     <!-- MAIN HERO GRAFFITI SVG (PROPORTIONAL ON ALL DEVICES)                -->
     <!-- =================================================================== -->
     <svg
-      :viewBox="fullBleed ? '0 0 1440 370' : '250 0 940 360'"
+      :viewBox="fullBleed ? (isMobileView ? '230 -8 980 384' : '0 0 1440 370') : '250 0 940 360'"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       class="w-full h-auto block overflow-visible"
@@ -693,7 +694,7 @@ onBeforeUnmount(() => {
     <svg
       v-if="fullBleed"
       ref="tailSvgRef"
-      class="pointer-events-none absolute top-full left-0 w-full z-30 overflow-hidden"
+      class="pointer-events-none absolute top-full left-0 w-full z-0 lg:z-30 opacity-20 sm:opacity-35 lg:opacity-100 overflow-hidden"
       :style="{ height: tailHeight + 'px' }"
       viewBox="0 0 1440 4000"
       preserveAspectRatio="none"

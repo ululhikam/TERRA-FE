@@ -125,12 +125,12 @@ function scrollToTop() {
 
     <!-- Top Navbar: Full-width edge-to-edge at top -> collapses into centered Logo pill on scroll -> click logo pops out Bubble Navbar -->
     <header class="sticky top-0 z-50 h-[8vh] min-h-[3.5rem] max-h-[5rem] pointer-events-none">
-      <!-- Expanded Full Navbar (visible at top of page, mentok kiri-kanan) -->
+      <!-- Expanded Full Navbar (Always sticky on mobile; collapses into floating bubble on desktop scroll) -->
       <div
         class="border-b border-black bg-[#fafaf9]/95 backdrop-blur-xs transition-all duration-300 ease-out"
         :class="
           isScrolled
-            ? 'opacity-0 -translate-y-4 pointer-events-none'
+            ? 'opacity-100 translate-y-0 pointer-events-auto md:opacity-0 md:-translate-y-4 md:pointer-events-none'
             : 'opacity-100 translate-y-0 pointer-events-auto'
         "
       >
@@ -284,7 +284,7 @@ function scrollToTop() {
         <!-- Mobile Backdrop + Tactile Neo-Brutalist Drawer Sheet -->
         <Transition name="drawer-slide">
           <div
-            v-if="mobileOpen && !isScrolled"
+            v-if="mobileOpen"
             class="md:hidden fixed inset-x-0 top-[8vh] z-50 px-[3.5vw] pt-2 pb-4 pointer-events-auto"
           >
             <div
@@ -409,10 +409,10 @@ function scrollToTop() {
         </Transition>
       </div>
 
-      <!-- Scrolled Centered Logo Pill + Expandable Floating Bubble Navbar -->
+      <!-- Scrolled Centered Logo Pill + Expandable Floating Bubble Navbar (Desktop md+ only; mobile uses sticky app bar + bottom dock) -->
       <div
         ref="floatingNavRef"
-        class="fixed top-3 inset-x-0 z-50 flex flex-col items-center px-3 transition-all duration-300 ease-out"
+        class="hidden md:flex fixed top-3 inset-x-0 z-50 flex-col items-center px-3 transition-all duration-300 ease-out"
         :class="
           isScrolled
             ? 'opacity-100 translate-y-0 scale-100 pointer-events-none'

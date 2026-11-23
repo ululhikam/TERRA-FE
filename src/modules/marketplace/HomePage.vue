@@ -196,27 +196,39 @@ onBeforeUnmount(() => {
 
         <!-- Center Pure Vector SVG Bubble Graffiti Art ("TERRA" + Connected Ribbons + Floating Motion Chips) -->
         <div class="relative z-30 pointer-events-none py-1 sm:py-0">
-          <!-- Floating Kinetic Chips (Visible on Mobile, Tablet & Desktop) -->
+          <!-- Floating Kinetic Chips (Tablet & Desktop sm+) -->
           <div
-            class="inline-flex items-center gap-1 sm:gap-1.5 absolute -top-2.5 left-1 sm:-top-2 sm:left-6 z-40 rounded-full border border-black bg-[#72a5e4] px-2.5 py-0.5 sm:px-3 sm:py-1 text-[9px] sm:text-[10px] font-black text-black shadow-[2px_2px_0px_#000] animate-float-slow"
+            class="hidden sm:inline-flex items-center gap-1.5 absolute -top-2 left-6 z-40 rounded-full border border-black bg-[#72a5e4] px-3 py-1 text-[10px] font-black text-black shadow-[2px_2px_0px_#000] animate-float-slow"
           >
-            <QrCode class="h-2.5 w-2.5 sm:h-3 sm:w-3" />
+            <QrCode class="h-3 w-3" />
             <span>INSTANT QR PASS</span>
           </div>
           <div
-            class="inline-flex items-center gap-1 sm:gap-1.5 absolute -bottom-2.5 right-1 sm:-bottom-1 sm:right-6 z-40 rounded-full border border-black bg-white px-2.5 py-0.5 sm:px-3 sm:py-1 text-[9px] sm:text-[10px] font-black text-black shadow-[2px_2px_0px_#000] animate-float-slow"
+            class="hidden sm:inline-flex items-center gap-1.5 absolute -bottom-1 right-6 z-40 rounded-full border border-black bg-white px-3 py-1 text-[10px] font-black text-black shadow-[2px_2px_0px_#000] animate-float-slow"
             style="animation-delay: -2.5s"
           >
-            <Sparkles class="h-2.5 w-2.5 sm:h-3 sm:w-3 text-[#72a5e4]" />
+            <Sparkles class="h-3 w-3 text-[#72a5e4]" />
             <span>13 MODULAR ENGINES</span>
           </div>
 
           <BubbleGraffiti full-bleed :scroll-offset="scrollY" />
+
+          <!-- Mobile Centered Kinetic Badge Dock (Cleanly below zoomed-in TERRA wordmark, zero overlap) -->
+          <div class="flex sm:hidden items-center justify-center gap-2 pt-2">
+            <span class="inline-flex items-center gap-1 rounded-full border border-black bg-[#72a5e4] px-2.5 py-0.5 text-[9px] font-black text-black shadow-[2px_2px_0px_#000]">
+              <QrCode class="h-2.5 w-2.5" />
+              INSTANT QR PASS
+            </span>
+            <span class="inline-flex items-center gap-1 rounded-full border border-black bg-white px-2.5 py-0.5 text-[9px] font-black text-black shadow-[2px_2px_0px_#000]">
+              <Sparkles class="h-2.5 w-2.5 text-[#72a5e4]" />
+              13 MODULAR ENGINES
+            </span>
+          </div>
         </div>
 
         <!-- Concise Headline + Clean Search Pill (Ergonomic 2-row on Mobile, 1-row Pill on Desktop) -->
-        <div class="max-w-3xl mx-auto w-full text-center space-y-3.5 sm:space-y-4 relative z-20 pt-2">
-          <h1 class="text-2xl sm:text-4xl font-black tracking-tight text-black font-sans leading-tight px-1">
+        <div class="max-w-3xl mx-auto w-full text-center space-y-3.5 sm:space-y-4 relative z-20 pt-1 sm:pt-2">
+          <h1 class="text-[22px] sm:text-4xl font-black tracking-tight text-black font-sans leading-tight px-1">
             Tiket Konser, Festival Kampus &amp;
             <span class="font-editorial font-normal underline decoration-[#72a5e4] decoration-4 underline-offset-4">
               Ruang Kerja Event
@@ -233,17 +245,26 @@ onBeforeUnmount(() => {
                 v-model="searchQuery"
                 type="text"
                 placeholder="Cari konser, DEMAFEST, workshop..."
-                class="w-full bg-transparent px-2.5 py-1.5 text-sm text-black placeholder:text-slate-400 focus:outline-hidden"
+                class="w-full bg-transparent px-2.5 py-1 text-sm text-black placeholder:text-slate-400 focus:outline-hidden"
               />
+              <button
+                v-if="searchQuery"
+                type="button"
+                @click="searchQuery = ''"
+                aria-label="Hapus pencarian"
+                class="mr-1 h-5 w-5 rounded-full bg-slate-200 text-slate-700 text-xs font-bold flex items-center justify-center shrink-0"
+              >
+                &times;
+              </button>
             </div>
 
             <div class="flex items-center justify-between sm:justify-end gap-2 border-t sm:border-t-0 sm:border-l border-black/15 pt-2 sm:pt-0 sm:pl-3">
-              <div class="flex items-center flex-1 sm:flex-initial min-w-0 pl-1 sm:pl-0">
-                <MapPin class="h-3.5 w-3.5 text-slate-500 mr-1.5 shrink-0" />
+              <div class="flex items-center flex-1 sm:flex-initial min-w-0 rounded-xl sm:rounded-none border sm:border-0 border-black/25 bg-[#fafaf9] sm:bg-transparent px-2.5 sm:px-0 py-1 sm:py-0">
+                <MapPin class="h-3.5 w-3.5 text-slate-600 mr-1.5 shrink-0" />
                 <select
                   v-model="selectedCity"
                   aria-label="Filter Lokasi Event"
-                  class="w-full sm:w-auto bg-transparent text-xs font-bold text-slate-800 focus:outline-hidden pr-2 cursor-pointer min-h-[38px] sm:min-h-0"
+                  class="w-full sm:w-auto bg-transparent text-xs font-bold text-slate-800 focus:outline-hidden pr-2 cursor-pointer min-h-[34px] sm:min-h-0"
                 >
                   <option value="">Semua Lokasi</option>
                   <option value="Yogyakarta">Yogyakarta</option>
@@ -256,20 +277,21 @@ onBeforeUnmount(() => {
 
               <button
                 type="submit"
-                class="shimmer-sheen luxury-pill rounded-xl sm:rounded-full bg-black px-5 sm:px-6 py-2.5 text-xs font-bold text-white hover:bg-slate-800 transition-colors shrink-0 cursor-pointer min-h-[40px] sm:min-h-0"
+                class="shimmer-sheen luxury-pill rounded-xl sm:rounded-full bg-black px-5 sm:px-6 py-2.5 text-xs font-bold text-white hover:bg-slate-800 transition-colors shrink-0 cursor-pointer min-h-[40px] sm:min-h-0 shadow-[2px_2px_0px_#72a5e4] sm:shadow-none"
               >
-                Cari Tiket
+                Cari Tiket &rarr;
               </button>
             </div>
           </form>
 
           <!-- Compact Quick Tags & Location Pills (Swipeable on Mobile) -->
-          <div class="flex items-center sm:justify-center gap-2 overflow-x-auto no-scrollbar snap-x snap-mandatory py-1 px-1 text-[11px]">
+          <div class="flex items-center sm:justify-center gap-1.5 sm:gap-2 overflow-x-auto no-scrollbar snap-x snap-mandatory py-1 px-1 text-[11px]">
+            <span class="text-[10px] font-bold uppercase tracking-wider text-slate-500 shrink-0 mr-0.5">Populer:</span>
             <button
               v-for="tag in ['DEMAFEST', 'Tech Summit', 'Konser', 'Workshop', 'Gratis']"
               :key="tag"
               @click="quickSearch(tag)"
-              class="snap-start shrink-0 luxury-pill rounded-full border border-black bg-white px-3.5 py-1.5 sm:py-1 font-semibold text-black cursor-pointer"
+              class="snap-start shrink-0 luxury-pill rounded-full border border-black bg-white px-3.5 py-1.5 sm:py-1 font-semibold text-black cursor-pointer shadow-[1px_1px_0px_#000] sm:shadow-none"
             >
               {{ tag }}
             </button>
@@ -318,8 +340,8 @@ onBeforeUnmount(() => {
     <!-- =================================================================== -->
     <section class="relative z-10 py-[7vh]">
       <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 space-y-[3.5vh]">
-        <!-- Section Title + Filter Pills -->
-        <div class="reveal-section flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+        <!-- Section Title + Filter Pills (4-Col Segmented Control on Mobile) -->
+        <div class="reveal-section flex flex-col sm:flex-row sm:items-end justify-between gap-3.5 sm:gap-4">
           <div>
             <span class="text-[10px] font-black uppercase tracking-widest text-slate-500 block">
               MARKETPLACE
@@ -329,7 +351,7 @@ onBeforeUnmount(() => {
             </h2>
           </div>
 
-          <div class="flex flex-wrap items-center gap-1.5">
+          <div class="grid grid-cols-4 sm:flex items-center gap-1 sm:gap-1.5 rounded-2xl sm:rounded-none border border-black sm:border-0 bg-white sm:bg-transparent p-1 sm:p-0 shadow-[2px_2px_0px_#000] sm:shadow-none">
             <button
               v-for="tab in [
                 { key: 'all', label: 'Semua' },
@@ -339,8 +361,8 @@ onBeforeUnmount(() => {
               ]"
               :key="tab.key"
               @click="activeTab = tab.key"
-              class="rounded-full border border-black px-3.5 py-1 text-xs font-bold transition-colors cursor-pointer"
-              :class="activeTab === tab.key ? 'bg-black text-white' : 'bg-white text-black hover:bg-slate-100'"
+              class="rounded-xl sm:rounded-full sm:border sm:border-black px-2 sm:px-3.5 py-1.5 sm:py-1 text-xs font-bold transition-colors cursor-pointer text-center"
+              :class="activeTab === tab.key ? 'bg-black text-white' : 'bg-transparent sm:bg-white text-black hover:bg-slate-100'"
             >
               {{ tab.label }}
             </button>
@@ -366,16 +388,25 @@ onBeforeUnmount(() => {
           :to="`/events/${featuredEvent.slug || featuredEvent.id}`"
           class="reveal-section is-visible luxury-card group rounded-3xl border-2 border-black overflow-hidden grid grid-cols-1 md:grid-cols-12 bg-[#72a5e4] shadow-[5px_5px_0px_#000]"
         >
-          <div class="md:col-span-6 aspect-video md:aspect-auto bg-black border-b md:border-b-0 md:border-r border-black overflow-hidden">
+          <div class="relative md:col-span-6 aspect-video md:aspect-auto bg-black border-b md:border-b-0 md:border-r border-black overflow-hidden">
             <img
               :src="featuredEvent.poster_url"
               :alt="featuredEvent.title"
               class="w-full h-full object-cover group-hover:scale-103 transition-transform duration-500"
             />
+            <!-- Mobile Overlay Badges on Poster -->
+            <div class="flex md:hidden items-center gap-1.5 absolute top-3 left-3">
+              <span class="rounded-full border border-black bg-[#72a5e4] px-2.5 py-0.5 text-[10px] font-black uppercase text-black shadow-[2px_2px_0px_#000]">
+                FEATURED
+              </span>
+              <span class="rounded-full border border-black bg-white/95 px-2.5 py-0.5 text-[10px] font-bold text-black">
+                {{ featuredEvent.category }}
+              </span>
+            </div>
           </div>
-          <div class="md:col-span-6 p-5 sm:p-7 flex flex-col justify-between text-black space-y-4">
-            <div class="space-y-2">
-              <div class="flex items-center gap-2">
+          <div class="md:col-span-6 p-4 sm:p-7 flex flex-col justify-between text-black space-y-3.5 sm:space-y-4">
+            <div class="space-y-1.5 sm:space-y-2">
+              <div class="hidden md:flex items-center gap-2">
                 <span class="rounded-full border border-black bg-white px-3 py-0.5 text-[10px] font-black uppercase">
                   FEATURED
                 </span>
@@ -383,7 +414,7 @@ onBeforeUnmount(() => {
                   {{ featuredEvent.category }}
                 </span>
               </div>
-              <h3 class="text-xl sm:text-2xl font-black tracking-tight text-black leading-snug group-hover:underline">
+              <h3 class="text-lg sm:text-2xl font-black tracking-tight text-black leading-snug group-hover:underline">
                 {{ featuredEvent.title }}
               </h3>
               <p class="text-xs font-semibold text-slate-900">
@@ -392,29 +423,36 @@ onBeforeUnmount(() => {
               </p>
             </div>
 
-            <div class="pt-4 border-t border-black/20 flex items-center justify-between gap-3">
+            <div class="pt-3 sm:pt-4 border-t border-black/20 flex items-center justify-between gap-3">
               <div>
                 <span class="text-[9px] font-bold uppercase tracking-wider text-slate-800 block">TIKET MULAI</span>
-                <span class="text-lg font-black text-black">{{ getEventMeta(featuredEvent).priceLabel }}</span>
+                <span class="text-base sm:text-lg font-black text-black">{{ getEventMeta(featuredEvent).priceLabel }}</span>
               </div>
-              <span class="luxury-pill rounded-full bg-black px-5 py-2 text-xs font-bold text-white">
+              <span class="luxury-pill rounded-full bg-black px-5 py-2 text-xs font-bold text-white shadow-[2px_2px_0px_#fff]">
                 Beli Tiket &rarr;
               </span>
             </div>
           </div>
         </RouterLink>
 
-        <!-- Clean 3-Column Poster Grid with Animated Filter Transitions -->
+        <!-- Mobile Horizontal Carousel Header Cue -->
+        <div v-if="catalogCards.length" class="flex sm:hidden items-center justify-between text-[11px] font-bold text-slate-600 px-0.5 -mb-1">
+          <span>{{ catalogCards.length }} Event Pilihan</span>
+          <span class="inline-flex items-center gap-1 text-black">Geser Kartu &rarr;</span>
+        </div>
+
+        <!-- Mobile: Native App Horizontal Snap Carousel | Tablet/Desktop: 3-Column Poster Grid -->
         <TransitionGroup
+          v-if="catalogCards.length"
           name="card-grid"
           tag="div"
-          class="reveal-section grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5"
+          class="reveal-section is-visible flex sm:grid sm:grid-cols-2 lg:grid-cols-3 overflow-x-auto sm:overflow-visible snap-x snap-mandatory gap-4 sm:gap-5 -mx-4 px-4 sm:mx-0 sm:px-0 pb-2 sm:pb-0 no-scrollbar"
         >
           <RouterLink
             v-for="evt in catalogCards"
             :key="evt.id"
             :to="`/events/${evt.slug || evt.id}`"
-            class="luxury-card group rounded-2xl border-2 border-black bg-white overflow-hidden flex flex-col justify-between shadow-[3px_3px_0px_#000]"
+            class="w-[78vw] max-w-[300px] sm:w-auto sm:max-w-none shrink-0 snap-center luxury-card group rounded-2xl border-2 border-black bg-white overflow-hidden flex flex-col justify-between shadow-[3px_3px_0px_#000]"
           >
             <div>
               <div class="relative aspect-video bg-black border-b border-black overflow-hidden">
@@ -428,7 +466,7 @@ onBeforeUnmount(() => {
                 </span>
               </div>
 
-              <div class="p-4 space-y-1.5">
+              <div class="p-3.5 sm:p-4 space-y-1.5">
                 <h3 class="text-sm font-bold text-black group-hover:underline line-clamp-2 leading-snug">
                   {{ evt.title }}
                 </h3>
@@ -438,14 +476,29 @@ onBeforeUnmount(() => {
               </div>
             </div>
 
-            <div class="px-4 py-3 border-t border-black/10 bg-[#fafaf9] flex items-center justify-between">
+            <div class="px-3.5 sm:px-4 py-2.5 sm:py-3 border-t border-black/10 bg-[#fafaf9] flex items-center justify-between">
               <span class="text-xs font-black text-black">{{ getEventMeta(evt).priceLabel }}</span>
-              <span class="text-[11px] font-bold text-black group-hover:translate-x-0.5 transition-transform">
+              <span class="rounded-full border border-black bg-[#72a5e4]/30 px-2.5 py-0.5 text-[10px] font-bold text-black group-hover:bg-[#72a5e4] transition-colors">
                 Detail &rarr;
               </span>
             </div>
           </RouterLink>
         </TransitionGroup>
+
+        <!-- Friendly Filter Empty State -->
+        <div
+          v-else
+          class="rounded-2xl border-2 border-dashed border-black/40 bg-white/80 p-6 text-center space-y-2.5"
+        >
+          <p class="text-xs font-bold text-slate-700">Belum ada event untuk kombinasi filter ini.</p>
+          <button
+            type="button"
+            @click="activeCategory = 'All'; activeTab = 'all'"
+            class="luxury-pill rounded-full border border-black bg-[#72a5e4] px-4 py-1.5 text-xs font-bold text-black cursor-pointer"
+          >
+            Tampilkan Semua Event
+          </button>
+        </div>
 
         <div class="flex justify-center pt-1">
           <RouterLink
@@ -482,7 +535,7 @@ onBeforeUnmount(() => {
         <!-- Bento Grid (Mobile: 1 Hero Card + 2 Side-by-Side Compact Cards; Desktop: 12-Col Bento) -->
         <div class="reveal-section grid grid-cols-2 md:grid-cols-12 gap-3.5 sm:gap-5">
           <!-- Bento 1: Main Black Card -->
-          <div class="col-span-2 md:col-span-6 rounded-3xl border-2 border-black bg-black text-white p-5 sm:p-7 shadow-[4px_4px_0px_#72a5e4] flex flex-col justify-between space-y-5 sm:space-y-6">
+          <div class="col-span-2 md:col-span-6 rounded-3xl border-2 border-black bg-black text-white p-5 sm:p-7 shadow-[4px_4px_0px_#72a5e4] flex flex-col justify-between space-y-4 sm:space-y-6">
             <div class="space-y-2">
               <span class="text-[10px] font-bold uppercase tracking-widest text-[#72a5e4]">
                 MODULAR ENGINE
@@ -493,6 +546,17 @@ onBeforeUnmount(() => {
               <p class="text-xs text-slate-300 leading-relaxed">
                 Aktifkan modul Timeline WBS, Kanban, RBAC Tim, Keuangan, Vendor, Sponsor, hingga Survey Evaluasi dalam satu klik.
               </p>
+            </div>
+
+            <!-- Interactive Swipeable Module Preview Rail -->
+            <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-0.5 text-[10px] font-bold">
+              <span
+                v-for="modName in ['Timeline WBS', 'Kanban Task', 'RBAC Panitia', 'Ticketing QR', 'Fullscreen Check-in', 'Keuangan & RAB', 'Sponsor & Vendor', 'Live Report']"
+                :key="modName"
+                class="shrink-0 rounded-full border border-white/20 bg-white/10 px-2.5 py-1 text-slate-200"
+              >
+                ✦ {{ modName }}
+              </span>
             </div>
 
             <div class="grid grid-cols-3 gap-2 sm:gap-2.5 pt-2 border-t border-white/15 text-center">
