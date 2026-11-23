@@ -20,6 +20,12 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     overflow-x: hidden;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  button, a, input, select, textarea {
+    touch-action: manipulation;
   }
 
   h1, h2, h3, .font-editorial {
@@ -191,9 +197,37 @@
 .no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
 }
 .no-scrollbar::-webkit-scrollbar {
   display: none;
+}
+
+/* Safe-area & Mobile Touch Helpers */
+.pb-safe-dock {
+  padding-bottom: max(12vh, calc(5.5rem + env(safe-area-inset-bottom, 0px)));
+}
+@media (min-width: 768px) {
+  .pb-safe-dock {
+    padding-bottom: 0;
+  }
+}
+
+.bottom-safe-dock {
+  bottom: max(1.2vh, env(safe-area-inset-bottom, 10px));
+}
+
+/* Mobile Sheet Slide-Up Transition */
+.sheet-up-enter-active {
+  transition: opacity 0.25s ease-out, transform 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.sheet-up-leave-active {
+  transition: opacity 0.18s ease-in, transform 0.22s ease-in;
+}
+.sheet-up-enter-from,
+.sheet-up-leave-to {
+  opacity: 0;
+  transform: translateY(24px) scale(0.97);
 }
 
 /* Card Grid Filter & Tab Switcher Transitions */

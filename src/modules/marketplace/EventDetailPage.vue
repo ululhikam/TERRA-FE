@@ -497,28 +497,54 @@ function shareEvent() {
       </div>
     </div>
 
-    <!-- Mobile Sticky Bottom Ticket Action Bar -->
+    <!-- Mobile Sticky Bottom Ticket Action Bar (Thumb-Ergonomic with Tier Switcher) -->
     <div
       v-if="activeTicket"
-      class="lg:hidden fixed bottom-[9.5vh] inset-x-[3vw] z-40 rounded-2xl border-2 border-black bg-white/95 backdrop-blur-md p-[1.5vh] shadow-[4px_4px_0px_#000] flex items-center justify-between gap-3"
+      class="lg:hidden fixed bottom-[calc(4.6rem+max(1.2vh,env(safe-area-inset-bottom,10px)))] inset-x-[3vw] z-40 rounded-2xl border-2 border-black bg-white/96 backdrop-blur-md p-3 shadow-[4px_4px_0px_#000] flex items-center justify-between gap-2.5"
     >
-      <div class="min-w-0">
-        <p class="text-[10px] font-bold text-slate-500 truncate">{{ activeTicket.name }}</p>
-        <p class="text-sm font-black text-black">
+      <div class="min-w-0 flex-1">
+        <div v-if="ticketTypes.length > 1" class="relative">
+          <select
+            :value="activeTicket.id"
+            @change="selectTicket($event.target.value)"
+            aria-label="Pilih Kategori Tiket"
+            class="w-full bg-transparent text-[11px] font-black text-slate-700 truncate pr-4 focus:outline-hidden cursor-pointer"
+          >
+            <option v-for="t in ticketTypes" :key="t.id" :value="t.id">
+              {{ t.name }} — {{ Number(t.price) > 0 ? formatCurrency(t.price) : 'Gratis' }}
+            </option>
+          </select>
+        </div>
+        <p v-else class="text-[11px] font-bold text-slate-500 truncate">{{ activeTicket.name }}</p>
+        <p class="text-sm font-black text-black leading-tight">
           {{ Number(activeTicket.price) > 0 ? formatCurrency(Number(activeTicket.price) * quantity) : 'Gratis' }}
-          <span class="text-[10px] font-semibold text-slate-500">({{ quantity }}x)</span>
+          <span class="text-[10px] font-semibold text-slate-500">({{ quantity }} tiket)</span>
         </p>
       </div>
       <div class="flex items-center gap-2 shrink-0">
-        <div class="flex items-center rounded-full border border-black bg-[#fafaf9] px-2.5 py-1 gap-2.5 text-xs font-bold text-black">
-          <button @click="decrementQty" type="button" class="px-1 active:scale-90">–</button>
-          <span class="font-mono">{{ quantity }}</span>
-          <button @click="incrementQty" type="button" class="px-1 active:scale-90">+</button>
+        <div class="flex items-center rounded-full border border-black bg-[#fafaf9] p-0.5 gap-1 text-xs font-bold text-black">
+          <button
+            @click="decrementQty"
+            type="button"
+            aria-label="Kurangi jumlah tiket"
+            class="h-8 w-8 rounded-full flex items-center justify-center active:bg-[#72a5e4] active:scale-90 transition-all"
+          >
+            –
+          </button>
+          <span class="font-mono min-w-[18px] text-center">{{ quantity }}</span>
+          <button
+            @click="incrementQty"
+            type="button"
+            aria-label="Tambah jumlah tiket"
+            class="h-8 w-8 rounded-full flex items-center justify-center active:bg-[#72a5e4] active:scale-90 transition-all"
+          >
+            +
+          </button>
         </div>
         <button
           @click="proceedCheckout"
           type="button"
-          class="luxury-pill rounded-full border border-black bg-[#72a5e4] px-4 py-2 text-xs font-black text-black cursor-pointer"
+          class="shimmer-sheen luxury-pill rounded-full border border-black bg-[#72a5e4] px-4 py-2.5 text-xs font-black text-black shadow-[2px_2px_0px_#000] cursor-pointer"
         >
           Beli &rarr;
         </button>

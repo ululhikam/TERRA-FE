@@ -36,9 +36,10 @@ const publishedEvents = computed(() =>
 const featuredEvent = computed(() => publishedEvents.value[0] || store.events[0])
 
 const catalogCards = computed(() => {
-  let list = publishedEvents.value.slice(1)
+  const isFiltered = activeCategory.value !== 'All' || activeTab.value !== 'all'
+  let list = isFiltered ? [...publishedEvents.value] : publishedEvents.value.slice(1)
   if (activeCategory.value !== 'All') {
-    list = publishedEvents.value.filter((e) => e.category === activeCategory.value)
+    list = list.filter((e) => e.category === activeCategory.value)
   }
   if (activeTab.value === 'free') {
     list = list.filter((e) => getEventMeta(e).minPrice === 0)
@@ -181,41 +182,41 @@ onBeforeUnmount(() => {
     <!-- =================================================================== -->
     <!-- 1. CLEAN HERO SECTION (VISUAL GRAFFITI + COMPACT SEARCH)            -->
     <!-- =================================================================== -->
-    <section class="relative min-h-[92dvh] flex flex-col items-center justify-center overflow-visible">
-      <div class="w-full max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-[3vh] relative z-10 space-y-[2.5vh] flex flex-col justify-center">
+    <section class="relative min-h-[75dvh] sm:min-h-[84dvh] md:min-h-[90dvh] flex flex-col items-center justify-center overflow-visible">
+      <div class="w-full max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-[2.5vh] sm:py-[3vh] relative z-10 space-y-[2vh] sm:space-y-[2.5vh] flex flex-col justify-center">
         <!-- Minimal Top Header -->
         <div class="flex flex-col items-center text-center space-y-2 relative z-20">
-          <div class="inline-flex items-center gap-2 rounded-full border border-black bg-white px-3.5 py-1 shadow-[2px_2px_0px_#000]">
-            <span class="h-2 w-2 rounded-full bg-[#72a5e4] border border-black" />
-            <span class="text-[10px] font-black uppercase tracking-widest text-black">
+          <div class="inline-flex items-center gap-2 rounded-full border border-black bg-white px-3 sm:px-3.5 py-1 shadow-[2px_2px_0px_#000]">
+            <span class="h-2 w-2 rounded-full bg-[#72a5e4] border border-black animate-pulse" />
+            <span class="text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-black">
               TICKETING &amp; MODULAR EVENT ECOSYSTEM
             </span>
           </div>
         </div>
 
         <!-- Center Pure Vector SVG Bubble Graffiti Art ("TERRA" + Connected Ribbons + Floating Motion Chips) -->
-        <div class="relative z-30 pointer-events-none">
-          <!-- Floating Kinetic Chips (Desktop & Tablet) - Symmetrical Left/Right -->
+        <div class="relative z-30 pointer-events-none py-1 sm:py-0">
+          <!-- Floating Kinetic Chips (Visible on Mobile, Tablet & Desktop) -->
           <div
-            class="hidden sm:inline-flex items-center gap-1.5 absolute -top-2 left-6 z-40 rounded-full border border-black bg-[#72a5e4] px-3 py-1 text-[10px] font-black text-black shadow-[2px_2px_0px_#000] animate-float-slow"
+            class="inline-flex items-center gap-1 sm:gap-1.5 absolute -top-2.5 left-1 sm:-top-2 sm:left-6 z-40 rounded-full border border-black bg-[#72a5e4] px-2.5 py-0.5 sm:px-3 sm:py-1 text-[9px] sm:text-[10px] font-black text-black shadow-[2px_2px_0px_#000] animate-float-slow"
           >
-            <QrCode class="h-3 w-3" />
+            <QrCode class="h-2.5 w-2.5 sm:h-3 sm:w-3" />
             <span>INSTANT QR PASS</span>
           </div>
           <div
-            class="hidden sm:inline-flex items-center gap-1.5 absolute -bottom-1 right-6 z-40 rounded-full border border-black bg-white px-3 py-1 text-[10px] font-black text-black shadow-[2px_2px_0px_#000] animate-float-slow"
+            class="inline-flex items-center gap-1 sm:gap-1.5 absolute -bottom-2.5 right-1 sm:-bottom-1 sm:right-6 z-40 rounded-full border border-black bg-white px-2.5 py-0.5 sm:px-3 sm:py-1 text-[9px] sm:text-[10px] font-black text-black shadow-[2px_2px_0px_#000] animate-float-slow"
             style="animation-delay: -2.5s"
           >
-            <Sparkles class="h-3 w-3 text-[#72a5e4]" />
+            <Sparkles class="h-2.5 w-2.5 sm:h-3 sm:w-3 text-[#72a5e4]" />
             <span>13 MODULAR ENGINES</span>
           </div>
 
           <BubbleGraffiti full-bleed :scroll-offset="scrollY" />
         </div>
 
-        <!-- Concise Headline + Clean Search Pill -->
-        <div class="max-w-3xl mx-auto text-center space-y-4 relative z-20 pt-2">
-          <h1 class="text-2xl sm:text-4xl font-black tracking-tight text-black font-sans leading-tight">
+        <!-- Concise Headline + Clean Search Pill (Ergonomic 2-row on Mobile, 1-row Pill on Desktop) -->
+        <div class="max-w-3xl mx-auto w-full text-center space-y-3.5 sm:space-y-4 relative z-20 pt-2">
+          <h1 class="text-2xl sm:text-4xl font-black tracking-tight text-black font-sans leading-tight px-1">
             Tiket Konser, Festival Kampus &amp;
             <span class="font-editorial font-normal underline decoration-[#72a5e4] decoration-4 underline-offset-4">
               Ruang Kerja Event
@@ -224,39 +225,42 @@ onBeforeUnmount(() => {
 
           <form
             @submit.prevent="handleSearch"
-            class="luxury-card flex flex-col sm:flex-row items-stretch sm:items-center rounded-2xl sm:rounded-full border-2 border-black bg-white p-1.5 gap-2 sm:gap-0 shadow-[4px_4px_0px_#000]"
+            class="luxury-card flex flex-col sm:flex-row items-stretch sm:items-center rounded-2xl sm:rounded-full border-2 border-black bg-white p-2 sm:p-1.5 gap-2 sm:gap-0 shadow-[4px_4px_0px_#000]"
           >
-            <div class="flex items-center flex-1 pl-3.5 py-1 sm:py-0">
-              <Search class="h-4 w-4 text-slate-400 shrink-0" />
+            <div class="flex items-center flex-1 pl-2.5 sm:pl-3.5 py-1 sm:py-0">
+              <Search class="h-4 w-4 text-slate-500 shrink-0" />
               <input
                 v-model="searchQuery"
                 type="text"
                 placeholder="Cari konser, DEMAFEST, workshop..."
-                class="w-full bg-transparent px-2.5 py-1.5 text-xs sm:text-sm text-black placeholder:text-slate-400 focus:outline-hidden"
+                class="w-full bg-transparent px-2.5 py-1.5 text-sm text-black placeholder:text-slate-400 focus:outline-hidden"
               />
             </div>
 
-            <div class="flex items-center border-t sm:border-t-0 sm:border-l border-black/15 px-3 py-1.5 sm:py-1">
-              <MapPin class="h-3.5 w-3.5 text-slate-400 mr-1.5 shrink-0" />
-              <select
-                v-model="selectedCity"
-                class="w-full sm:w-auto bg-transparent text-xs font-semibold text-slate-700 focus:outline-hidden pr-3 cursor-pointer"
-              >
-                <option value="">Semua Lokasi</option>
-                <option value="Yogyakarta">Yogyakarta</option>
-                <option value="Jakarta">Jakarta</option>
-                <option value="Bandung">Bandung</option>
-                <option value="Bali">Bali</option>
-                <option value="Online">Online</option>
-              </select>
-            </div>
+            <div class="flex items-center justify-between sm:justify-end gap-2 border-t sm:border-t-0 sm:border-l border-black/15 pt-2 sm:pt-0 sm:pl-3">
+              <div class="flex items-center flex-1 sm:flex-initial min-w-0 pl-1 sm:pl-0">
+                <MapPin class="h-3.5 w-3.5 text-slate-500 mr-1.5 shrink-0" />
+                <select
+                  v-model="selectedCity"
+                  aria-label="Filter Lokasi Event"
+                  class="w-full sm:w-auto bg-transparent text-xs font-bold text-slate-800 focus:outline-hidden pr-2 cursor-pointer min-h-[38px] sm:min-h-0"
+                >
+                  <option value="">Semua Lokasi</option>
+                  <option value="Yogyakarta">Yogyakarta</option>
+                  <option value="Jakarta">Jakarta</option>
+                  <option value="Bandung">Bandung</option>
+                  <option value="Bali">Bali</option>
+                  <option value="Online">Online</option>
+                </select>
+              </div>
 
-            <button
-              type="submit"
-              class="shimmer-sheen luxury-pill rounded-full bg-black px-6 py-3 sm:py-2.5 text-xs font-bold text-white hover:bg-slate-800 transition-colors shrink-0 cursor-pointer"
-            >
-              Cari Tiket
-            </button>
+              <button
+                type="submit"
+                class="shimmer-sheen luxury-pill rounded-xl sm:rounded-full bg-black px-5 sm:px-6 py-2.5 text-xs font-bold text-white hover:bg-slate-800 transition-colors shrink-0 cursor-pointer min-h-[40px] sm:min-h-0"
+              >
+                Cari Tiket
+              </button>
+            </div>
           </form>
 
           <!-- Compact Quick Tags & Location Pills (Swipeable on Mobile) -->
@@ -290,19 +294,19 @@ onBeforeUnmount(() => {
       </div>
 
       <div class="border-y border-black bg-[#72a5e4] text-black relative z-10">
-        <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex flex-wrap items-center justify-center sm:justify-between gap-3 text-xs font-bold">
-          <span class="inline-flex items-center gap-2">
-            <QrCode class="h-4 w-4" />
+        <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-2.5 sm:py-3 flex items-center justify-start sm:justify-between gap-4 overflow-x-auto no-scrollbar whitespace-nowrap text-[11px] sm:text-xs font-bold">
+          <span class="inline-flex items-center gap-1.5 shrink-0">
+            <QrCode class="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
             E-Ticket PDF &amp; Email Berlogo Event
           </span>
-          <span class="hidden sm:inline text-black/40">•</span>
-          <span class="inline-flex items-center gap-2">
-            <ShieldCheck class="h-4 w-4" />
+          <span class="text-black/40 shrink-0">•</span>
+          <span class="inline-flex items-center gap-1.5 shrink-0">
+            <ShieldCheck class="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
             100% Organizer Terverifikasi
           </span>
-          <span class="hidden sm:inline text-black/40">•</span>
-          <span class="inline-flex items-center gap-2">
-            <Layers class="h-4 w-4" />
+          <span class="text-black/40 shrink-0">•</span>
+          <span class="inline-flex items-center gap-1.5 shrink-0">
+            <Layers class="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
             13 Modul Manajemen Kepanitiaan
           </span>
         </div>
@@ -475,10 +479,10 @@ onBeforeUnmount(() => {
           </p>
         </div>
 
-        <!-- Bento Grid (3 Visual Cards) -->
-        <div class="reveal-section grid grid-cols-1 md:grid-cols-12 gap-5">
+        <!-- Bento Grid (Mobile: 1 Hero Card + 2 Side-by-Side Compact Cards; Desktop: 12-Col Bento) -->
+        <div class="reveal-section grid grid-cols-2 md:grid-cols-12 gap-3.5 sm:gap-5">
           <!-- Bento 1: Main Black Card -->
-          <div class="md:col-span-6 rounded-3xl border-2 border-black bg-black text-white p-6 sm:p-7 shadow-[4px_4px_0px_#72a5e4] flex flex-col justify-between space-y-6">
+          <div class="col-span-2 md:col-span-6 rounded-3xl border-2 border-black bg-black text-white p-5 sm:p-7 shadow-[4px_4px_0px_#72a5e4] flex flex-col justify-between space-y-5 sm:space-y-6">
             <div class="space-y-2">
               <span class="text-[10px] font-bold uppercase tracking-widest text-[#72a5e4]">
                 MODULAR ENGINE
@@ -491,56 +495,56 @@ onBeforeUnmount(() => {
               </p>
             </div>
 
-            <div class="grid grid-cols-3 gap-2.5 pt-2 border-t border-white/15 text-center">
-              <div class="rounded-xl bg-white/10 p-2.5">
-                <span class="text-lg font-black text-[#72a5e4] block">13</span>
+            <div class="grid grid-cols-3 gap-2 sm:gap-2.5 pt-2 border-t border-white/15 text-center">
+              <div class="rounded-xl bg-white/10 p-2 sm:p-2.5">
+                <span class="text-base sm:text-lg font-black text-[#72a5e4] block">13</span>
                 <span class="text-[10px] text-slate-300">Modul Event</span>
               </div>
-              <div class="rounded-xl bg-white/10 p-2.5">
-                <span class="text-lg font-black text-white block">3</span>
+              <div class="rounded-xl bg-white/10 p-2 sm:p-2.5">
+                <span class="text-base sm:text-lg font-black text-white block">3</span>
                 <span class="text-[10px] text-slate-300">Portal Akses</span>
               </div>
-              <div class="rounded-xl bg-white/10 p-2.5">
-                <span class="text-lg font-black text-[#72a5e4] block">100%</span>
+              <div class="rounded-xl bg-white/10 p-2 sm:p-2.5">
+                <span class="text-base sm:text-lg font-black text-[#72a5e4] block">100%</span>
                 <span class="text-[10px] text-slate-300">Real-Time</span>
               </div>
             </div>
           </div>
 
-          <!-- Bento 2: Blue QR Boarding-Pass Card -->
-          <div class="md:col-span-3 rounded-3xl border-2 border-black bg-[#72a5e4] text-black p-6 shadow-[4px_4px_0px_#000] flex flex-col justify-between space-y-4">
-            <div class="h-10 w-10 rounded-xl border border-black bg-white flex items-center justify-center shadow-[2px_2px_0px_#000]">
-              <QrCode class="h-5 w-5 text-black" />
+          <!-- Bento 2: Blue QR Boarding-Pass Card (Half width on mobile!) -->
+          <div class="col-span-1 md:col-span-3 rounded-3xl border-2 border-black bg-[#72a5e4] text-black p-4 sm:p-6 shadow-[4px_4px_0px_#000] flex flex-col justify-between space-y-3 sm:space-y-4">
+            <div class="h-9 w-9 sm:h-10 sm:w-10 rounded-xl border border-black bg-white flex items-center justify-center shadow-[2px_2px_0px_#000]">
+              <QrCode class="h-4 w-4 sm:h-5 sm:w-5 text-black" />
             </div>
-            <div class="space-y-1.5">
-              <h3 class="text-base font-black leading-snug">
+            <div class="space-y-1">
+              <h3 class="text-sm sm:text-base font-black leading-snug">
                 Branded QR Boarding-Pass
               </h3>
-              <p class="text-xs text-slate-900 leading-relaxed">
+              <p class="text-[11px] sm:text-xs text-slate-900 leading-relaxed">
                 PDF &amp; Email E-Ticket otomatis menampilkan logo resmi acara di tengah QR Code.
               </p>
             </div>
           </div>
 
-          <!-- Bento 3: White Fullscreen Scanner & RBAC Card -->
-          <div class="md:col-span-3 rounded-3xl border-2 border-black bg-white text-black p-6 shadow-[4px_4px_0px_#000] flex flex-col justify-between space-y-4">
-            <div class="h-10 w-10 rounded-xl border border-black bg-[#fafaf9] flex items-center justify-center shadow-[2px_2px_0px_#000]">
-              <ShieldCheck class="h-5 w-5 text-black" />
+          <!-- Bento 3: White Fullscreen Scanner & RBAC Card (Half width on mobile!) -->
+          <div class="col-span-1 md:col-span-3 rounded-3xl border-2 border-black bg-white text-black p-4 sm:p-6 shadow-[4px_4px_0px_#000] flex flex-col justify-between space-y-3 sm:space-y-4">
+            <div class="h-9 w-9 sm:h-10 sm:w-10 rounded-xl border border-black bg-[#fafaf9] flex items-center justify-center shadow-[2px_2px_0px_#000]">
+              <ShieldCheck class="h-4 w-4 sm:h-5 sm:w-5 text-black" />
             </div>
-            <div class="space-y-1.5">
-              <h3 class="text-base font-black leading-snug">
+            <div class="space-y-1">
+              <h3 class="text-sm sm:text-base font-black leading-snug">
                 Anti-Double Gate Check-in
               </h3>
-              <p class="text-xs text-slate-600 leading-relaxed">
+              <p class="text-[11px] sm:text-xs text-slate-600 leading-relaxed">
                 Scanner kamera layar penuh dengan kunci kuota atomik mencegah duplikasi tiket.
               </p>
             </div>
           </div>
         </div>
 
-        <!-- Interactive Cara Kerja Tab Switcher (Replaces Long 2-Column Text Wall) -->
-        <div id="how-it-works" class="reveal-section rounded-3xl border-2 border-black bg-white p-6 sm:p-8 shadow-[4px_4px_0px_#000] space-y-6 scroll-mt-20">
-          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-black/10 pb-4">
+        <!-- Interactive Cara Kerja Tab Switcher (Full-width touch toggle & horizontal steps on mobile) -->
+        <div id="how-it-works" class="reveal-section rounded-3xl border-2 border-black bg-white p-5 sm:p-8 shadow-[4px_4px_0px_#000] space-y-5 sm:space-y-6 scroll-mt-20">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 border-b border-black/10 pb-4">
             <div>
               <span class="text-[10px] font-black uppercase tracking-widest text-slate-400 block">
                 CARA KERJA TERRA
@@ -550,20 +554,20 @@ onBeforeUnmount(() => {
               </h3>
             </div>
 
-            <!-- Role Pill Toggle -->
-            <div class="inline-flex rounded-full border border-black bg-[#fafaf9] p-1 self-start">
+            <!-- Role Pill Toggle (Full-width 2-col on mobile for easy thumb reach) -->
+            <div class="grid grid-cols-2 sm:inline-flex w-full sm:w-auto rounded-full border border-black bg-[#fafaf9] p-1">
               <button
                 type="button"
                 @click="activeRoleFlow = 'customer'"
-                class="rounded-full px-4 py-1.5 text-xs font-bold transition-colors cursor-pointer"
-                :class="activeRoleFlow === 'customer' ? 'bg-[#72a5e4] border border-black text-black' : 'text-slate-600 hover:text-black'"
+                class="rounded-full px-4 py-2 sm:py-1.5 text-xs font-bold transition-colors cursor-pointer text-center"
+                :class="activeRoleFlow === 'customer' ? 'bg-[#72a5e4] border border-black text-black shadow-[1px_1px_0px_#000]' : 'text-slate-600 hover:text-black'"
               >
                 Pembeli Tiket
               </button>
               <button
                 type="button"
                 @click="activeRoleFlow = 'organizer'"
-                class="rounded-full px-4 py-1.5 text-xs font-bold transition-colors cursor-pointer"
+                class="rounded-full px-4 py-2 sm:py-1.5 text-xs font-bold transition-colors cursor-pointer text-center"
                 :class="activeRoleFlow === 'organizer' ? 'bg-black text-white' : 'text-slate-600 hover:text-black'"
               >
                 Organizer Acara
@@ -572,32 +576,34 @@ onBeforeUnmount(() => {
           </div>
 
           <Transition name="tab-slide" mode="out-in">
-            <div :key="activeRoleFlow" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div :key="activeRoleFlow" class="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4">
               <div
                 v-for="step in roleFlows[activeRoleFlow].steps"
                 :key="step.num"
-                class="luxury-card rounded-2xl border border-black bg-[#fafaf9] p-4 space-y-2"
+                class="luxury-card rounded-2xl border border-black bg-[#fafaf9] p-3.5 sm:p-4 flex sm:block items-start gap-3.5 sm:space-y-2"
               >
-                <span class="inline-block rounded-lg border border-black bg-[#72a5e4] px-2.5 py-0.5 text-xs font-black text-black">
+                <span class="inline-flex h-8 w-8 sm:h-auto sm:w-auto shrink-0 items-center justify-center rounded-xl sm:rounded-lg border border-black bg-[#72a5e4] sm:px-2.5 sm:py-0.5 text-xs font-black text-black shadow-[2px_2px_0px_#000] sm:shadow-none">
                   {{ step.num }}
                 </span>
-                <h4 class="text-sm font-bold text-black">{{ step.title }}</h4>
-                <p class="text-xs text-slate-600 leading-relaxed">{{ step.desc }}</p>
+                <div class="space-y-1 min-w-0">
+                  <h4 class="text-sm font-bold text-black">{{ step.title }}</h4>
+                  <p class="text-xs text-slate-600 leading-relaxed">{{ step.desc }}</p>
+                </div>
               </div>
             </div>
           </Transition>
 
-          <div class="flex flex-wrap items-center justify-between gap-3 pt-2">
-            <!-- Verified Organizers Compact Pill Row -->
-            <div class="flex flex-wrap items-center gap-2">
-              <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mr-1">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 pt-2">
+            <!-- Verified Organizers Compact Pill Row (Swipeable on mobile) -->
+            <div class="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1 sm:pb-0">
+              <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mr-1 shrink-0">
                 Verified EO:
               </span>
               <RouterLink
                 v-for="org in store.organizations.slice(0, 3)"
                 :key="org.id"
                 :to="`/organizers/${org.slug}`"
-                class="inline-flex items-center gap-1.5 rounded-full border border-black bg-[#fafaf9] px-3 py-1 text-[11px] font-bold text-black hover:bg-[#72a5e4]/30 transition-colors"
+                class="shrink-0 inline-flex items-center gap-1.5 rounded-full border border-black bg-[#fafaf9] px-3 py-1 text-[11px] font-bold text-black hover:bg-[#72a5e4]/30 transition-colors"
               >
                 <img :src="org.logo_url" :alt="org.name" class="h-4 w-4 rounded-full object-cover border border-black" />
                 <span class="truncate max-w-[140px]">{{ org.name }}</span>
@@ -605,16 +611,16 @@ onBeforeUnmount(() => {
               </RouterLink>
             </div>
 
-            <div class="flex items-center gap-2">
+            <div class="grid grid-cols-2 sm:flex items-center gap-2 w-full sm:w-auto">
               <RouterLink
                 :to="roleFlows[activeRoleFlow].secondaryTo"
-                class="luxury-pill rounded-full border border-black bg-white px-4 py-2 text-xs font-semibold text-black"
+                class="luxury-pill text-center rounded-full border border-black bg-white px-4 py-2.5 sm:py-2 text-xs font-semibold text-black"
               >
                 {{ roleFlows[activeRoleFlow].secondaryLabel }}
               </RouterLink>
               <RouterLink
                 :to="roleFlows[activeRoleFlow].ctaTo"
-                class="luxury-pill rounded-full border border-black bg-[#72a5e4] px-5 py-2 text-xs font-bold text-black"
+                class="luxury-pill text-center rounded-full border border-black bg-[#72a5e4] px-5 py-2.5 sm:py-2 text-xs font-bold text-black shadow-[2px_2px_0px_#000]"
               >
                 {{ roleFlows[activeRoleFlow].ctaLabel }} &rarr;
               </RouterLink>

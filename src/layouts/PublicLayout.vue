@@ -114,7 +114,7 @@ function scrollToTop() {
 </script>
 
 <template>
-  <div class="min-h-dvh flex flex-col bg-[#fafaf9] text-slate-900 bg-grid-paper selection:bg-[#72a5e4] selection:text-black overflow-x-clip pb-[11vh] md:pb-0">
+  <div class="min-h-dvh flex flex-col bg-[#fafaf9] text-slate-900 bg-grid-paper selection:bg-[#72a5e4] selection:text-black overflow-x-clip pb-safe-dock">
     <!-- Top Scroll Progress Bar -->
     <div class="fixed top-0 left-0 right-0 z-[60] h-[0.45vh] min-h-[3px] bg-transparent pointer-events-none">
       <div
@@ -241,84 +241,168 @@ function scrollToTop() {
             </template>
           </div>
 
-          <!-- Mobile Menu Button -->
-          <button
-            @click="mobileOpen = !mobileOpen"
-            class="md:hidden rounded-lg border border-black p-2 text-black hover:bg-slate-100"
-            aria-label="Toggle Menu"
-          >
-            <Menu v-if="!mobileOpen" class="h-5 w-5" />
-            <X v-else class="h-5 w-5" />
-          </button>
+          <!-- Mobile Quick CTA + Menu Button (44x44px touch target) -->
+          <div class="flex md:hidden items-center gap-2 z-10">
+            <RouterLink
+              v-if="!authStore.isAuthenticated"
+              to="/login"
+              @click="mobileOpen = false"
+              class="luxury-pill rounded-full border border-black bg-[#72a5e4] px-3.5 py-1.5 text-[11px] font-black text-black shadow-[2px_2px_0px_#000]"
+            >
+              Masuk
+            </RouterLink>
+            <RouterLink
+              v-else-if="authStore.isCustomer"
+              to="/my-tickets"
+              @click="mobileOpen = false"
+              class="luxury-pill inline-flex items-center gap-1 rounded-full border border-black bg-[#72a5e4] px-3 py-1.5 text-[11px] font-black text-black shadow-[2px_2px_0px_#000]"
+            >
+              <Ticket class="h-3.5 w-3.5" />
+              <span>Tiket</span>
+            </RouterLink>
+            <RouterLink
+              v-else-if="authStore.isOrganizer"
+              to="/dashboard"
+              @click="mobileOpen = false"
+              class="luxury-pill rounded-full border border-black bg-[#72a5e4] px-3 py-1.5 text-[11px] font-black text-black shadow-[2px_2px_0px_#000]"
+            >
+              Studio
+            </RouterLink>
+
+            <button
+              @click="mobileOpen = !mobileOpen"
+              class="inline-flex h-10 w-10 items-center justify-center rounded-xl border-2 border-black bg-white text-black shadow-[2px_2px_0px_#000] active:translate-y-0.5 active:shadow-none transition-all"
+              :class="mobileOpen ? 'bg-[#72a5e4]' : 'bg-white'"
+              aria-label="Toggle Menu"
+            >
+              <Menu v-if="!mobileOpen" class="h-5 w-5" />
+              <X v-else class="h-5 w-5" />
+            </button>
+          </div>
         </div>
 
-        <!-- Mobile Dropdown Menu (top bar mode with smooth drawer transition) -->
+        <!-- Mobile Backdrop + Tactile Neo-Brutalist Drawer Sheet -->
         <Transition name="drawer-slide">
-          <div v-if="mobileOpen && !isScrolled" class="border-b-2 border-black bg-[#fafaf9]/98 backdrop-blur-md p-4 md:hidden flex flex-col gap-3 shadow-[0_6px_0_#000]">
-            <div class="grid grid-cols-2 gap-2">
-              <a
-                href="/#about"
-                @click="mobileOpen = false"
-                class="luxury-pill rounded-full border border-black bg-white py-2.5 text-center text-xs font-bold text-black"
+          <div
+            v-if="mobileOpen && !isScrolled"
+            class="md:hidden fixed inset-x-0 top-[8vh] z-50 px-[3.5vw] pt-2 pb-4 pointer-events-auto"
+          >
+            <div
+              class="fixed inset-0 top-[8vh] bg-black/35 backdrop-blur-2xs -z-10"
+              @click="mobileOpen = false"
+            />
+            <div class="rounded-3xl border-2 border-black bg-[#fafaf9] p-4 flex flex-col gap-3.5 shadow-[6px_6px_0px_#000]">
+              <!-- User Status Header (if authenticated) -->
+              <div
+                v-if="authStore.isAuthenticated"
+                class="flex items-center justify-between gap-3 rounded-2xl border border-black bg-white px-3.5 py-2.5"
               >
-                About TERRA
-              </a>
-              <RouterLink
-                to="/pricing"
-                @click="mobileOpen = false"
-                class="luxury-pill rounded-full border border-black bg-white py-2.5 text-center text-xs font-bold text-black"
-              >
-                Pricing
-              </RouterLink>
-              <a
-                href="/#how-it-works"
-                @click="mobileOpen = false"
-                class="luxury-pill rounded-full border border-black bg-white py-2.5 text-center text-xs font-bold text-black"
-              >
-                Cara Kerja
-              </a>
-              <RouterLink
-                to="/events"
-                @click="mobileOpen = false"
-                class="luxury-pill rounded-full border border-black py-2.5 text-center text-xs font-bold"
-                :class="route.path === '/events' ? 'bg-black text-white' : 'bg-white text-black'"
-              >
-                Jelajahi Event
-              </RouterLink>
-            </div>
+                <div class="flex items-center gap-2.5 min-w-0">
+                  <div class="h-8 w-8 rounded-full border border-black bg-[#72a5e4] flex items-center justify-center font-black text-xs text-black shrink-0">
+                    {{ (authStore.user?.full_name || authStore.user?.email || 'U').charAt(0).toUpperCase() }}
+                  </div>
+                  <div class="min-w-0">
+                    <p class="text-xs font-black text-black truncate">
+                      {{ authStore.user?.full_name || 'Pengguna TERRA' }}
+                    </p>
+                    <p class="text-[10px] font-medium text-slate-500 truncate">
+                      {{ authStore.user?.email }}
+                    </p>
+                  </div>
+                </div>
+                <span class="rounded-full border border-black bg-[#72a5e4]/30 px-2.5 py-0.5 text-[10px] font-black uppercase text-black shrink-0">
+                  {{ authStore.isOrganizer ? 'Organizer' : authStore.isAdmin ? 'Admin' : 'Peserta' }}
+                </span>
+              </div>
 
-            <div class="pt-2 border-t border-black/15">
-              <RouterLink
-                v-if="!authStore.isAuthenticated"
-                to="/login"
-                @click="mobileOpen = false"
-                class="luxury-pill block w-full text-center rounded-full border border-black bg-[#72a5e4] py-2.5 text-xs font-bold text-black"
-              >
-                Login / Daftar Akun
-              </RouterLink>
-              <div v-else class="flex flex-col gap-2">
+              <!-- 2x2 Quick Navigation Grid with Icons -->
+              <div class="grid grid-cols-2 gap-2.5">
                 <RouterLink
-                  v-if="authStore.isCustomer"
-                  to="/my-tickets"
+                  to="/events"
                   @click="mobileOpen = false"
-                  class="luxury-pill block w-full text-center rounded-full border border-black bg-[#72a5e4] py-2.5 text-xs font-bold text-black"
+                  class="luxury-pill flex items-center gap-2 rounded-2xl border border-black px-3.5 py-3 text-xs font-bold"
+                  :class="route.path === '/events' ? 'bg-black text-white' : 'bg-white text-black'"
                 >
-                  Tiket Saya
+                  <Compass class="h-4 w-4 shrink-0 text-[#72a5e4]" />
+                  <span>Jelajahi Event</span>
                 </RouterLink>
                 <RouterLink
-                  v-if="authStore.isOrganizer"
-                  to="/dashboard"
+                  to="/pricing"
                   @click="mobileOpen = false"
-                  class="luxury-pill block w-full text-center rounded-full border border-black bg-[#72a5e4] py-2.5 text-xs font-bold text-black"
+                  class="luxury-pill flex items-center gap-2 rounded-2xl border border-black px-3.5 py-3 text-xs font-bold"
+                  :class="route.path === '/pricing' ? 'bg-black text-white' : 'bg-white text-black'"
                 >
-                  Dashboard Studio
+                  <Tag class="h-4 w-4 shrink-0 text-[#72a5e4]" />
+                  <span>Paket Pricing</span>
                 </RouterLink>
-                <button
-                  @click="handleLogout"
-                  class="luxury-pill w-full text-center rounded-full border border-black bg-white py-2.5 text-xs font-semibold text-black"
+                <a
+                  href="/#about"
+                  @click="mobileOpen = false"
+                  class="luxury-pill flex items-center gap-2 rounded-2xl border border-black bg-white px-3.5 py-3 text-xs font-bold text-black"
                 >
-                  Keluar
-                </button>
+                  <Home class="h-4 w-4 shrink-0 text-[#72a5e4]" />
+                  <span>About TERRA</span>
+                </a>
+                <a
+                  href="/#how-it-works"
+                  @click="mobileOpen = false"
+                  class="luxury-pill flex items-center gap-2 rounded-2xl border border-black bg-white px-3.5 py-3 text-xs font-bold text-black"
+                >
+                  <ArrowUpRight class="h-4 w-4 shrink-0 text-[#72a5e4]" />
+                  <span>Cara Kerja</span>
+                </a>
+              </div>
+
+              <!-- Account Actions -->
+              <div class="pt-2.5 border-t border-black/15">
+                <div v-if="!authStore.isAuthenticated" class="grid grid-cols-2 gap-2.5">
+                  <RouterLink
+                    to="/login"
+                    @click="mobileOpen = false"
+                    class="luxury-pill block text-center rounded-full border border-black bg-[#72a5e4] py-2.5 text-xs font-black text-black shadow-[2px_2px_0px_#000]"
+                  >
+                    Login Peserta
+                  </RouterLink>
+                  <RouterLink
+                    to="/organizer/login"
+                    @click="mobileOpen = false"
+                    class="luxury-pill block text-center rounded-full border border-black bg-black py-2.5 text-xs font-bold text-white"
+                  >
+                    Organizer Studio
+                  </RouterLink>
+                </div>
+                <div v-else class="grid grid-cols-2 gap-2.5">
+                  <RouterLink
+                    v-if="authStore.isCustomer"
+                    to="/profile"
+                    @click="mobileOpen = false"
+                    class="luxury-pill block text-center rounded-full border border-black bg-[#72a5e4] py-2.5 text-xs font-bold text-black"
+                  >
+                    Profil &amp; Pesanan
+                  </RouterLink>
+                  <RouterLink
+                    v-else-if="authStore.isOrganizer"
+                    to="/dashboard"
+                    @click="mobileOpen = false"
+                    class="luxury-pill block text-center rounded-full border border-black bg-[#72a5e4] py-2.5 text-xs font-bold text-black"
+                  >
+                    Buka Studio
+                  </RouterLink>
+                  <RouterLink
+                    v-else
+                    to="/admin"
+                    @click="mobileOpen = false"
+                    class="luxury-pill block text-center rounded-full border border-black bg-[#72a5e4] py-2.5 text-xs font-bold text-black"
+                  >
+                    Admin Panel
+                  </RouterLink>
+                  <button
+                    @click="handleLogout"
+                    class="luxury-pill w-full text-center rounded-full border border-black bg-white py-2.5 text-xs font-bold text-rose-700"
+                  >
+                    Keluar Akun
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -680,15 +764,15 @@ function scrollToTop() {
             </div>
           </div>
 
-          <!-- 3-Column Centered Navigation Links -->
-          <div class="w-full grid grid-cols-1 sm:grid-cols-3 gap-8 pt-2">
+          <!-- 3-Column Centered Navigation Links (Compact 2-col on mobile) -->
+          <div class="w-full grid grid-cols-2 sm:grid-cols-3 gap-6 sm:gap-8 pt-2">
             <!-- Col 1: Marketplace Peserta -->
-            <div class="flex flex-col items-center space-y-3">
+            <div class="flex flex-col items-center space-y-2.5">
               <h4 class="text-[10px] font-black uppercase tracking-wider text-black inline-flex items-center gap-1.5">
                 <span class="h-1.5 w-1.5 bg-[#72a5e4] border border-black inline-block" />
                 MARKETPLACE PESERTA
               </h4>
-              <ul class="space-y-2.5 text-xs text-slate-700 font-medium">
+              <ul class="space-y-2 text-xs text-slate-700 font-medium">
                 <li>
                   <RouterLink to="/events" class="inline-flex items-center gap-1 hover:text-black">
                     <span>Jelajahi Event</span>
@@ -717,33 +801,33 @@ function scrollToTop() {
             </div>
 
             <!-- Col 2: Penyelenggara (Organizer) -->
-            <div class="flex flex-col items-center space-y-3 sm:border-x sm:border-black/15 sm:px-4">
+            <div class="flex flex-col items-center space-y-2.5 sm:border-x sm:border-black/15 sm:px-4">
               <h4 class="text-[10px] font-black uppercase tracking-wider text-black inline-flex items-center gap-1.5">
                 <span class="h-1.5 w-1.5 bg-black inline-block" />
-                PENYELENGGARA (ORGANIZER)
+                ORGANIZER
               </h4>
-              <ul class="space-y-2.5 text-xs text-slate-700 font-medium">
+              <ul class="space-y-2 text-xs text-slate-700 font-medium">
                 <li>
                   <RouterLink to="/organizer/login" class="inline-flex items-center gap-1 hover:text-black">
-                    <span>Masuk Organizer Studio</span>
+                    <span>Organizer Studio</span>
                     <ArrowUpRight class="h-3 w-3 opacity-60" />
                   </RouterLink>
                 </li>
                 <li>
                   <RouterLink to="/organizer/register" class="inline-flex items-center gap-1 hover:text-black">
-                    <span>Daftar Sebagai Organizer</span>
+                    <span>Daftar Organizer</span>
                     <ArrowUpRight class="h-3 w-3 opacity-60" />
                   </RouterLink>
                 </li>
                 <li>
                   <RouterLink to="/dashboard" class="inline-flex items-center gap-1 hover:text-black">
-                    <span>Sistem 13 Modul Event</span>
+                    <span>13 Modul Event</span>
                     <ArrowUpRight class="h-3 w-3 opacity-60" />
                   </RouterLink>
                 </li>
                 <li>
                   <RouterLink to="/pricing" class="inline-flex items-center gap-1 hover:text-black">
-                    <span>Paket &amp; Harga Event</span>
+                    <span>Paket &amp; Harga</span>
                     <ArrowUpRight class="h-3 w-3 opacity-60" />
                   </RouterLink>
                 </li>
@@ -751,12 +835,12 @@ function scrollToTop() {
             </div>
 
             <!-- Col 3: Platform -->
-            <div class="flex flex-col items-center space-y-3">
+            <div class="col-span-2 sm:col-span-1 flex flex-col items-center space-y-2.5 pt-2 sm:pt-0 border-t sm:border-t-0 border-black/10">
               <h4 class="text-[10px] font-black uppercase tracking-wider text-black inline-flex items-center gap-1.5">
                 <span class="h-1.5 w-1.5 bg-[#72a5e4] border border-black inline-block" />
                 PLATFORM
               </h4>
-              <ul class="space-y-2.5 text-xs text-slate-700 font-medium">
+              <ul class="space-y-2 text-xs text-slate-700 font-medium">
                 <li>
                   <RouterLink to="/admin/login" class="inline-flex items-center gap-1 hover:text-black">
                     <span>Admin Console</span>
@@ -800,15 +884,28 @@ function scrollToTop() {
       </div>
     </footer>
 
-    <!-- Thumb-Friendly Mobile Bottom Navigation Dock -->
+    <!-- Floating Quick Scroll-to-Top FAB on Mobile -->
+    <Transition name="bubble-pop">
+      <button
+        v-if="scrollProgress > 0.25 && !route.path.startsWith('/events/')"
+        @click="scrollToTop"
+        type="button"
+        aria-label="Kembali ke atas"
+        class="md:hidden fixed bottom-[10.5vh] right-[4vw] z-40 flex h-10 w-10 items-center justify-center rounded-full border-2 border-black bg-[#72a5e4] text-black shadow-[3px_3px_0px_#000] active:scale-90 transition-transform"
+      >
+        <ArrowUp class="h-4 w-4" />
+      </button>
+    </Transition>
+
+    <!-- Thumb-Friendly Mobile Bottom Navigation Dock (Safe-Area Aware, 44px Ergonomic Touch Targets) -->
     <nav
       aria-label="Mobile Navigation Dock"
-      class="md:hidden fixed bottom-[1.5vh] inset-x-[3vw] z-50 rounded-2xl border-2 border-black bg-[#fafaf9]/95 backdrop-blur-md px-[2vw] py-[0.8vh] shadow-[4px_4px_0px_#000] grid grid-cols-4 gap-1"
+      class="md:hidden fixed bottom-safe-dock inset-x-[3vw] z-50 rounded-2xl border-2 border-black bg-[#fafaf9]/96 backdrop-blur-md px-1.5 py-1.5 shadow-[4px_4px_0px_#000] grid grid-cols-4 gap-1"
     >
       <RouterLink
         to="/"
-        class="flex flex-col items-center justify-center py-1 rounded-xl text-[10px] font-bold transition-all active:scale-95"
-        :class="route.path === '/' ? 'bg-[#72a5e4] border border-black text-black' : 'text-slate-700'"
+        class="flex flex-col items-center justify-center min-h-[44px] py-1 rounded-xl text-[10px] font-bold transition-all active:scale-95"
+        :class="route.path === '/' ? 'bg-[#72a5e4] border border-black text-black shadow-[2px_2px_0px_#000]' : 'text-slate-700'"
       >
         <Home class="h-4 w-4 mb-0.5" />
         <span>Beranda</span>
@@ -816,8 +913,8 @@ function scrollToTop() {
 
       <RouterLink
         to="/events"
-        class="flex flex-col items-center justify-center py-1 rounded-xl text-[10px] font-bold transition-all active:scale-95"
-        :class="route.path.startsWith('/events') ? 'bg-[#72a5e4] border border-black text-black' : 'text-slate-700'"
+        class="flex flex-col items-center justify-center min-h-[44px] py-1 rounded-xl text-[10px] font-bold transition-all active:scale-95"
+        :class="route.path.startsWith('/events') ? 'bg-[#72a5e4] border border-black text-black shadow-[2px_2px_0px_#000]' : 'text-slate-700'"
       >
         <Compass class="h-4 w-4 mb-0.5" />
         <span>Explore</span>
@@ -825,8 +922,8 @@ function scrollToTop() {
 
       <RouterLink
         to="/pricing"
-        class="flex flex-col items-center justify-center py-1 rounded-xl text-[10px] font-bold transition-all active:scale-95"
-        :class="route.path === '/pricing' ? 'bg-[#72a5e4] border border-black text-black' : 'text-slate-700'"
+        class="flex flex-col items-center justify-center min-h-[44px] py-1 rounded-xl text-[10px] font-bold transition-all active:scale-95"
+        :class="route.path === '/pricing' ? 'bg-[#72a5e4] border border-black text-black shadow-[2px_2px_0px_#000]' : 'text-slate-700'"
       >
         <Tag class="h-4 w-4 mb-0.5" />
         <span>Pricing</span>
@@ -834,8 +931,8 @@ function scrollToTop() {
 
       <RouterLink
         :to="!authStore.isAuthenticated ? '/login' : authStore.isOrganizer ? '/dashboard' : authStore.isAdmin ? '/admin' : '/my-tickets'"
-        class="flex flex-col items-center justify-center py-1 rounded-xl text-[10px] font-bold transition-all active:scale-95"
-        :class="['/login', '/my-tickets', '/profile'].includes(route.path) ? 'bg-[#72a5e4] border border-black text-black' : 'text-slate-700'"
+        class="flex flex-col items-center justify-center min-h-[44px] py-1 rounded-xl text-[10px] font-bold transition-all active:scale-95"
+        :class="['/login', '/my-tickets', '/profile'].includes(route.path) ? 'bg-[#72a5e4] border border-black text-black shadow-[2px_2px_0px_#000]' : 'text-slate-700'"
       >
         <Ticket v-if="authStore.isCustomer" class="h-4 w-4 mb-0.5" />
         <User v-else class="h-4 w-4 mb-0.5" />

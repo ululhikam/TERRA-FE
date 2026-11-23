@@ -653,8 +653,16 @@ async function handleLogout() {
         </div>
       </div>
 
-      <!-- User Profile & Logout -->
-      <div class="flex items-center gap-3 shrink-0">
+      <!-- User Profile, Mobile Quick QR Scanner Shortcut & Logout -->
+      <div class="flex items-center gap-2 sm:gap-3 shrink-0">
+        <RouterLink
+          v-if="isEventWorkspace && currentEvent && hasModule('check_in')"
+          :to="`/dashboard/events/${currentEvent.id}/check-in`"
+          class="lg:hidden inline-flex items-center gap-1 rounded-full border border-black bg-[#72a5e4] px-3 py-1 text-[11px] font-black text-black shadow-[2px_2px_0px_#000]"
+        >
+          <QrCode class="h-3.5 w-3.5" />
+          <span>Scan QR</span>
+        </RouterLink>
         <span
           class="hidden md:inline-flex items-center gap-1 rounded-full border border-black bg-[#72a5e4] px-3 py-1 text-[10px] font-bold text-black"
         >

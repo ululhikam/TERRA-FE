@@ -1,11 +1,11 @@
 <script setup>
-import { ref, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, RouterLink } from 'vue-router'
 import { useEventWorkspaceStore } from '@/stores/eventWorkspace'
 import api from '@/services/api'
 import { formatDate, formatCurrency } from '@/utils/formatters'
 import EmptyState from '@/components/common/EmptyState.vue'
-import { Search } from 'lucide-vue-next'
+import { Search, SlidersHorizontal, X } from 'lucide-vue-next'
 
 const route = useRoute()
 const store = useEventWorkspaceStore()
@@ -20,6 +20,19 @@ const dateTo = ref('')
 const sortBy = ref('upcoming')
 const currentPage = ref(1)
 const limit = 10
+const mobileFiltersOpen = ref(false)
+
+const activeFilterCount = computed(() =>
+  [
+    selectedCategory.value,
+    selectedFormat.value,
+    selectedPriceType.value,
+    locationQuery.value.trim(),
+    dateFrom.value,
+    dateTo.value,
+    sortBy.value !== 'upcoming' ? sortBy.value : ''
+  ].filter(Boolean).length
+)
 
 const items = ref([])
 const totalPages = ref(1)
@@ -106,102 +119,162 @@ function getPriceDisplay(evt) {
       </p>
     </div>
 
-    <!-- Pill Filter Controls -->
+    <!-- Pill Filter Controls (Mobile: Search + Filter Drawer Button + Swipeable Category Chips) -->
     <div v-reveal="60" class="space-y-3">
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        <!-- Search -->
-        <div class="relative">
-          <Search class="absolute left-4 top-3 h-3.5 w-3.5 text-slate-400" />
+      <!-- Top Row: Search Input + Mobile Filter Toggle -->
+      <div class="flex sm:hidden items-center gap-2">
+        <div class="relative flex-1">
+          <Search class="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
           <input
             v-model="search"
             type="text"
             placeholder="Cari judul atau organizer..."
-            class="w-full rounded-full border border-black bg-white pl-9 pr-4 py-2.5 text-xs text-black placeholder:text-slate-400 focus:outline-hidden"
+            class="w-full rounded-full border-2 border-black bg-white pl-9 pr-4 py-2.5 text-sm text-black placeholder:text-slate-400 focus:outline-hidden shadow-[2px_2px_0px_#000]"
           />
         </div>
-
-        <!-- Category Filter -->
-        <div class="relative">
-          <select
-            v-model="selectedCategory"
-            class="w-full rounded-full border border-black bg-white px-4 py-2.5 text-xs text-black focus:outline-hidden appearance-none cursor-pointer"
-          >
-            <option value="">Semua Kategori</option>
-            <option v-for="c in store.categories" :key="c.id" :value="c.name">{{ c.name }}</option>
-          </select>
-          <span class="pointer-events-none absolute right-4 top-2.5 text-xs text-black">⌄</span>
-        </div>
-
-        <!-- Format Filter -->
-        <div class="relative">
-          <select
-            v-model="selectedFormat"
-            class="w-full rounded-full border border-black bg-white px-4 py-2.5 text-xs text-black focus:outline-hidden appearance-none cursor-pointer"
-          >
-            <option value="">Semua Format</option>
-            <option value="offline">Offline</option>
-            <option value="online">Online</option>
-            <option value="hybrid">Hybrid</option>
-          </select>
-          <span class="pointer-events-none absolute right-4 top-2.5 text-xs text-black">⌄</span>
-        </div>
-
-        <!-- Sort Filter -->
-        <div class="relative">
-          <select
-            v-model="sortBy"
-            class="w-full rounded-full border border-black bg-white px-4 py-2.5 text-xs text-black focus:outline-hidden appearance-none cursor-pointer"
-          >
-            <option value="upcoming">Terdekat (Upcoming)</option>
-            <option value="popular">Populer (Popular)</option>
-            <option value="newest">Terbaru (Newest)</option>
-          </select>
-          <span class="pointer-events-none absolute right-4 top-2.5 text-xs text-black">⌄</span>
-        </div>
-      </div>
-
-      <!-- Extended Filters Row -->
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 items-center">
-        <div class="relative">
-          <select
-            v-model="selectedPriceType"
-            class="w-full rounded-full border border-black bg-white px-4 py-2 text-xs text-black focus:outline-hidden appearance-none cursor-pointer"
-          >
-            <option value="">Semua Harga (Gratis / Berbayar)</option>
-            <option value="free">Gratis</option>
-            <option value="paid">Berbayar</option>
-          </select>
-          <span class="pointer-events-none absolute right-4 top-2 text-xs text-black">⌄</span>
-        </div>
-
-        <input
-          v-model="locationQuery"
-          type="text"
-          placeholder="Kota / Kampus / Venue..."
-          class="w-full rounded-full border border-black bg-white px-4 py-2 text-xs text-black placeholder:text-slate-400 focus:outline-hidden"
-        />
-
-        <input
-          v-model="dateFrom"
-          type="date"
-          title="Mulai dari tanggal"
-          class="w-full rounded-full border border-black bg-white px-4 py-2 text-xs text-black focus:outline-hidden"
-        />
-
-        <input
-          v-model="dateTo"
-          type="date"
-          title="Sampai tanggal"
-          class="w-full rounded-full border border-black bg-white px-4 py-2 text-xs text-black focus:outline-hidden"
-        />
-
         <button
           type="button"
-          @click="resetFilters"
-          class="rounded-full border border-black bg-[#fafaf9] px-4 py-2 text-xs font-bold text-black hover:bg-slate-100 cursor-pointer"
+          @click="mobileFiltersOpen = !mobileFiltersOpen"
+          class="luxury-pill inline-flex items-center gap-1.5 rounded-full border-2 border-black px-4 py-2.5 text-xs font-bold shrink-0 shadow-[2px_2px_0px_#000]"
+          :class="mobileFiltersOpen || activeFilterCount > 0 ? 'bg-[#72a5e4] text-black' : 'bg-white text-black'"
         >
-          Reset Filter ({{ totalCount }})
+          <SlidersHorizontal class="h-3.5 w-3.5" />
+          <span>Filter</span>
+          <span
+            v-if="activeFilterCount > 0"
+            class="inline-flex h-4 w-4 items-center justify-center rounded-full bg-black text-[10px] font-black text-white"
+          >
+            {{ activeFilterCount }}
+          </span>
         </button>
+      </div>
+
+      <!-- Mobile Quick Swipeable Category Chips -->
+      <div class="flex sm:hidden items-center gap-2 overflow-x-auto no-scrollbar snap-x snap-mandatory pb-1 text-xs">
+        <button
+          type="button"
+          @click="selectedCategory = ''"
+          class="snap-start shrink-0 rounded-full border border-black px-3.5 py-1.5 font-bold transition-all"
+          :class="!selectedCategory ? 'bg-black text-white' : 'bg-white text-black'"
+        >
+          Semua ({{ totalCount }})
+        </button>
+        <button
+          v-for="c in store.categories"
+          :key="c.id"
+          type="button"
+          @click="selectedCategory = c.name"
+          class="snap-start shrink-0 rounded-full border border-black px-3.5 py-1.5 font-semibold transition-all whitespace-nowrap"
+          :class="selectedCategory === c.name ? 'bg-[#72a5e4] text-black font-bold shadow-[2px_2px_0px_#000]' : 'bg-white text-slate-700'"
+        >
+          {{ c.name }}
+        </button>
+      </div>
+
+      <!-- Collapsible Filter Controls (Always visible on sm+, toggleable on mobile) -->
+      <div :class="mobileFiltersOpen ? 'block space-y-3 rounded-3xl border-2 border-black bg-white p-4 shadow-[4px_4px_0px_#000] sm:rounded-none sm:border-0 sm:bg-transparent sm:p-0 sm:shadow-none' : 'hidden sm:block space-y-3'">
+        <div class="flex sm:hidden items-center justify-between border-b border-black/10 pb-2.5">
+          <span class="text-xs font-black uppercase tracking-wider text-black">Filter &amp; Urutan Event</span>
+          <button type="button" @click="mobileFiltersOpen = false" class="p-1 rounded-full border border-black">
+            <X class="h-3.5 w-3.5" />
+          </button>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <!-- Search (Desktop/Tablet) -->
+          <div class="relative hidden sm:block">
+            <Search class="absolute left-4 top-3 h-3.5 w-3.5 text-slate-400" />
+            <input
+              v-model="search"
+              type="text"
+              placeholder="Cari judul atau organizer..."
+              class="w-full rounded-full border border-black bg-white pl-9 pr-4 py-2.5 text-xs text-black placeholder:text-slate-400 focus:outline-hidden"
+            />
+          </div>
+
+          <!-- Category Filter -->
+          <div class="relative">
+            <select
+              v-model="selectedCategory"
+              class="w-full rounded-full border border-black bg-white px-4 py-2.5 text-xs text-black focus:outline-hidden appearance-none cursor-pointer"
+            >
+              <option value="">Semua Kategori</option>
+              <option v-for="c in store.categories" :key="c.id" :value="c.name">{{ c.name }}</option>
+            </select>
+            <span class="pointer-events-none absolute right-4 top-2.5 text-xs text-black">⌄</span>
+          </div>
+
+          <!-- Format Filter -->
+          <div class="relative">
+            <select
+              v-model="selectedFormat"
+              class="w-full rounded-full border border-black bg-white px-4 py-2.5 text-xs text-black focus:outline-hidden appearance-none cursor-pointer"
+            >
+              <option value="">Semua Format</option>
+              <option value="offline">Offline</option>
+              <option value="online">Online</option>
+              <option value="hybrid">Hybrid</option>
+            </select>
+            <span class="pointer-events-none absolute right-4 top-2.5 text-xs text-black">⌄</span>
+          </div>
+
+          <!-- Sort Filter -->
+          <div class="relative">
+            <select
+              v-model="sortBy"
+              class="w-full rounded-full border border-black bg-white px-4 py-2.5 text-xs text-black focus:outline-hidden appearance-none cursor-pointer"
+            >
+              <option value="upcoming">Terdekat (Upcoming)</option>
+              <option value="popular">Populer (Popular)</option>
+              <option value="newest">Terbaru (Newest)</option>
+            </select>
+            <span class="pointer-events-none absolute right-4 top-2.5 text-xs text-black">⌄</span>
+          </div>
+        </div>
+
+        <!-- Extended Filters Row -->
+        <div class="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-5 gap-2.5 sm:gap-3 items-center">
+          <div class="relative col-span-2 sm:col-span-1">
+            <select
+              v-model="selectedPriceType"
+              class="w-full rounded-full border border-black bg-white px-4 py-2 text-xs text-black focus:outline-hidden appearance-none cursor-pointer"
+            >
+              <option value="">Semua Harga (Gratis / Berbayar)</option>
+              <option value="free">Gratis</option>
+              <option value="paid">Berbayar</option>
+            </select>
+            <span class="pointer-events-none absolute right-4 top-2 text-xs text-black">⌄</span>
+          </div>
+
+          <input
+            v-model="locationQuery"
+            type="text"
+            placeholder="Kota / Kampus / Venue..."
+            class="col-span-2 sm:col-span-1 w-full rounded-full border border-black bg-white px-4 py-2 text-xs text-black placeholder:text-slate-400 focus:outline-hidden"
+          />
+
+          <input
+            v-model="dateFrom"
+            type="date"
+            title="Mulai dari tanggal"
+            class="w-full rounded-full border border-black bg-white px-3 sm:px-4 py-2 text-xs text-black focus:outline-hidden"
+          />
+
+          <input
+            v-model="dateTo"
+            type="date"
+            title="Sampai tanggal"
+            class="w-full rounded-full border border-black bg-white px-3 sm:px-4 py-2 text-xs text-black focus:outline-hidden"
+          />
+
+          <button
+            type="button"
+            @click="resetFilters"
+            class="col-span-2 lg:col-span-1 rounded-full border border-black bg-[#fafaf9] px-4 py-2 text-xs font-bold text-black hover:bg-slate-100 cursor-pointer"
+          >
+            Reset Filter ({{ totalCount }})
+          </button>
+        </div>
       </div>
     </div>
 

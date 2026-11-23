@@ -87,83 +87,86 @@ onMounted(() => {
         v-for="(tkt, idx) in store.myTickets"
         :key="tkt.id"
         v-reveal="idx * 70"
-        class="interactive-surface relative rounded-2xl border border-black bg-white overflow-hidden p-6 sm:p-8 flex flex-col md:flex-row items-stretch justify-between gap-6"
+        class="interactive-surface relative rounded-3xl border-2 border-black bg-white overflow-hidden p-5 sm:p-8 flex flex-col md:flex-row items-stretch justify-between gap-5 sm:gap-6 shadow-[4px_4px_0px_#000]"
       >
-        <!-- Left Notch (Visual ticket accent) -->
-        <div class="hidden md:block absolute -top-3 right-56 w-6 h-6 rounded-full border border-black bg-[#fafaf9]" />
-        <div class="hidden md:block absolute -bottom-3 right-56 w-6 h-6 rounded-full border border-black bg-[#fafaf9]" />
+        <!-- Desktop Perforation Notches -->
+        <div class="hidden md:block absolute -top-3 right-56 w-6 h-6 rounded-full border-2 border-black bg-[#fafaf9]" />
+        <div class="hidden md:block absolute -bottom-3 right-56 w-6 h-6 rounded-full border-2 border-black bg-[#fafaf9]" />
 
         <!-- Ticket Left Content -->
         <div class="space-y-3 flex-1">
-          <div class="flex items-center gap-3 flex-wrap">
-            <span
-              v-if="isTicketActive(tkt.status)"
-              class="rounded-full border border-black bg-[#72a5e4] px-3 py-0.5 text-xs font-bold text-black"
-            >
-              Active
-            </span>
-            <span
-              v-else-if="isTicketCancelled(tkt.status)"
-              class="rounded-full border border-black bg-rose-100 px-3 py-0.5 text-xs font-bold text-rose-800"
-            >
-              Cancelled
-            </span>
-            <span
-              v-else
-              class="rounded-full border border-black bg-black px-3 py-0.5 text-xs font-bold text-white"
-            >
-              Used
-            </span>
-            <span class="font-mono text-xs font-semibold text-slate-700">{{ tkt.ticket_code }}</span>
+          <div class="flex items-center justify-between sm:justify-start gap-3 flex-wrap">
+            <div class="flex items-center gap-2">
+              <span
+                v-if="isTicketActive(tkt.status)"
+                class="rounded-full border border-black bg-[#72a5e4] px-3 py-0.5 text-xs font-bold text-black"
+              >
+                Active
+              </span>
+              <span
+                v-else-if="isTicketCancelled(tkt.status)"
+                class="rounded-full border border-black bg-rose-100 px-3 py-0.5 text-xs font-bold text-rose-800"
+              >
+                Cancelled
+              </span>
+              <span
+                v-else
+                class="rounded-full border border-black bg-black px-3 py-0.5 text-xs font-bold text-white"
+              >
+                Used
+              </span>
+            </div>
+            <span class="font-mono text-xs font-bold text-slate-700 bg-[#fafaf9] border border-black/15 rounded-lg px-2 py-0.5">{{ tkt.ticket_code }}</span>
           </div>
 
-          <h2 class="text-xl font-bold tracking-tight text-black">
+          <h2 class="text-lg sm:text-xl font-black tracking-tight text-black leading-snug">
             {{ tkt.event_title }}
           </h2>
 
-          <p class="text-sm font-semibold text-slate-800">
+          <p class="text-xs sm:text-sm font-semibold text-slate-800">
             {{ tkt.ticket_type }} • {{ tkt.participant_name }}
           </p>
 
-          <div class="pt-2 grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-slate-600">
-            <div>{{ formatDateTime(tkt.event_date) }}</div>
+          <div class="pt-1 grid grid-cols-1 sm:grid-cols-2 gap-1.5 sm:gap-2 text-xs text-slate-600">
+            <div class="font-medium text-slate-800">{{ formatDateTime(tkt.event_date) }}</div>
             <div>{{ tkt.location }}</div>
           </div>
 
-          <div class="pt-2 flex flex-wrap items-center justify-between gap-3">
+          <div class="pt-2 space-y-2.5 sm:space-y-0 sm:flex sm:flex-wrap sm:items-center sm:justify-between gap-3">
             <p class="text-[11px] text-slate-400">Order Ref: {{ tkt.order_number }}</p>
 
-            <div class="flex flex-wrap items-center gap-2">
+            <!-- 2x2 Touch Action Grid on Mobile, Inline Row on Desktop -->
+            <div class="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2">
               <button
                 type="button"
                 @click="handleDownloadQrPdf(tkt)"
-                class="luxury-pill inline-flex items-center gap-1.5 rounded-full border border-black bg-[#72a5e4] px-3.5 py-1.5 text-[11px] font-bold text-black cursor-pointer"
+                class="luxury-pill inline-flex items-center justify-center gap-1.5 rounded-full border border-black bg-[#72a5e4] px-3.5 py-2 sm:py-1.5 text-[11px] font-bold text-black cursor-pointer"
               >
-                <FileText class="h-3 w-3" />
+                <FileText class="h-3.5 w-3.5" />
                 PDF QR
               </button>
               <button
                 type="button"
                 @click="handleDownloadQrPng(tkt)"
-                class="luxury-pill inline-flex items-center gap-1.5 rounded-full border border-black bg-black px-3.5 py-1.5 text-[11px] font-bold text-white cursor-pointer"
+                class="luxury-pill inline-flex items-center justify-center gap-1.5 rounded-full border border-black bg-black px-3.5 py-2 sm:py-1.5 text-[11px] font-bold text-white cursor-pointer"
               >
-                <Download class="h-3 w-3" />
+                <Download class="h-3.5 w-3.5" />
                 PNG
               </button>
               <button
                 type="button"
                 @click="enlargedTicket = tkt"
-                class="luxury-pill inline-flex items-center gap-1.5 rounded-full border border-black bg-white px-3 py-1.5 text-[11px] font-semibold text-black cursor-pointer"
+                class="luxury-pill inline-flex items-center justify-center gap-1.5 rounded-full border border-black bg-white px-3 py-2 sm:py-1.5 text-[11px] font-semibold text-black cursor-pointer"
               >
-                <Maximize2 class="h-3 w-3" />
+                <Maximize2 class="h-3.5 w-3.5" />
                 Perbesar
               </button>
               <button
                 type="button"
                 @click="handleCopyCode(tkt.ticket_code)"
-                class="luxury-pill inline-flex items-center gap-1.5 rounded-full border border-black bg-white px-3 py-1.5 text-[11px] font-semibold text-black cursor-pointer"
+                class="luxury-pill inline-flex items-center justify-center gap-1.5 rounded-full border border-black bg-white px-3 py-2 sm:py-1.5 text-[11px] font-semibold text-black cursor-pointer"
               >
-                <Copy class="h-3 w-3" />
+                <Copy class="h-3.5 w-3.5" />
                 Salin
               </button>
             </div>
@@ -173,18 +176,20 @@ onMounted(() => {
         <!-- Dashed Divider (Desktop) -->
         <div class="hidden md:block border-r-2 border-dashed border-slate-300 mx-4" />
 
-        <!-- Ticket Right Content (QR & Code) -->
-        <div class="flex flex-col items-center justify-center gap-2 shrink-0 md:w-44 pt-4 md:pt-0 border-t md:border-t-0 border-dashed border-slate-300">
+        <!-- Ticket Right Content (QR & Code) with Mobile Boarding-Pass Perforation Notches -->
+        <div class="relative flex flex-col items-center justify-center gap-2 shrink-0 md:w-44 pt-5 md:pt-0 border-t-2 md:border-t-0 border-dashed border-slate-300">
+          <div class="md:hidden absolute -top-3 -left-8 w-6 h-6 rounded-full border-2 border-black bg-[#fafaf9]" />
+          <div class="md:hidden absolute -top-3 -right-8 w-6 h-6 rounded-full border-2 border-black bg-[#fafaf9]" />
           <button
             type="button"
             @click="enlargedTicket = tkt"
-            class="p-2 border border-black/10 rounded-xl bg-white shadow-xs hover:border-black transition-all duration-200 hover:scale-103 cursor-pointer"
+            class="p-2.5 border-2 border-black rounded-2xl bg-white shadow-[3px_3px_0px_#000] active:scale-95 transition-all duration-200 hover:scale-103 cursor-pointer"
             title="Klik untuk perbesar QR Code"
           >
-            <QrCodeCanvas :value="getTicketQrValue(tkt)" :src="tkt.qr_data_url" :size="120" />
+            <QrCodeCanvas :value="getTicketQrValue(tkt)" :src="tkt.qr_data_url" :size="136" />
           </button>
-          <span class="text-[11px] font-mono font-medium text-slate-700 tracking-wider">
-            {{ tkt.ticket_code }}
+          <span class="text-[11px] font-mono font-bold text-slate-700 tracking-wider">
+            Ketuk QR untuk Fullscreen
           </span>
         </div>
       </div>
