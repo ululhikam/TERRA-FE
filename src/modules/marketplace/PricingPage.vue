@@ -1,10 +1,11 @@
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import api from '@/services/api'
 import { useAuthStore } from '@/stores/auth'
 import { useEventWorkspaceStore } from '@/stores/eventWorkspace'
 import { useToastStore } from '@/stores/toast'
 import { formatCurrency } from '@/utils/formatters'
+import { updatePageSeo, buildBreadcrumbJsonLd, SITE_URL } from '@/utils/seo'
 import { openMidtransSnap } from '@/utils/midtrans'
 import {
   CheckCircle2,
@@ -34,6 +35,46 @@ const manualInstructions = ref({
 })
 const loading = ref(true)
 const showCommunityPrices = ref(false)
+
+watch(
+  plans,
+  (list) => {
+    const prices = (list || [])
+      .map((p) => Number(p.price_idr || 0))
+      .filter((n) => Number.isFinite(n) && n >= 0)
+    const lowPrice = prices.length ? Math.min(...prices) : 0
+    const highPrice = prices.length ? Math.max(...prices) : 349000
+
+    updatePageSeo({
+      title: 'Harga Paket Event Organizer & Modul Kepanitiaan | TERRA',
+      description:
+        'Pilih paket Starter gratis, Pro, Enterprise, atau Event Bundle untuk mengelola ticketing QR, gate scanner, keuangan RAB, dan tim kepanitiaan di TERRA.',
+      path: '/pricing',
+      jsonLd: [
+        {
+          '@context': 'https://schema.org',
+          '@type': 'SoftwareApplication',
+          name: 'TERRA Event Workspace',
+          applicationCategory: 'BusinessApplication',
+          operatingSystem: 'Web',
+          url: `${SITE_URL}/pricing`,
+          offers: {
+            '@type': 'AggregateOffer',
+            priceCurrency: 'IDR',
+            lowPrice,
+            highPrice,
+            offerCount: Math.max(1, (list || []).length)
+          }
+        },
+        buildBreadcrumbJsonLd([
+          { name: 'Beranda', path: '/' },
+          { name: 'Harga & Paket EO', path: '/pricing' }
+        ])
+      ]
+    })
+  },
+  { immediate: true }
+)
 
 // Selected item modal state (NO redirect to /organizer/register!)
 const selectedItem = ref(null) // { kind: 'plan' | 'bundle' | 'trial', code, name, price_idr, promo_hint }

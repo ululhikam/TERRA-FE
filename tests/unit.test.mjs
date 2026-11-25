@@ -5,6 +5,14 @@ import { createPinia, setActivePinia } from 'pinia'
 import { MODULE_CATALOG } from '../src/constants/modules.js'
 import { formatDate, formatDateTime, formatCurrency, slugify } from '../src/utils/formatters.js'
 import { useToastStore } from '../src/stores/toast.js'
+import {
+  SITE_URL,
+  buildCanonicalUrl,
+  cleanSeoDescription,
+  buildBreadcrumbJsonLd,
+  buildEventJsonLd,
+  buildOrganizerJsonLd
+} from '../src/utils/seo.js'
 
 if (!globalThis.window) globalThis.window = globalThis
 if (!globalThis.document) globalThis.document = {}
@@ -139,5 +147,56 @@ describe('QR payload generation and parsing', () => {
     assert.equal(manualParsed.isTerraQr, false)
     assert.equal(manualParsed.ticketCode, 'DMF-PASS-01')
     assert.equal(manualParsed.eventId, null)
+  })
+})
+
+describe('SEO helpers & JSON-LD builders', () => {
+  it('builds canonical URLs cleanly on terra.concern.web.id', () => {
+    assert.equal(SITE_URL, 'https://terra.concern.web.id')
+    assert.equal(buildCanonicalUrl('/'), 'https://terra.concern.web.id/')
+    assert.equal(buildCanonicalUrl('events/demafest-2026/'), 'https://terra.concern.web.id/events/demafest-2026')
+    assert.equal(buildCanonicalUrl('/pricing#plans'), 'https://terra.concern.web.id/pricing')
+  })
+
+  it('cleans HTML and truncates descriptions cleanly', () => {
+    const cleaned = cleanSeoDescription('<p>Konser <strong>terbesar</strong> di kampus tahun ini!</p>', 40)
+    assert.ok(!cleaned.includes('<p>'))
+    assert.ok(cleaned.length <= 40)
+  })
+
+  it('builds Event, Organizer, and Breadcrumb Schema.org JSON-LD', () => {
+    const eventLd = buildEventJsonLd({
+      id: 'evt-1',
+      slug: 'demafest-2026',
+      title: 'DEMAFEST 2026',
+      description: 'Festival musik dan teknologi kampus.',
+      poster_url: 'https://cdn.example.com/poster.jpg',
+      start_at: '2026-08-29T18:00:00+07:00',
+      end_at: '2026-08-29T22:00:00+07:00',
+      location_type: 'offline',
+      location_name: 'Lapangan Utama UST',
+      address: 'Jl. Batikan, Yogyakarta',
+      organization: { name: 'DEMA FT UST', slug: 'dema-ft-ust' },
+      ticket_types: [{ name: 'Presale', price: 75000, quantity: 100, sold_quantity: 20 }]
+    })
+    assert.equal(eventLd['@type'], 'Event')
+    assert.equal(eventLd.url, 'https://terra.concern.web.id/events/demafest-2026')
+    assert.equal(eventLd.eventAttendanceMode, 'https://schema.org/OfflineEventAttendanceMode')
+    assert.equal(eventLd.offers[0].priceCurrency, 'IDR')
+    assert.equal(eventLd.offers[0].availability, 'https://schema.org/InStock')
+
+    const orgLd = buildOrganizerJsonLd({ name: 'DEMA FT UST', slug: 'dema-ft-ust' }, [
+      { id: 'evt-1', slug: 'demafest-2026', title: 'DEMAFEST 2026', start_at: '2026-08-29T18:00:00+07:00' }
+    ])
+    assert.equal(orgLd['@type'], 'Organization')
+    assert.equal(orgLd.url, 'https://terra.concern.web.id/organizers/dema-ft-ust')
+    assert.equal(orgLd.event.length, 1)
+
+    const breadcrumb = buildBreadcrumbJsonLd([
+      { name: 'Beranda', path: '/' },
+      { name: 'Jelajahi Event', path: '/events' }
+    ])
+    assert.equal(breadcrumb['@type'], 'BreadcrumbList')
+    assert.equal(breadcrumb.itemListElement.length, 2)
   })
 })

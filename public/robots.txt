@@ -1,0 +1,18 @@
+User-agent: *
+Allow: /
+Allow: /events
+Allow: /organizers
+Allow: /pricing
+Disallow: /dashboard/
+Disallow: /admin/
+Disallow: /checkout/
+Disallow: /my-tickets
+Disallow: /profile
+Disallow: /auth/
+Disallow: /verify-otp
+Disallow: /forgot-password
+Disallow: /reset-password
+Disallow: /accept-invite
+
+Sitemap: https://terra.concern.web.id/sitemap.xml
+Host: https://terra.concern.web.id

@@ -4,6 +4,13 @@ import { useRoute, useRouter, RouterLink } from 'vue-router'
 import { useEventWorkspaceStore } from '@/stores/eventWorkspace'
 import { useAuthStore } from '@/stores/auth'
 import { formatDateTime, formatCurrency } from '@/utils/formatters'
+import {
+  updatePageSeo,
+  buildEventJsonLd,
+  buildBreadcrumbJsonLd,
+  cleanSeoDescription,
+  DEFAULT_OG_IMAGE
+} from '@/utils/seo'
 import { useToastStore } from '@/stores/toast'
 import EventCompanionForum from './components/EventCompanionForum.vue'
 import { ArrowLeft, ArrowRight, Flag, MessageSquarePlus, X } from 'lucide-vue-next'
@@ -47,6 +54,33 @@ watch(
   (newSlug) => {
     if (newSlug) loadEventAndSurveys(newSlug)
   }
+)
+
+watch(
+  event,
+  (evt) => {
+    if (!evt?.title) return
+    const eventSlug = evt.slug || route.params.slug || evt.id
+    const eventPath = `/events/${eventSlug}`
+    updatePageSeo({
+      title: `${evt.title} — Tiket & Jadwal Resmi | TERRA`,
+      description: cleanSeoDescription(
+        `${evt.description || evt.title} — Lokasi: ${evt.location_name || 'Online'}. Dapatkan tiket resmi & QR Pass instan di TERRA.`
+      ),
+      path: eventPath,
+      image: evt.poster_url || evt.banner_url || DEFAULT_OG_IMAGE,
+      imageAlt: evt.title,
+      jsonLd: [
+        buildEventJsonLd(evt),
+        buildBreadcrumbJsonLd([
+          { name: 'Beranda', path: '/' },
+          { name: 'Jelajahi Event', path: '/events' },
+          { name: evt.title, path: eventPath }
+        ])
+      ]
+    })
+  },
+  { immediate: true }
 )
 
 const selectedTicketId = ref('')

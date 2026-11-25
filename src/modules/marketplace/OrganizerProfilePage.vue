@@ -1,21 +1,82 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, RouterLink } from 'vue-router'
 import { useEventWorkspaceStore } from '@/stores/eventWorkspace'
+import api from '@/services/api'
 import { formatDate } from '@/utils/formatters'
+import {
+  updatePageSeo,
+  buildOrganizerJsonLd,
+  buildBreadcrumbJsonLd,
+  DEFAULT_OG_IMAGE
+} from '@/utils/seo'
 import { ArrowUpRight } from 'lucide-vue-next'
 
 const route = useRoute()
 const store = useEventWorkspaceStore()
+const fetchedOrg = ref(null)
 
-const organization = computed(() =>
-  store.organizations.find((o) => o.slug === route.params.slug) || store.organizations[0]
+async function loadOrganizer(slug) {
+  if (!slug) return
+  try {
+    const res = await api.get(`/marketplace/organizers/${encodeURIComponent(slug)}`)
+    if (res?.data) fetchedOrg.value = res.data
+  } catch {
+    fetchedOrg.value = null
+  }
+}
+
+onMounted(() => {
+  loadOrganizer(route.params.slug)
+})
+
+watch(
+  () => route.params.slug,
+  (slug) => {
+    if (slug) loadOrganizer(slug)
+  }
 )
 
-const orgEvents = computed(() =>
-  store.events.filter(
+const organization = computed(
+  () =>
+    (fetchedOrg.value && fetchedOrg.value.slug === route.params.slug ? fetchedOrg.value : null) ||
+    store.organizations.find((o) => o.slug === route.params.slug) ||
+    store.organizations[0]
+)
+
+const orgEvents = computed(() => {
+  if (Array.isArray(organization.value?.events) && organization.value.events.length > 0) {
+    return organization.value.events.filter((e) => e.publication_status === 'Published')
+  }
+  return store.events.filter(
     (e) => (e.organization_id === organization.value?.id || !e.organization_id) && e.publication_status === 'Published'
   )
+})
+
+watch(
+  [organization, orgEvents],
+  ([org, events]) => {
+    if (!org?.name) return
+    const orgSlug = org.slug || route.params.slug
+    const orgPath = `/organizers/${orgSlug}`
+    updatePageSeo({
+      title: `${org.name} — Event Organizer Terverifikasi | TERRA`,
+      description:
+        org.description ||
+        `Profil penyelenggara event terverifikasi ${org.name} beserta daftar acara resmi di TERRA.`,
+      path: orgPath,
+      image: org.logo_url || org.cover_url || DEFAULT_OG_IMAGE,
+      imageAlt: org.name,
+      jsonLd: [
+        buildOrganizerJsonLd(org, events),
+        buildBreadcrumbJsonLd([
+          { name: 'Beranda', path: '/' },
+          { name: org.name, path: orgPath }
+        ])
+      ]
+    })
+  },
+  { immediate: true }
 )
 </script>
 

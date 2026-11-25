@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useEventWorkspaceStore } from '@/stores/eventWorkspace'
+import { updatePageSeo } from '@/utils/seo'
 
 import PublicLayout from '@/layouts/PublicLayout.vue'
 import DashboardLayout from '@/layouts/DashboardLayout.vue'
@@ -12,16 +13,89 @@ const routes = [
     path: '/',
     component: PublicLayout,
     children: [
-      { path: '', name: 'home', component: () => import('@/modules/marketplace/HomePage.vue') },
-      { path: 'events', name: 'explore', component: () => import('@/modules/marketplace/ExploreEventsPage.vue') },
-      { path: 'events/:slug', name: 'event-detail', component: () => import('@/modules/marketplace/EventDetailPage.vue') },
-      { path: 'pricing', name: 'pricing', component: () => import('@/modules/marketplace/PricingPage.vue') },
-      { path: 'organizers/:slug', name: 'organizer-profile', component: () => import('@/modules/marketplace/OrganizerProfilePage.vue') },
+      {
+        path: '',
+        name: 'home',
+        component: () => import('@/modules/marketplace/HomePage.vue'),
+        meta: {
+          seo: {
+            title: 'TERRA — Beli Tiket Event, Konser, Festival Kampus & Manajemen Kepanitiaan',
+            description:
+              'Platform tiket event resmi & ruang kerja kepanitiaan modular di Indonesia. Temukan konser, festival kampus, seminar, dan workshop dengan e-ticket QR instan di terra.concern.web.id.'
+          }
+        }
+      },
+      {
+        path: 'events',
+        name: 'explore',
+        component: () => import('@/modules/marketplace/ExploreEventsPage.vue'),
+        meta: {
+          seo: {
+            title: 'Jelajahi Event, Konser, Seminar & Festival Kampus | TERRA',
+            description:
+              'Cari dan beli tiket resmi konser, festival kampus, seminar teknologi, dan workshop terbaru di seluruh Indonesia lewat TERRA.'
+          }
+        }
+      },
+      {
+        path: 'events/:slug',
+        name: 'event-detail',
+        component: () => import('@/modules/marketplace/EventDetailPage.vue'),
+        meta: {
+          seo: {
+            title: 'Detail Event & Tiket Resmi | TERRA',
+            description: 'Informasi jadwal, lokasi, dan pemesanan tiket QR resmi di TERRA.'
+          }
+        }
+      },
+      {
+        path: 'pricing',
+        name: 'pricing',
+        component: () => import('@/modules/marketplace/PricingPage.vue'),
+        meta: {
+          seo: {
+            title: 'Harga Paket Event Organizer & Modul Kepanitiaan | TERRA',
+            description:
+              'Pilih paket Starter gratis, Pro, Enterprise, atau Event Bundle untuk mengelola ticketing QR, gate scanner, keuangan RAB, dan tim kepanitiaan di TERRA.'
+          }
+        }
+      },
+      {
+        path: 'organizers/:slug',
+        name: 'organizer-profile',
+        component: () => import('@/modules/marketplace/OrganizerProfilePage.vue'),
+        meta: {
+          seo: {
+            title: 'Profil Event Organizer Terverifikasi | TERRA',
+            description: 'Lihat profil penyelenggara event terverifikasi dan daftar acara resmi di TERRA.'
+          }
+        }
+      },
       { path: 'checkout/:eventSlug', name: 'checkout', component: () => import('@/modules/marketplace/CheckoutPage.vue'), meta: { requiresAuth: true, allowedRoles: ['customer', 'organizer', 'admin'] } },
       { path: 'my-tickets', name: 'my-tickets', component: () => import('@/modules/marketplace/MyTicketsPage.vue'), meta: { requiresAuth: true, allowedRoles: ['customer', 'organizer', 'admin'] } },
       { path: 'profile', name: 'profile', component: () => import('@/modules/marketplace/ProfilePage.vue'), meta: { requiresAuth: true } },
-      { path: 'login', name: 'login', component: () => import('@/modules/auth/LoginPage.vue') },
-      { path: 'register', name: 'register', component: () => import('@/modules/auth/RegisterPage.vue') },
+      {
+        path: 'login',
+        name: 'login',
+        component: () => import('@/modules/auth/LoginPage.vue'),
+        meta: {
+          seo: {
+            title: 'Masuk Peserta & Pembeli Tiket | TERRA',
+            description: 'Masuk ke akun peserta TERRA untuk mengelola tiket QR, pesanan, dan profil event Anda.'
+          }
+        }
+      },
+      {
+        path: 'register',
+        name: 'register',
+        component: () => import('@/modules/auth/RegisterPage.vue'),
+        meta: {
+          seo: {
+            title: 'Daftar Akun Peserta Event | TERRA',
+            description: 'Buat akun peserta TERRA gratis untuk membeli tiket event dan menerima e-ticket QR instan.'
+          }
+        }
+      },
       { path: 'forgot-password', name: 'forgot-password', component: () => import('@/modules/auth/ForgotPasswordPage.vue') },
       { path: 'reset-password', name: 'reset-password', component: () => import('@/modules/auth/ResetPasswordPage.vue') },
       { path: 'verify-otp', name: 'verify-otp', component: () => import('@/modules/auth/VerifyOtpPage.vue') },
@@ -33,8 +107,28 @@ const routes = [
   { path: '/accept-invite', name: 'accept-invite', component: () => import('@/modules/auth/AcceptInvitePage.vue') },
 
   // Dedicated Organizer Auth Portal
-  { path: '/organizer/login', name: 'organizer-login', component: () => import('@/modules/auth/OrganizerLoginPage.vue') },
-  { path: '/organizer/register', name: 'organizer-register', component: () => import('@/modules/auth/OrganizerRegisterPage.vue') },
+  {
+    path: '/organizer/login',
+    name: 'organizer-login',
+    component: () => import('@/modules/auth/OrganizerLoginPage.vue'),
+    meta: {
+      seo: {
+        title: 'Masuk Portal Event Organizer | TERRA',
+        description: 'Masuk ke dashboard Event Organizer TERRA untuk mengelola acara, tiket, gate scanner, dan keuangan kepanitiaan.'
+      }
+    }
+  },
+  {
+    path: '/organizer/register',
+    name: 'organizer-register',
+    component: () => import('@/modules/auth/OrganizerRegisterPage.vue'),
+    meta: {
+      seo: {
+        title: 'Daftar Event Organizer Gratis (14 Hari Pro Trial) | TERRA',
+        description: 'Daftarkan organisasi atau kepanitiaan Anda di TERRA dan aktifkan 13 modul manajemen event profesional.'
+      }
+    }
+  },
 
   // Dedicated Platform Admin Auth Portal
   { path: '/admin/login', name: 'admin-login', component: () => import('@/modules/auth/AdminLoginPage.vue') },
@@ -132,6 +226,41 @@ router.beforeEach(async (to) => {
       return { name: 'event-workspace', params: { eventId: to.params.eventId } }
     }
   }
+})
+
+const PRIVATE_ROUTE_NAMES = new Set([
+  'forgot-password',
+  'reset-password',
+  'verify-otp',
+  'oauth-callback',
+  'accept-invite',
+  'admin-login'
+])
+
+router.afterEach((to) => {
+  const isPrivateRoute =
+    Boolean(to.meta.requiresAuth) ||
+    PRIVATE_ROUTE_NAMES.has(String(to.name || '')) ||
+    to.path.startsWith('/dashboard') ||
+    to.path.startsWith('/admin') ||
+    to.path.startsWith('/checkout')
+
+  if (to.name === 'event-detail' || to.name === 'organizer-profile') {
+    updatePageSeo({
+      title: to.meta?.seo?.title,
+      description: to.meta?.seo?.description,
+      path: to.path,
+      noindex: false
+    })
+    return
+  }
+
+  updatePageSeo({
+    title: to.meta?.seo?.title || (isPrivateRoute ? 'Workspace & Akun | TERRA' : undefined),
+    description: to.meta?.seo?.description,
+    path: to.path,
+    noindex: isPrivateRoute
+  })
 })
 
 export default router

@@ -3,6 +3,7 @@ import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter, RouterLink } from 'vue-router'
 import { useEventWorkspaceStore } from '@/stores/eventWorkspace'
 import { formatDate, formatCurrency } from '@/utils/formatters'
+import { updatePageSeo, buildCanonicalUrl } from '@/utils/seo'
 import BubbleGraffiti from '@/components/common/BubbleGraffiti.vue'
 import {
   Search,
@@ -35,6 +36,36 @@ const publishedEvents = computed(() =>
 )
 
 const featuredEvent = computed(() => publishedEvents.value[0] || store.events[0])
+
+watch(
+  publishedEvents,
+  (list) => {
+    const featuredList = (list || []).slice(0, 6)
+    const itemListLd =
+      featuredList.length > 0
+        ? {
+            '@context': 'https://schema.org',
+            '@type': 'ItemList',
+            name: 'Event Pilihan di TERRA',
+            itemListElement: featuredList.map((evt, idx) => ({
+              '@type': 'ListItem',
+              position: idx + 1,
+              name: evt.title,
+              url: buildCanonicalUrl(`/events/${evt.slug || evt.id}`)
+            }))
+          }
+        : null
+
+    updatePageSeo({
+      title: 'TERRA — Beli Tiket Event, Konser, Festival Kampus & Manajemen Kepanitiaan',
+      description:
+        'Platform tiket event resmi & ruang kerja kepanitiaan modular di Indonesia. Temukan konser, festival kampus, seminar, dan workshop dengan e-ticket QR instan di terra.concern.web.id.',
+      path: '/',
+      jsonLd: itemListLd
+    })
+  },
+  { immediate: true }
+)
 
 const catalogCards = computed(() => {
   const isFiltered = activeCategory.value !== 'All' || activeTab.value !== 'all'

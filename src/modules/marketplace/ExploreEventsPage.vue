@@ -4,6 +4,7 @@ import { useRoute, RouterLink } from 'vue-router'
 import { useEventWorkspaceStore } from '@/stores/eventWorkspace'
 import api from '@/services/api'
 import { formatDate, formatCurrency } from '@/utils/formatters'
+import { updatePageSeo, buildBreadcrumbJsonLd } from '@/utils/seo'
 import EmptyState from '@/components/common/EmptyState.vue'
 import { ChevronDown, Search, SlidersHorizontal, X } from 'lucide-vue-next'
 
@@ -64,6 +65,38 @@ const totalPages = ref(1)
 const totalCount = ref(0)
 const loading = ref(false)
 let debounceTimer = null
+
+watch(
+  [search, selectedCategory, () => items.value.length],
+  ([q, cat]) => {
+    const trimmedQ = String(q || '').trim()
+    let title = 'Jelajahi Event, Konser, Seminar & Festival Kampus | TERRA'
+    let description =
+      'Cari dan beli tiket resmi konser, festival kampus, seminar teknologi, dan workshop terbaru di seluruh Indonesia lewat TERRA.'
+
+    if (trimmedQ && cat) {
+      title = `Hasil "${trimmedQ}" (${cat}) — Jelajahi Event | TERRA`
+    } else if (cat) {
+      title = `Event ${cat} — Jelajahi Tiket Resmi | TERRA`
+      description = `Temukan jadwal dan tiket resmi event kategori ${cat} dengan e-ticket QR instan di TERRA.`
+    } else if (trimmedQ) {
+      title = `Cari "${trimmedQ}" — Tiket Event Resmi | TERRA`
+    }
+
+    updatePageSeo({
+      title,
+      description,
+      path: '/events',
+      jsonLd: [
+        buildBreadcrumbJsonLd([
+          { name: 'Beranda', path: '/' },
+          { name: 'Jelajahi Event', path: '/events' }
+        ])
+      ]
+    })
+  },
+  { immediate: true }
+)
 
 async function fetchMarketplaceEvents() {
   loading.value = true
