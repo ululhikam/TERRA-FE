@@ -9,7 +9,7 @@ import { formatCurrency, formatDateTime } from '@/utils/formatters'
 import { downloadTicketQrPng, generateTicketQrPayload } from '@/utils/qrCode'
 import { openMidtransSnap } from '@/utils/midtrans'
 import QrCodeCanvas from '@/components/common/QrCodeCanvas.vue'
-import { CheckCircle2, Download, ArrowRight, Copy, FileText, Mail, X, CreditCard, RefreshCw } from 'lucide-vue-next'
+import { CheckCircle2, Download, ArrowRight, Copy, FileText, Mail, X, CreditCard, RefreshCw, Repeat } from 'lucide-vue-next'
 
 const route = useRoute()
 const store = useEventWorkspaceStore()
@@ -230,14 +230,14 @@ async function syncCompletedOrderStatus({ silent = false } = {}) {
   }
 }
 
-async function launchMidtransPayment(initialPayment = null) {
+async function launchMidtransPayment(initialPayment = null, { forceNew = false } = {}) {
   if (!completedOrder.value?.orderId) return
   launchingSnap.value = true
   try {
     const session =
-      initialPayment?.snap_token
+      !forceNew && initialPayment?.snap_token
         ? initialPayment
-        : await store.createOrderSnapToken(completedOrder.value.orderId)
+        : await store.createOrderSnapToken(completedOrder.value.orderId, { forceNew })
     if (!session?.snap_token) {
       toast.error('Token pembayaran Midtrans belum siap. Periksa konfigurasi MIDTRANS_SERVER_KEY & CLIENT_KEY.')
       return
@@ -360,6 +360,16 @@ async function launchMidtransPayment(initialPayment = null) {
           >
             <CreditCard class="h-4 w-4" />
             <span>{{ launchingSnap ? 'Membuka Midtrans Snap...' : 'Bayar Sekarang via Midtrans' }}</span>
+          </button>
+
+          <button
+            type="button"
+            @click="launchMidtransPayment(null, { forceNew: true })"
+            :disabled="launchingSnap"
+            class="luxury-pill inline-flex items-center gap-1.5 rounded-full border border-black bg-white px-5 py-2.5 text-xs font-bold text-black hover:bg-slate-100 cursor-pointer disabled:opacity-50"
+          >
+            <Repeat class="h-3.5 w-3.5" />
+            <span>Ganti Metode Pembayaran</span>
           </button>
 
           <button

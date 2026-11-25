@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import { useRouter, useRoute, RouterLink } from 'vue-router'
 import { z } from 'zod'
 import { useAuthStore } from '@/stores/auth'
@@ -17,6 +17,17 @@ const email = ref('')
 const password = ref('')
 const loading = ref(false)
 const errorMsg = ref('')
+
+onMounted(() => {
+  if (route.query.oauth_error) {
+    errorMsg.value = String(route.query.oauth_error)
+  }
+})
+
+function handleGoogleOrganizerLogin() {
+  const redirect = route.query.redirect ? String(route.query.redirect) : '/dashboard/billing'
+  authStore.startGoogleAuth(redirect, { role: 'organizer' })
+}
 
 const schema = z.object({
   email: z.string().email('Format email tidak valid'),
@@ -37,7 +48,12 @@ async function handleSubmit() {
       password: password.value,
       portalRole: 'organizer'
     })
+    await authStore.fetchCurrentUser().catch(() => {})
     toast.success(`Selamat datang di Studio, ${user.full_name}!`)
+    if (!authStore.hasActiveSubscription) {
+      router.push('/dashboard/billing')
+      return
+    }
     const redirect = route.query.redirect || '/dashboard'
     router.push(redirect)
   } catch (err) {
@@ -62,14 +78,12 @@ async function handleSubmit() {
 <template>
   <div class="min-h-screen flex items-center justify-center px-4 py-10 bg-[#fafaf9] bg-grid-paper">
     <div class="w-full max-w-5xl grid grid-cols-1 md:grid-cols-12 gap-10 items-center">
-      <!-- Left Branding Frame with Stepped Black Corner Blocks -->
+      <!-- Left Branding Frame -->
       <div class="md:col-span-6 relative border border-black bg-[#fafaf9] p-8 sm:p-10 flex flex-col justify-between overflow-hidden min-h-[500px]">
-        <!-- Top-left stepped black block -->
         <div class="absolute top-0 left-0 flex flex-col">
           <div class="h-3.5 w-7 bg-black" />
           <div class="h-3.5 w-3.5 bg-black" />
         </div>
-        <!-- Bottom-right stepped black block -->
         <div class="absolute bottom-0 right-0 flex flex-col items-end">
           <div class="h-4 w-5 bg-black" />
           <div class="h-4 w-10 bg-black" />
@@ -79,7 +93,7 @@ async function handleSubmit() {
           <TerraLogo size="lg" />
           <p class="text-2xl sm:text-[28px] font-editorial text-black leading-[1.25]">
             Kelola organisasi,<br />
-            modul event, tiket,<br />
+            13 modul event, tiket QR,<br />
             dan peserta.
           </p>
         </div>
@@ -88,15 +102,18 @@ async function handleSubmit() {
           <BubbleGraffiti />
         </div>
 
-        <div class="pt-2">
-          <span class="text-[10px] font-bold uppercase tracking-widest text-black">
-            ORGANIZER PORTAL
+        <div class="pt-2 space-y-1">
+          <span class="text-[10px] font-bold uppercase tracking-widest text-black block">
+            ORGANIZER PORTAL • RP 50.000 / BULAN
           </span>
+          <p class="text-[11px] text-slate-600">
+            Langganan bulanan Rp 50.000 via Midtrans membuka seluruh fitur TERRA Studio tanpa batas jumlah event.
+          </p>
         </div>
       </div>
 
       <!-- Right Form -->
-      <div class="md:col-span-6 flex flex-col justify-center space-y-6 px-2 sm:px-6">
+      <div class="md:col-span-6 flex flex-col justify-center space-y-5 px-2 sm:px-6">
         <div class="space-y-4">
           <RouterLink
             to="/"
@@ -117,6 +134,27 @@ async function handleSubmit() {
           </div>
         </div>
 
+        <!-- Google OAuth Organizer Login / Register -->
+        <button
+          type="button"
+          @click="handleGoogleOrganizerLogin"
+          class="w-full flex items-center justify-center gap-2.5 rounded-full border-2 border-black bg-white py-3 text-xs sm:text-sm font-bold text-black hover:bg-slate-100 shadow-[3px_3px_0_#000] transition-colors cursor-pointer"
+        >
+          <svg class="h-4 w-4 shrink-0" viewBox="0 0 24 24" aria-hidden="true">
+            <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z" />
+            <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.11-6.72-4.96H1.29v3.14C3.26 21.3 7.31 24 12 24z" />
+            <path fill="#FBBC05" d="M5.28 14.24c-.24-.72-.38-1.49-.38-2.24s.14-1.52.38-2.24V6.62H1.29C.47 8.24 0 10.06 0 12s.47 3.76 1.29 5.38l3.99-3.14z" />
+            <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.31 0 3.26 2.7 1.29 6.62l3.99 3.14c.95-2.85 3.6-4.96 6.72-4.96z" />
+          </svg>
+          <span>Masuk / Daftar dengan Google</span>
+        </button>
+
+        <div class="relative flex items-center py-0.5">
+          <div class="flex-grow border-t border-black/15" />
+          <span class="mx-3 shrink text-[11px] font-semibold uppercase tracking-wider text-slate-400">atau masuk dengan email</span>
+          <div class="flex-grow border-t border-black/15" />
+        </div>
+
         <form @submit.prevent="handleSubmit" class="space-y-4">
           <div v-if="errorMsg" class="rounded-xl border border-rose-300 bg-rose-50 p-3 text-xs text-rose-700">
             {{ errorMsg }}
@@ -131,7 +169,7 @@ async function handleSubmit() {
                 type="email"
                 required
                 class="w-full rounded-xl border border-black bg-white pl-10 pr-4 py-3 text-xs sm:text-sm text-black placeholder:text-slate-400 focus:outline-hidden"
-                placeholder="organizer@nusantaratech.id"
+                placeholder="organizer@organisasi.id"
               />
             </div>
           </div>
@@ -158,22 +196,24 @@ async function handleSubmit() {
           <button
             type="submit"
             :disabled="loading"
-            class="w-full rounded-full bg-black py-3.5 text-xs sm:text-sm font-semibold text-white hover:bg-slate-800 transition-colors disabled:opacity-50 mt-2"
+            class="w-full rounded-full border border-black bg-[#72a5e4] py-3.5 text-xs sm:text-sm font-bold text-black hover:bg-[#5c93d9] transition-colors disabled:opacity-50 mt-2 cursor-pointer"
           >
             {{ loading ? 'Memproses...' : 'Masuk ke Dashboard Organizer' }}
           </button>
         </form>
 
-        <div class="space-y-4 pt-1 text-xs text-slate-500">
+        <div class="space-y-3 pt-1 text-xs text-slate-500">
           <p>
             Belum memiliki akun Organizer?
-            <RouterLink to="/organizer/register" class="font-bold text-black hover:underline">Pilih Paket (Free Trial / 100k) &amp; Daftar</RouterLink>
+            <RouterLink to="/organizer/register" class="font-bold text-black hover:underline">
+              Daftar &amp; Subscribe Rp 50.000/bulan &rarr;
+            </RouterLink>
           </p>
 
-          <div class="pt-4 border-t border-black/10 space-y-1">
+          <div class="pt-3 border-t border-black/10 space-y-1">
             <p class="text-slate-400 text-[11px]">Ingin membeli tiket atau melihat e-ticket?</p>
             <RouterLink to="/login" class="font-bold text-black hover:underline inline-block">
-              Masuk dengan Google di Portal Peserta &rarr;
+              Masuk ke Portal Peserta &rarr;
             </RouterLink>
           </div>
         </div>

@@ -19,7 +19,7 @@ const loading = ref(false)
 const errorMsg = ref('')
 
 function handleGoogleRegister() {
-  authStore.startGoogleAuth('/events')
+  authStore.startGoogleAuth('/events', { role: 'customer' })
 }
 
 const schema = z.object({

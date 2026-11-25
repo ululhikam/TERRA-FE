@@ -18,7 +18,8 @@ import {
   LogOut,
   Compass,
   CreditCard,
-  RefreshCw
+  RefreshCw,
+  Repeat
 } from 'lucide-vue-next'
 
 const router = useRouter()
@@ -137,10 +138,10 @@ async function handleCancelOrder(orderId) {
   }
 }
 
-async function handlePayOrder(order) {
+async function handlePayOrder(order, { forceNew = false } = {}) {
   payingOrderId.value = order.id
   try {
-    const session = await workspace.createOrderSnapToken(order.id)
+    const session = await workspace.createOrderSnapToken(order.id, { forceNew })
     const snapRes = await openMidtransSnap(session.snap_token, {
       clientKey: session.client_key,
       snapJsUrl: session.snap_js_url
@@ -429,6 +430,16 @@ async function handleLogout() {
             >
               <CreditCard class="h-3.5 w-3.5" />
               <span>{{ payingOrderId === ord.id ? 'Membuka...' : 'Bayar Sekarang' }}</span>
+            </button>
+            <button
+              v-if="ord.order_status === 'Pending' && Number(ord.total || 0) > 0"
+              type="button"
+              @click="handlePayOrder(ord, { forceNew: true })"
+              :disabled="payingOrderId === ord.id"
+              class="inline-flex items-center gap-1.5 rounded-full border border-black bg-white px-3.5 py-1.5 text-xs font-bold text-black hover:bg-slate-100 disabled:opacity-50 cursor-pointer"
+            >
+              <Repeat class="h-3.5 w-3.5" />
+              <span>Ganti Metode</span>
             </button>
             <button
               v-if="ord.order_status === 'Pending' && Number(ord.total || 0) > 0"

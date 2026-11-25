@@ -26,7 +26,7 @@ onMounted(() => {
 
 function handleGoogleLogin() {
   const redirect = route.query.redirect ? String(route.query.redirect) : '/my-tickets'
-  authStore.startGoogleAuth(redirect)
+  authStore.startGoogleAuth(redirect, { role: 'customer' })
 }
 
 const schema = z.object({

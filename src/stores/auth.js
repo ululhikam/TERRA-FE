@@ -16,6 +16,16 @@ export const useAuthStore = defineStore('auth', () => {
   const isAdmin = computed(() => user.value?.role === 'admin')
   const isOrganizer = computed(() => user.value?.role === 'organizer')
   const isCustomer = computed(() => user.value?.role === 'customer')
+  const hasActiveSubscription = computed(() => {
+    if (!user.value) return false
+    if (user.value.role !== 'organizer') return true
+    return Boolean(user.value.subscription?.is_active || user.value.subscription?.has_invited_event_access)
+  })
+  const isDirectSubscribed = computed(() => {
+    if (!user.value) return false
+    if (user.value.role !== 'organizer') return true
+    return Boolean(user.value.subscription?.is_active)
+  })
 
   function persistSession(nextUser, token) {
     user.value = nextUser
@@ -148,15 +158,23 @@ export const useAuthStore = defineStore('auth', () => {
     return user.value
   }
 
-  function getGoogleAuthUrl(redirectAfter = '/my-tickets') {
+  function getGoogleAuthUrl(redirectAfter = '/my-tickets', { role = 'customer', organizationName = '' } = {}) {
     const base = String(api.defaults.baseURL || 'http://localhost:3000/api/v1').replace(/\/+$/, '')
     const origin = typeof window !== 'undefined' ? window.location.origin : ''
-    return `${base}/auth/google?origin=${encodeURIComponent(origin)}&next=${encodeURIComponent(redirectAfter)}`
+    const params = new URLSearchParams({
+      origin,
+      next: redirectAfter,
+      role: role === 'organizer' ? 'organizer' : 'customer'
+    })
+    if (organizationName && String(organizationName).trim()) {
+      params.set('organization_name', String(organizationName).trim())
+    }
+    return `${base}/auth/google?${params.toString()}`
   }
 
-  function startGoogleAuth(redirectAfter = '/my-tickets') {
+  function startGoogleAuth(redirectAfter = '/my-tickets', options = {}) {
     if (typeof window !== 'undefined') {
-      window.location.href = getGoogleAuthUrl(redirectAfter)
+      window.location.href = getGoogleAuthUrl(redirectAfter, options)
     }
   }
 
@@ -214,6 +232,8 @@ export const useAuthStore = defineStore('auth', () => {
     isAdmin,
     isOrganizer,
     isCustomer,
+    hasActiveSubscription,
+    isDirectSubscribed,
     login,
     register,
     verifyOtp,

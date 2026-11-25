@@ -3,10 +3,12 @@ import { computed, ref, watch, onMounted, onBeforeUnmount } from 'vue'
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
 import { useEventWorkspaceStore } from '@/stores/eventWorkspace'
 import { useAuthStore } from '@/stores/auth'
+import { useToastStore } from '@/stores/toast'
 import TerraLogo from '@/components/common/TerraLogo.vue'
 import {
   LayoutDashboard,
   Crown,
+  Lock,
   Building2,
   CalendarDays,
   Plus,
@@ -37,6 +39,7 @@ const route = useRoute()
 const router = useRouter()
 const store = useEventWorkspaceStore()
 const authStore = useAuthStore()
+const toast = useToastStore()
 
 const sidebarOpen = ref(false)
 const mainViewportRef = ref(null)
@@ -63,13 +66,18 @@ const currentEvent = computed(() => {
   return store.events.find((e) => e.id === route.params.eventId) || store.activeEvent
 })
 const subscriptionBadgeLabel = computed(() => {
-  if (currentEvent.value?.entitlement) {
-    const ent = currentEvent.value.entitlement
-    if (ent.trial?.is_trial) return `Pro Trial • ${ent.trial.days_remaining} hr`
-    return `Paket ${ent.plan_name}`
+  if (!authStore.hasActiveSubscription) return 'Belum Berlangganan'
+  const sub = authStore.user?.subscription
+  if (sub?.is_active) {
+    return `Studio Aktif • ${sub.days_remaining || 30} hr`
   }
-  return 'Free Plan • Per Event'
+  return 'Akses Tim Aktif'
 })
+
+function notifySubscriptionRequired() {
+  toast.info('Aktifkan langganan Rp 50.000/bulan terlebih dahulu di menu Pricing & Langganan.')
+  router.push('/dashboard/billing')
+}
 
 function hasModule(key) {
   if (!currentEvent.value) return false
@@ -128,7 +136,8 @@ const unreadNotifCount = computed(() => (store.notifications || []).filter((n) =
 
 onMounted(async () => {
   resetScroll()
-  authStore.fetchCurrentUser().catch(() => {})
+  await authStore.fetchCurrentUser().catch(() => {})
+  if (!authStore.hasActiveSubscription) return
   store.fetchNotifications().catch(() => {})
   if (route.params.eventId) {
     store.fetchEventWorkspace(route.params.eventId)
@@ -230,53 +239,85 @@ async function handleLogout() {
             </p>
             <nav class="space-y-1">
               <RouterLink
-                to="/dashboard"
-                exact-active-class="bg-[#72a5e4] border border-black text-black font-bold"
-                class="flex items-center gap-2.5 rounded-lg px-3 py-2 text-xs text-slate-800 hover:bg-black/5 transition-colors"
-                :class="sidebarCollapsed ? 'lg:justify-center lg:px-0' : ''"
-                title="Ringkasan"
-              >
-                <LayoutDashboard class="h-4 w-4 shrink-0 text-black" />
-                <span v-if="!sidebarCollapsed" class="truncate">Ringkasan</span>
-              </RouterLink>
-              <RouterLink
-                to="/dashboard/organizations"
-                active-class="bg-[#72a5e4] border border-black text-black font-bold"
-                class="flex items-center gap-2.5 rounded-lg px-3 py-2 text-xs text-slate-800 hover:bg-black/5 transition-colors"
-                :class="sidebarCollapsed ? 'lg:justify-center lg:px-0' : ''"
-                title="Organisasi Saya"
-              >
-                <Building2 class="h-4 w-4 shrink-0 text-black" />
-                <span v-if="!sidebarCollapsed" class="truncate">Organisasi Saya</span>
-              </RouterLink>
-              <RouterLink
                 to="/dashboard/billing"
-                active-class="bg-[#72a5e4] border border-black text-black font-bold"
-                class="flex items-center gap-2.5 rounded-lg px-3 py-2 text-xs text-slate-800 hover:bg-black/5 transition-colors"
-                :class="sidebarCollapsed ? 'lg:justify-center lg:px-0' : ''"
-                title="Billing & Bundle"
-              >
-                <Crown class="h-4 w-4 shrink-0 text-black" />
-                <span v-if="!sidebarCollapsed" class="truncate">Billing &amp; Bundle</span>
-              </RouterLink>
-              <RouterLink
-                to="/dashboard/notifications"
                 active-class="bg-[#72a5e4] border border-black text-black font-bold"
                 class="flex items-center justify-between gap-2.5 rounded-lg px-3 py-2 text-xs text-slate-800 hover:bg-black/5 transition-colors"
                 :class="sidebarCollapsed ? 'lg:justify-center lg:px-0' : ''"
-                title="Notifikasi"
+                title="Pricing & Langganan"
               >
                 <span class="flex items-center gap-2.5 min-w-0">
-                  <Bell class="h-4 w-4 shrink-0 text-black" />
-                  <span v-if="!sidebarCollapsed" class="truncate">Notifikasi</span>
+                  <Crown class="h-4 w-4 shrink-0 text-black" />
+                  <span v-if="!sidebarCollapsed" class="truncate">Pricing &amp; Langganan</span>
                 </span>
                 <span
-                  v-if="!sidebarCollapsed && unreadNotifCount > 0"
-                  class="rounded-full border border-black bg-[#72a5e4] px-1.5 py-0.5 font-mono text-[10px] font-bold tabular-nums text-black leading-none"
+                  v-if="!sidebarCollapsed && !authStore.hasActiveSubscription"
+                  class="rounded-full border border-black bg-amber-300 px-1.5 py-0.5 text-[9px] font-black text-black leading-none shrink-0"
                 >
-                  {{ unreadNotifCount }}
+                  Wajib
                 </span>
               </RouterLink>
+
+              <template v-if="authStore.hasActiveSubscription">
+                <RouterLink
+                  to="/dashboard"
+                  exact-active-class="bg-[#72a5e4] border border-black text-black font-bold"
+                  class="flex items-center gap-2.5 rounded-lg px-3 py-2 text-xs text-slate-800 hover:bg-black/5 transition-colors"
+                  :class="sidebarCollapsed ? 'lg:justify-center lg:px-0' : ''"
+                  title="Ringkasan"
+                >
+                  <LayoutDashboard class="h-4 w-4 shrink-0 text-black" />
+                  <span v-if="!sidebarCollapsed" class="truncate">Ringkasan</span>
+                </RouterLink>
+                <RouterLink
+                  to="/dashboard/organizations"
+                  active-class="bg-[#72a5e4] border border-black text-black font-bold"
+                  class="flex items-center gap-2.5 rounded-lg px-3 py-2 text-xs text-slate-800 hover:bg-black/5 transition-colors"
+                  :class="sidebarCollapsed ? 'lg:justify-center lg:px-0' : ''"
+                  title="Organisasi Saya"
+                >
+                  <Building2 class="h-4 w-4 shrink-0 text-black" />
+                  <span v-if="!sidebarCollapsed" class="truncate">Organisasi Saya</span>
+                </RouterLink>
+                <RouterLink
+                  to="/dashboard/notifications"
+                  active-class="bg-[#72a5e4] border border-black text-black font-bold"
+                  class="flex items-center justify-between gap-2.5 rounded-lg px-3 py-2 text-xs text-slate-800 hover:bg-black/5 transition-colors"
+                  :class="sidebarCollapsed ? 'lg:justify-center lg:px-0' : ''"
+                  title="Notifikasi"
+                >
+                  <span class="flex items-center gap-2.5 min-w-0">
+                    <Bell class="h-4 w-4 shrink-0 text-black" />
+                    <span v-if="!sidebarCollapsed" class="truncate">Notifikasi</span>
+                  </span>
+                  <span
+                    v-if="!sidebarCollapsed && unreadNotifCount > 0"
+                    class="rounded-full border border-black bg-[#72a5e4] px-1.5 py-0.5 font-mono text-[10px] font-bold tabular-nums text-black leading-none"
+                  >
+                    {{ unreadNotifCount }}
+                  </span>
+                </RouterLink>
+              </template>
+              <template v-else>
+                <button
+                  v-for="lockedItem in [
+                    { label: 'Ringkasan', icon: LayoutDashboard },
+                    { label: 'Organisasi Saya', icon: Building2 },
+                    { label: 'Notifikasi', icon: Bell }
+                  ]"
+                  :key="lockedItem.label"
+                  type="button"
+                  @click="notifySubscriptionRequired"
+                  class="w-full flex items-center justify-between gap-2.5 rounded-lg px-3 py-2 text-xs text-slate-500 opacity-60 hover:bg-black/5 transition-colors cursor-not-allowed"
+                  :class="sidebarCollapsed ? 'lg:justify-center lg:px-0' : ''"
+                  :title="`${lockedItem.label} (Perlu Langganan)`"
+                >
+                  <span class="flex items-center gap-2.5 min-w-0">
+                    <component :is="lockedItem.icon" class="h-4 w-4 shrink-0 text-slate-500" />
+                    <span v-if="!sidebarCollapsed" class="truncate">{{ lockedItem.label }}</span>
+                  </span>
+                  <Lock v-if="!sidebarCollapsed" class="h-3 w-3 shrink-0 text-slate-500" />
+                </button>
+              </template>
             </nav>
           </div>
 
@@ -288,31 +329,53 @@ async function handleLogout() {
               Kelola acara
             </p>
             <nav class="space-y-1">
-              <RouterLink
-                to="/dashboard/events"
-                exact-active-class="bg-[#72a5e4] border border-black text-black font-bold"
-                class="flex items-center justify-between rounded-lg px-3 py-2 text-xs text-slate-800 hover:bg-black/5 transition-colors"
-                :class="sidebarCollapsed ? 'lg:justify-center lg:px-0' : ''"
-                title="Acara Saya"
-              >
-                <div class="flex items-center gap-2.5 min-w-0">
-                  <CalendarDays class="h-4 w-4 shrink-0 text-black" />
-                  <span v-if="!sidebarCollapsed" class="truncate">Acara Saya</span>
-                </div>
-                <span v-if="!sidebarCollapsed" class="font-mono text-[11px] font-semibold tabular-nums text-black shrink-0">
-                  {{ store.events.length }}
-                </span>
-              </RouterLink>
-              <RouterLink
-                to="/dashboard/events/create"
-                active-class="bg-[#72a5e4] border border-black text-black font-bold"
-                class="flex items-center gap-2.5 rounded-lg px-3 py-2 text-xs text-slate-800 hover:bg-black/5 transition-colors"
-                :class="sidebarCollapsed ? 'lg:justify-center lg:px-0' : ''"
-                title="Buat Acara Baru"
-              >
-                <Plus class="h-4 w-4 shrink-0 text-black" />
-                <span v-if="!sidebarCollapsed" class="truncate">Buat Acara Baru</span>
-              </RouterLink>
+              <template v-if="authStore.hasActiveSubscription">
+                <RouterLink
+                  to="/dashboard/events"
+                  exact-active-class="bg-[#72a5e4] border border-black text-black font-bold"
+                  class="flex items-center justify-between rounded-lg px-3 py-2 text-xs text-slate-800 hover:bg-black/5 transition-colors"
+                  :class="sidebarCollapsed ? 'lg:justify-center lg:px-0' : ''"
+                  title="Acara Saya"
+                >
+                  <div class="flex items-center gap-2.5 min-w-0">
+                    <CalendarDays class="h-4 w-4 shrink-0 text-black" />
+                    <span v-if="!sidebarCollapsed" class="truncate">Acara Saya</span>
+                  </div>
+                  <span v-if="!sidebarCollapsed" class="font-mono text-[11px] font-semibold tabular-nums text-black shrink-0">
+                    {{ store.events.length }}
+                  </span>
+                </RouterLink>
+                <RouterLink
+                  to="/dashboard/events/create"
+                  active-class="bg-[#72a5e4] border border-black text-black font-bold"
+                  class="flex items-center gap-2.5 rounded-lg px-3 py-2 text-xs text-slate-800 hover:bg-black/5 transition-colors"
+                  :class="sidebarCollapsed ? 'lg:justify-center lg:px-0' : ''"
+                  title="Buat Acara Baru"
+                >
+                  <Plus class="h-4 w-4 shrink-0 text-black" />
+                  <span v-if="!sidebarCollapsed" class="truncate">Buat Acara Baru</span>
+                </RouterLink>
+              </template>
+              <template v-else>
+                <button
+                  v-for="lockedEvt in [
+                    { label: 'Acara Saya', icon: CalendarDays },
+                    { label: 'Buat Acara Baru', icon: Plus }
+                  ]"
+                  :key="lockedEvt.label"
+                  type="button"
+                  @click="notifySubscriptionRequired"
+                  class="w-full flex items-center justify-between gap-2.5 rounded-lg px-3 py-2 text-xs text-slate-500 opacity-60 hover:bg-black/5 transition-colors cursor-not-allowed"
+                  :class="sidebarCollapsed ? 'lg:justify-center lg:px-0' : ''"
+                  :title="`${lockedEvt.label} (Perlu Langganan)`"
+                >
+                  <span class="flex items-center gap-2.5 min-w-0">
+                    <component :is="lockedEvt.icon" class="h-4 w-4 shrink-0 text-slate-500" />
+                    <span v-if="!sidebarCollapsed" class="truncate">{{ lockedEvt.label }}</span>
+                  </span>
+                  <Lock v-if="!sidebarCollapsed" class="h-3 w-3 shrink-0 text-slate-500" />
+                </button>
+              </template>
             </nav>
           </div>
         </template>
@@ -662,7 +725,8 @@ async function handleLogout() {
           <span>Scan QR</span>
         </RouterLink>
         <span
-          class="hidden md:inline-flex items-center gap-1 rounded-full border border-black bg-[#72a5e4] px-3 py-1 font-mono text-[11px] font-semibold text-black"
+          class="hidden md:inline-flex items-center gap-1 rounded-full border border-black px-3 py-1 font-mono text-[11px] font-semibold text-black"
+          :class="authStore.hasActiveSubscription ? 'bg-[#72a5e4]' : 'bg-amber-300'"
         >
           {{ subscriptionBadgeLabel }}
         </span>

@@ -591,7 +591,7 @@ const blogCards = [
   },
   {
     badge: 'STUDIO',
-    headline: 'Ingin Buat Event Sendiri? Aktifkan 13 Modul Kepanitiaan Gratis!',
+    headline: 'Ingin Buat Event Sendiri? Aktifkan 13 Modul Mulai Rp 50rb/Bln!',
     bg: 'bg-[#f59e0b] text-slate-950',
     img: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=600&q=80',
     title: 'Solusi Lengkap Manajemen Tiket, Finansial RAB & Gate Scanner EO',

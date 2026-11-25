@@ -3,20 +3,14 @@ import { ref } from 'vue'
 import { useRouter, RouterLink } from 'vue-router'
 import { z } from 'zod'
 import { useAuthStore } from '@/stores/auth'
-import { useEventWorkspaceStore } from '@/stores/eventWorkspace'
 import { useToastStore } from '@/stores/toast'
 import BubbleGraffiti from '@/components/common/BubbleGraffiti.vue'
 import TerraLogo from '@/components/common/TerraLogo.vue'
-import OrganizerPaymentOptions from '@/components/organizer/OrganizerPaymentOptions.vue'
-import { User, Building2, Mail, Lock, ArrowLeft, Sparkles, Crown, CheckCircle2 } from 'lucide-vue-next'
+import { User, Building2, Mail, Lock, ArrowLeft, Crown, CheckCircle2 } from 'lucide-vue-next'
 
 const router = useRouter()
 const authStore = useAuthStore()
-const workspace = useEventWorkspaceStore()
 const toast = useToastStore()
-
-// 'choose_plan' | 'trial_form' | 'paid_options'
-const step = ref('choose_plan')
 
 const fullName = ref('')
 const orgName = ref('')
@@ -31,6 +25,13 @@ const schema = z.object({
   email: z.string().email('Format email tidak valid'),
   password: z.string().min(6, 'Password minimal 6 karakter')
 })
+
+function handleGoogleRegister() {
+  authStore.startGoogleAuth('/dashboard/billing', {
+    role: 'organizer',
+    organizationName: orgName.value.trim()
+  })
+}
 
 async function handleSubmit() {
   errorMsg.value = ''
@@ -49,16 +50,15 @@ async function handleSubmit() {
     const res = await authStore.register({
       ...parsed.data,
       role: 'organizer',
-      plan: 'free_trial'
+      plan: 'unsubscribed'
     })
     if (res?.requires_otp) {
       toast.info('Kode OTP verifikasi dikirim ke email Organizer Anda.')
       router.push({ name: 'verify-otp', query: { email: parsed.data.email, portal: 'organizer' } })
       return
     }
-    await workspace.fetchOrganizerWorkspace()
-    toast.success('Akun & Organisasi Free Trial 2 minggu berhasil dibuat!')
-    router.push('/dashboard')
+    toast.success('Akun dibuat! Silakan aktifkan langganan Rp 50.000/bulan via Midtrans.')
+    router.push('/dashboard/billing')
   } catch (err) {
     if (err?.code === 'EMAIL_NOT_VERIFIED' && err?.details?.[0]?.otp_session_token) {
       const ctx = err.details[0]
@@ -82,7 +82,7 @@ async function handleSubmit() {
   <div class="min-h-screen flex items-center justify-center px-4 py-10 bg-[#fafaf9] bg-grid-paper">
     <div class="w-full max-w-6xl grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
       <!-- Left Branding Frame -->
-      <div class="lg:col-span-5 relative border border-black bg-[#fafaf9] p-8 sm:p-10 flex flex-col justify-between overflow-hidden min-h-[500px]">
+      <div class="lg:col-span-5 relative border border-black bg-[#fafaf9] p-8 sm:p-10 flex flex-col justify-between overflow-hidden min-h-[520px]">
         <div class="absolute top-0 left-0 flex flex-col">
           <div class="h-3.5 w-7 bg-black" />
           <div class="h-3.5 w-3.5 bg-black" />
@@ -105,160 +105,73 @@ async function handleSubmit() {
           <BubbleGraffiti />
         </div>
 
-        <div class="pt-2 space-y-1">
-          <span class="text-[10px] font-bold uppercase tracking-widest text-black block">
-            ORGANIZER PORTAL
-          </span>
-          <p class="text-[11px] text-slate-600">
-            Tersedia Free Trial 2 Minggu (verifikasi OTP + ganti email bila salah) atau aktivasi Full Access 1 Bulan Rp 100.000.
-          </p>
+        <div class="rounded-2xl border-2 border-black bg-white p-4 space-y-2 shadow-[3px_3px_0_#000]">
+          <div class="flex items-center justify-between">
+            <span class="inline-flex items-center gap-1 rounded-full border border-black bg-[#72a5e4] px-2.5 py-0.5 text-[10px] font-bold text-black">
+              <Crown class="h-3 w-3" /> TERRA Studio Subscribe
+            </span>
+            <span class="font-mono text-sm font-black text-black">Rp 50.000 / bln</span>
+          </div>
+          <ul class="space-y-1 text-[11px] text-slate-700">
+            <li class="flex items-center gap-1.5">
+              <CheckCircle2 class="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+              <span>Akses penuh seluruh 13 modul &amp; event tak terbatas</span>
+            </li>
+            <li class="flex items-center gap-1.5">
+              <CheckCircle2 class="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+              <span>Aktivasi instan via Midtrans (QRIS, VA, E-Wallet)</span>
+            </li>
+          </ul>
         </div>
       </div>
 
-      <!-- Right Dynamic Onboarding Steps -->
+      <!-- Right Form -->
       <div class="lg:col-span-7 flex flex-col justify-center space-y-5 px-1 sm:px-4">
         <div class="space-y-3">
-          <div class="flex flex-wrap items-center justify-between gap-3">
-            <RouterLink
-              to="/"
-              class="inline-flex items-center gap-1.5 text-xs font-medium text-black hover:underline transition-colors"
-            >
-              <ArrowLeft class="h-3.5 w-3.5" />
-              <span>Kembali ke Marketplace</span>
-            </RouterLink>
-
-            <button
-              v-if="step !== 'choose_plan'"
-              type="button"
-              @click="step = 'choose_plan'"
-              class="inline-flex items-center gap-1 rounded-full border border-black bg-white px-3.5 py-1 text-[11px] font-bold text-black hover:bg-slate-100 cursor-pointer"
-            >
-              <ArrowLeft class="h-3 w-3" /> Pilih Paket Lain
-            </button>
-          </div>
+          <RouterLink
+            to="/"
+            class="inline-flex items-center gap-1.5 text-xs font-medium text-black hover:underline transition-colors"
+          >
+            <ArrowLeft class="h-3.5 w-3.5" />
+            <span>Kembali ke Marketplace</span>
+          </RouterLink>
 
           <div>
             <span class="inline-block rounded-full border border-black bg-white px-5 py-1 text-xs font-semibold text-black">
-              {{
-                step === 'choose_plan'
-                  ? 'Pilih Paket Organizer'
-                  : step === 'trial_form'
-                    ? 'Free Trial 2 Minggu • Register Manual'
-                    : 'Full Access 1 Bulan • Opsi Pembayaran'
-              }}
+              Registrasi Event Organizer
             </span>
             <h1 class="mt-3 text-3xl sm:text-4xl tracking-tight text-black leading-tight">
-              <strong class="font-sans font-black block">
-                {{
-                  step === 'choose_plan'
-                    ? 'Gabung Studio'
-                    : step === 'trial_form'
-                      ? 'Daftar Free Trial'
-                      : 'Aktivasi 1 Bulan'
-                }}
-              </strong>
-              <span class="font-editorial font-normal block">
-                {{
-                  step === 'choose_plan'
-                    ? 'Penyelenggara Event'
-                    : step === 'trial_form'
-                      ? 'Verifikasi OTP Email'
-                      : 'Pilih Metode Aktivasi'
-                }}
-              </span>
+              <strong class="font-sans font-black block">Daftar Studio</strong>
+              <span class="font-editorial font-normal block">Penyelenggara Event</span>
             </h1>
+            <p class="text-xs text-slate-600 mt-1.5">
+              Daftar akun gratis terlebih dahulu, lalu aktifkan langganan <strong>Rp 50.000 / bulan</strong> via Midtrans untuk membuka semua fitur Studio.
+            </p>
           </div>
         </div>
 
-        <!-- STEP 1: 2 CARDS (FREE TRIAL 2 MINGGU vs 1 BULAN BAYAR FULL ACCESS 100K) -->
-        <div v-if="step === 'choose_plan'" class="grid grid-cols-1 sm:grid-cols-2 gap-4 items-stretch">
-          <!-- Card 1: Free Plan + 14 Days Pro Access Trial -->
-          <div class="rounded-2xl border-2 border-black bg-white p-6 space-y-5 flex flex-col justify-between shadow-[4px_4px_0_#000]">
-            <div class="space-y-3">
-              <div class="flex items-center justify-between gap-2">
-                <span class="inline-flex items-center gap-1 rounded-full border border-black bg-[#fafaf9] px-3 py-0.5 text-[10px] font-bold uppercase text-black">
-                  <Sparkles class="h-3 w-3" /> Free + 14 Days Pro Trial
-                </span>
-                <span class="text-sm font-black text-black">Rp0</span>
-              </div>
+        <!-- Google OAuth Register -->
+        <button
+          type="button"
+          @click="handleGoogleRegister"
+          class="w-full flex items-center justify-center gap-2.5 rounded-full border-2 border-black bg-white py-3 text-xs sm:text-sm font-bold text-black hover:bg-slate-100 shadow-[3px_3px_0_#000] transition-colors cursor-pointer"
+        >
+          <svg class="h-4 w-4 shrink-0" viewBox="0 0 24 24" aria-hidden="true">
+            <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z" />
+            <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.11-6.72-4.96H1.29v3.14C3.26 21.3 7.31 24 12 24z" />
+            <path fill="#FBBC05" d="M5.28 14.24c-.24-.72-.38-1.49-.38-2.24s.14-1.52.38-2.24V6.62H1.29C.47 8.24 0 10.06 0 12s.47 3.76 1.29 5.38l3.99-3.14z" />
+            <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.31 0 3.26 2.7 1.29 6.62l3.99 3.14c.95-2.85 3.6-4.96 6.72-4.96z" />
+          </svg>
+          <span>Daftar Instan dengan Google</span>
+        </button>
 
-              <div>
-                <h2 class="text-lg font-bold text-black">Mulai Gratis &amp; 14 Hari Pro Access</h2>
-                <p class="text-xs text-slate-600 mt-1">
-                  Gratis selamanya untuk paket Free (100 peserta) + bonus uji coba 14 Days Pro Access per event dengan verifikasi OTP email.
-                </p>
-              </div>
-
-              <ul class="space-y-1.5 text-xs text-slate-700 pt-1">
-                <li class="flex items-center gap-2">
-                  <CheckCircle2 class="h-3.5 w-3.5 text-black shrink-0" />
-                  <span>Tanpa kartu kredit &amp; tanpa biaya otomatis</span>
-                </li>
-                <li class="flex items-center gap-2">
-                  <CheckCircle2 class="h-3.5 w-3.5 text-black shrink-0" />
-                  <span>Registrasi manual + verifikasi OTP email</span>
-                </li>
-                <li class="flex items-center gap-2">
-                  <CheckCircle2 class="h-3.5 w-3.5 text-black shrink-0" />
-                  <span>Opsi ubah email jika email OTP salah</span>
-                </li>
-              </ul>
-            </div>
-
-            <button
-              type="button"
-              @click="step = 'trial_form'"
-              class="w-full rounded-full border border-black bg-[#72a5e4] py-3 text-xs font-bold text-black hover:bg-[#5c93d9] transition-colors cursor-pointer"
-            >
-              Connect &rarr;
-            </button>
-          </div>
-
-          <!-- Card 2: Paid Per-Event Tiers (Starter 49k / Pro 129k / Ultimate 299k) -->
-          <div class="rounded-2xl border-2 border-black bg-[#fafaf9] p-6 space-y-5 flex flex-col justify-between shadow-[4px_4px_0_#000]">
-            <div class="space-y-3">
-              <div class="flex items-center justify-between gap-2">
-                <span class="inline-flex items-center gap-1 rounded-full border border-black bg-[#72a5e4] px-3 py-0.5 text-[10px] font-bold uppercase text-black">
-                  <Crown class="h-3 w-3" /> Paket Per Event
-                </span>
-                <span class="text-sm font-black text-black">Mulai 49k</span>
-              </div>
-
-              <div>
-                <h2 class="text-lg font-bold text-black">Starter 49k / Pro 129k / Ultimate 299k</h2>
-                <p class="text-xs text-slate-600 mt-1">
-                  Bayar per event sesuai skala acara (hingga 10.000 peserta), diskon Early Access &amp; BEM/UKM/Komunitas, serta Bundle hemat.
-                </p>
-              </div>
-
-              <ul class="space-y-1.5 text-xs text-slate-700 pt-1">
-                <li class="flex items-center gap-2">
-                  <CheckCircle2 class="h-3.5 w-3.5 text-black shrink-0" />
-                  <span>Aktivasi cepat via WhatsApp Admin TERRA</span>
-                </li>
-                <li class="flex items-center gap-2">
-                  <CheckCircle2 class="h-3.5 w-3.5 text-black shrink-0" />
-                  <span>Template pesan lengkap siap kirim</span>
-                </li>
-                <li class="flex items-center gap-2">
-                  <CheckCircle2 class="h-3.5 w-3.5 text-black shrink-0" />
-                  <span>Payment Gateway (Segera Hadir / Soon)</span>
-                </li>
-              </ul>
-            </div>
-
-            <button
-              type="button"
-              @click="step = 'paid_options'"
-              class="w-full rounded-full bg-black py-3 text-xs font-bold text-white hover:bg-slate-800 transition-colors cursor-pointer"
-            >
-              Setuju &rarr;
-            </button>
-          </div>
+        <div class="relative flex items-center py-0.5">
+          <div class="flex-grow border-t border-black/15" />
+          <span class="mx-3 shrink text-[11px] font-semibold uppercase tracking-wider text-slate-400">atau daftar dengan email</span>
+          <div class="flex-grow border-t border-black/15" />
         </div>
 
-        <!-- STEP 2A: FORM REGISTER MANUAL + VERIFY OTP EMAIL -->
-        <form v-else-if="step === 'trial_form'" @submit.prevent="handleSubmit" class="space-y-3.5 rounded-2xl border border-black bg-white p-6">
+        <form @submit.prevent="handleSubmit" class="space-y-3.5 rounded-2xl border border-black bg-white p-6">
           <div v-if="errorMsg" class="rounded-xl border border-rose-300 bg-rose-50 p-3 text-xs text-rose-700">
             {{ errorMsg }}
           </div>
@@ -305,9 +218,6 @@ async function handleSubmit() {
                 placeholder="organizer@organisasi.id"
               />
             </div>
-            <p class="text-[11px] text-slate-500">
-              Jika email salah atau gagal terkirim, Anda dapat langsung menggantinya di halaman verifikasi OTP.
-            </p>
           </div>
 
           <div class="space-y-1">
@@ -327,22 +237,11 @@ async function handleSubmit() {
           <button
             type="submit"
             :disabled="loading"
-            class="w-full rounded-full bg-black py-3.5 text-xs sm:text-sm font-semibold text-white hover:bg-slate-800 transition-colors disabled:opacity-50 mt-2 cursor-pointer"
+            class="w-full rounded-full border border-black bg-[#72a5e4] py-3.5 text-xs sm:text-sm font-bold text-black hover:bg-[#5c93d9] transition-colors disabled:opacity-50 mt-2 cursor-pointer"
           >
-            {{ loading ? 'Mendaftarkan & Mengirim OTP...' : 'Buat Akun Trial 2 Minggu' }}
+            {{ loading ? 'Mendaftarkan & Mengirim OTP...' : 'Daftar Akun & Lanjut Berlangganan' }}
           </button>
         </form>
-
-        <!-- STEP 2B: 2 CARDS (HUBUNGI ADMIN VIA WA + PAYMENT GATEWAY SOON) -->
-        <div v-else class="space-y-4">
-          <OrganizerPaymentOptions mode="register" />
-          <p class="text-xs text-slate-600">
-            Sudah dikirimkan akun oleh Admin setelah konfirmasi WhatsApp?
-            <RouterLink to="/organizer/login" class="font-bold text-black underline ml-1">
-              Masuk ke Studio Organizer &rarr;
-            </RouterLink>
-          </p>
-        </div>
 
         <div class="pt-1 text-xs text-slate-500">
           <p>

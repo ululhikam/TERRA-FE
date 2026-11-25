@@ -82,8 +82,13 @@ async function handleVerifyOtp() {
     })
     toast.success('Email berhasil diverifikasi! Selamat datang di TERRA.')
     if (res.user?.role === 'organizer') {
-      await workspace.fetchOrganizerWorkspace().catch(() => {})
-      router.replace('/dashboard')
+      await authStore.fetchCurrentUser().catch(() => {})
+      if (authStore.hasActiveSubscription) {
+        await workspace.fetchOrganizerWorkspace().catch(() => {})
+        router.replace('/dashboard')
+      } else {
+        router.replace('/dashboard/billing')
+      }
     } else {
       const redirect = route.query.redirect ? String(route.query.redirect) : '/profile'
       router.replace(redirect)

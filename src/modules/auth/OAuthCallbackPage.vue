@@ -36,6 +36,13 @@ onMounted(async () => {
   try {
     const user = await authStore.loginWithToken(token)
     toast.success(`Selamat datang, ${user.full_name}!`)
+    if (user.role === 'organizer') {
+      const target = authStore.hasActiveSubscription
+        ? (nextPath === '/dashboard/billing' ? '/dashboard' : nextPath)
+        : '/dashboard/billing'
+      router.replace(target)
+      return
+    }
     router.replace(nextPath)
   } catch (err) {
     status.value = 'error'

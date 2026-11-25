@@ -54,9 +54,9 @@ const routes = [
         component: () => import('@/modules/marketplace/PricingPage.vue'),
         meta: {
           seo: {
-            title: 'Harga Paket Event Organizer & Modul Kepanitiaan | TERRA',
+            title: 'Harga Langganan TERRA Studio Rp 50.000 / Bulan | TERRA',
             description:
-              'Pilih paket Starter gratis, Pro, Enterprise, atau Event Bundle untuk mengelola ticketing QR, gate scanner, keuangan RAB, dan tim kepanitiaan di TERRA.'
+              'Langganan TERRA Studio Rp 50.000/bulan via Midtrans untuk akses penuh seluruh 13 modul manajemen event, ticketing QR, dan Live Gate Scanner.'
           }
         }
       },
@@ -124,8 +124,8 @@ const routes = [
     component: () => import('@/modules/auth/OrganizerRegisterPage.vue'),
     meta: {
       seo: {
-        title: 'Daftar Event Organizer Gratis (14 Hari Pro Trial) | TERRA',
-        description: 'Daftarkan organisasi atau kepanitiaan Anda di TERRA dan aktifkan 13 modul manajemen event profesional.'
+        title: 'Daftar Event Organizer — Langganan Rp 50.000 / Bulan | TERRA',
+        description: 'Daftar sebagai Event Organizer TERRA dengan Google OAuth atau email dan aktifkan langganan Rp 50.000/bulan via Midtrans.'
       }
     }
   },
@@ -205,6 +205,19 @@ router.beforeEach(async (to) => {
       if (authStore.user.role === 'admin') return { name: 'admin-dashboard' }
       if (authStore.user.role === 'organizer') return { name: 'dashboard-overview' }
       return { name: 'home' }
+    }
+  }
+
+  // 2b. Enforce Organizer monthly subscription lock across Studio routes (Pricing & Langganan stays accessible)
+  if (to.path.startsWith('/dashboard') && authStore.isOrganizer) {
+    if (!authStore.user?.subscription) {
+      await authStore.fetchCurrentUser().catch(() => {})
+    }
+    if (to.name === 'event-billing') {
+      return { name: 'dashboard-billing' }
+    }
+    if (!authStore.hasActiveSubscription && to.name !== 'dashboard-billing') {
+      return { name: 'dashboard-billing', query: { locked: '1' } }
     }
   }
 

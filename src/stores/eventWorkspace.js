@@ -1044,6 +1044,14 @@ export const useEventWorkspaceStore = defineStore('eventWorkspace', () => {
     return res?.data || null
   }
 
+  async function subscribeOrganizerMonthly({ forceNew = false, organizationId = null } = {}) {
+    const res = await api.post('/billing/subscribe', {
+      organization_id: organizationId || organizations.value?.[0]?.id || null,
+      force_new: forceNew
+    })
+    return res?.data || null
+  }
+
   async function uploadBillingProof(txId, file, paymentNotes = '') {
     const formData = new FormData()
     formData.append('file', file)
@@ -1337,6 +1345,7 @@ export const useEventWorkspaceStore = defineStore('eventWorkspace', () => {
     downgradeEventPlan,
     fetchOrganizerBillingHistory,
     createBillingCheckout,
+    subscribeOrganizerMonthly,
     uploadBillingProof,
     fetchOrderDetail,
     fetchOrderTickets,
