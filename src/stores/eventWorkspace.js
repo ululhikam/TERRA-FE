@@ -651,8 +651,11 @@ export const useEventWorkspaceStore = defineStore('eventWorkspace', () => {
     })
 
     const data = res?.data
+    if (data?.order) {
+      upsertListItem(myOrders, data.order)
+    }
     const issued = data?.tickets || []
-    if (issued.length) {
+    if (issued.length && data?.order?.order_status === 'Confirmed') {
       myTickets.value.unshift(...issued)
     }
 

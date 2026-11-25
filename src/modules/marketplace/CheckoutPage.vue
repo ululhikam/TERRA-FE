@@ -9,7 +9,7 @@ import { formatCurrency, formatDateTime } from '@/utils/formatters'
 import { downloadTicketQrPng, generateTicketQrPayload } from '@/utils/qrCode'
 import { openMidtransSnap } from '@/utils/midtrans'
 import QrCodeCanvas from '@/components/common/QrCodeCanvas.vue'
-import { CheckCircle2, Download, ArrowRight, Copy, FileText, Mail, X, CreditCard, RefreshCw, Repeat } from 'lucide-vue-next'
+import { CheckCircle2, Download, ArrowRight, Copy, FileText, Mail, X, CreditCard, RefreshCw, Repeat, Trash2, AlertCircle } from 'lucide-vue-next'
 
 const route = useRoute()
 const store = useEventWorkspaceStore()
@@ -25,35 +25,67 @@ const event = computed(() =>
   store.events.find((e) => e.slug === route.params.eventSlug || e.id === route.params.eventSlug) || null
 )
 
+const existingPendingOrderForEvent = computed(() => {
+  if (!event.value?.id || completedOrder.value) return null
+  return (
+    (store.myOrders || []).find(
+      (o) =>
+        o.event_id === event.value.id &&
+        o.order_status === 'Pending' &&
+        Number(o.total || 0) > 0
+    ) || null
+  )
+})
+
+function mapOrderSyncToCompleted(order, tickets = [], emailStatus = null) {
+  return {
+    orderId: order.id,
+    orderNumber: order.order_number,
+    total: order.total,
+    quantity: order.quantity,
+    orderStatus: order.order_status,
+    paymentStatus: order.payment_status,
+    order,
+    tickets: tickets || [],
+    emailStatus: emailStatus || null,
+    emailNotification: emailStatus || null
+  }
+}
+
 onMounted(async () => {
   loadingEvent.value = true
   try {
-    if (!event.value || !event.value.ticket_types?.length) {
-      await store.fetchEventPublic(route.params.eventSlug)
-    }
+    await store.fetchEventPublic(route.params.eventSlug).catch(() => {})
     const redirectOrderRef = String(route.query.order_id || '').trim()
+    const redirectSettled = ['settlement', 'capture'].includes(
+      String(route.query.transaction_status || '').toLowerCase()
+    )
     if (redirectOrderRef && authStore.isAuthenticated) {
       try {
-        const syncRes = await store.syncOrderPaymentStatus(redirectOrderRef)
+        const maxAttempts = redirectSettled ? 3 : 1
+        let syncRes = null
+        for (let attempt = 0; attempt < maxAttempts; attempt++) {
+          if (attempt > 0) await new Promise((r) => setTimeout(r, attempt === 1 ? 1500 : 2000))
+          syncRes = await store.syncOrderPaymentStatus(redirectOrderRef, redirectOrderRef)
+          if (syncRes?.payment_state === 'settled' || syncRes?.order?.order_status === 'Confirmed') break
+        }
         if (syncRes?.order) {
-          completedOrder.value = {
-            orderId: syncRes.order.id,
-            orderNumber: syncRes.order.order_number,
-            total: syncRes.order.total,
-            orderStatus: syncRes.order.order_status,
-            paymentStatus: syncRes.order.payment_status,
-            order: syncRes.order,
-            tickets: syncRes.tickets || [],
-            emailStatus: syncRes.email_status || null,
-            emailNotification: syncRes.email_status || null
-          }
+          completedOrder.value = mapOrderSyncToCompleted(
+            syncRes.order,
+            syncRes.tickets || [],
+            syncRes.email_status || null
+          )
           if (syncRes?.payment_state === 'settled' || syncRes?.order?.order_status === 'Confirmed') {
             toast.success('Pembayaran terkonfirmasi! E-Tiket QR kini aktif dan dikirim ke email Anda.')
+          } else if (syncRes?.order?.order_status === 'Cancelled') {
+            toast.info('Pesanan ini telah dibatalkan atau kedaluwarsa.')
           }
         }
-      } catch {
-        // Ignore if unauthenticated or order belongs to another account
+      } catch (err) {
+        toast.error(err?.message || 'Gagal memuat status pesanan dari pengalihan Midtrans.')
       }
+    } else if (authStore.isAuthenticated) {
+      await store.fetchMyOrders().catch(() => [])
     }
   } catch {
     // Handled by empty state below
@@ -92,9 +124,14 @@ const remainingQuota = computed(() => {
 
 const minQty = computed(() => Math.max(1, Number(ticketType.value?.min_per_order || 1)))
 
+const isSoldOut = computed(
+  () => !ticketType.value || ticketType.value.status !== 'On Sale' || remainingQuota.value < minQty.value
+)
+
 const maxQty = computed(() => {
   const limit = Number(ticketType.value?.max_per_order || 5)
-  return Math.max(minQty.value, Math.min(limit, remainingQuota.value || limit))
+  if (remainingQuota.value <= 0) return minQty.value
+  return Math.max(minQty.value, Math.min(limit, remainingQuota.value))
 })
 
 const quantity = ref(Math.max(1, Number(route.query.qty) || 1))
@@ -114,7 +151,19 @@ const institution = ref('')
 const memberId = ref('')
 const launchingSnap = ref(false)
 const syncingPayment = ref(false)
+const cancellingOrder = ref(false)
 const errorMsg = ref('')
+
+watch(
+  () => authStore.user,
+  (u) => {
+    if (!u) return
+    if (!fullName.value) fullName.value = u.full_name || ''
+    if (!email.value) email.value = u.email || ''
+    if (!phone.value) phone.value = u.phone || ''
+  },
+  { immediate: true }
+)
 
 const schema = z.object({
   full_name: z.string().min(2, 'Nama peserta minimal 2 karakter'),
@@ -262,6 +311,49 @@ async function syncCompletedOrderStatus({ silent = false, midtransOrderId = '', 
   }
 }
 
+const isOrderCancelled = computed(() => {
+  if (!completedOrder.value) return false
+  return (
+    completedOrder.value.orderStatus === 'Cancelled' ||
+    ['Expired', 'Cancelled', 'Denied', 'Refunded'].includes(completedOrder.value.paymentStatus)
+  )
+})
+
+async function resumeExistingPendingOrder(pendingOrd) {
+  if (!pendingOrd?.id) return
+  completedOrder.value = mapOrderSyncToCompleted(pendingOrd, [])
+  await launchMidtransPayment()
+}
+
+async function handleCancelExistingOrder(orderId) {
+  if (!orderId) return
+  cancellingOrder.value = true
+  try {
+    await store.cancelMyOrder(orderId)
+    await store.fetchEventPublic(route.params.eventSlug).catch(() => {})
+    toast.success('Pesanan lama dibatalkan & kuota dikembalikan.')
+  } catch (err) {
+    toast.error(err?.message || 'Gagal membatalkan pesanan lama.')
+  } finally {
+    cancellingOrder.value = false
+  }
+}
+
+async function handleCancelPendingOrder() {
+  if (!completedOrder.value?.orderId) return
+  cancellingOrder.value = true
+  try {
+    await store.cancelMyOrder(completedOrder.value.orderId)
+    await store.fetchEventPublic(route.params.eventSlug).catch(() => {})
+    completedOrder.value = null
+    toast.success('Pesanan dibatalkan & kuota dikembalikan. Silakan pilih ulang tiket Anda.')
+  } catch (err) {
+    toast.error(err?.message || 'Gagal membatalkan pesanan.')
+  } finally {
+    cancellingOrder.value = false
+  }
+}
+
 async function launchMidtransPayment(initialPayment = null, { forceNew = false } = {}) {
   if (!completedOrder.value?.orderId) return
   launchingSnap.value = true
@@ -270,20 +362,40 @@ async function launchMidtransPayment(initialPayment = null, { forceNew = false }
       !forceNew && initialPayment?.snap_token
         ? initialPayment
         : await store.createOrderSnapToken(completedOrder.value.orderId, { forceNew })
+    if (session?.already_settled || session?.payment_state === 'settled') {
+      if (session.order) {
+        completedOrder.value = mapOrderSyncToCompleted(
+          session.order,
+          session.tickets || completedOrder.value.tickets,
+          session.email_status || completedOrder.value.emailStatus
+        )
+      } else {
+        await syncCompletedOrderStatus({ silent: true, expectSettled: true })
+      }
+      toast.success('Pembayaran terkonfirmasi! E-Tiket QR kini aktif dan dikirim ke email Anda.')
+      return
+    }
     if (!session?.snap_token) {
-      toast.error('Token pembayaran Midtrans belum siap. Periksa konfigurasi MIDTRANS_SERVER_KEY & CLIENT_KEY.')
+      toast.error(session?.snap_error || 'Token pembayaran Midtrans belum siap. Periksa konfigurasi MIDTRANS_SERVER_KEY & CLIENT_KEY.')
       return
     }
     const snapResult = await openMidtransSnap(session.snap_token, {
       clientKey: session.client_key,
       snapJsUrl: session.snap_js_url
     })
+    if (snapResult.status === 'closed') {
+      toast.info('Jendela pembayaran ditutup. Klik "Bayar Sekarang" untuk melanjutkan atau batalkan jika ingin mengubah pesanan.')
+    }
     await syncCompletedOrderStatus({
       silent: snapResult.status === 'closed',
       midtransOrderId: snapResult?.result?.order_id || session.midtrans_order_id || '',
       expectSettled: snapResult.status === 'success'
     })
   } catch (err) {
+    if (err?.code === 'PAYMENT_ALREADY_SETTLED') {
+      await syncCompletedOrderStatus({ expectSettled: true })
+      return
+    }
     toast.error(err?.message || 'Gagal membuka pembayaran Midtrans.')
   } finally {
     launchingSnap.value = false
@@ -363,36 +475,54 @@ onBeforeUnmount(() => {
   </div>
 
   <div v-else-if="event" class="mx-auto max-w-5xl px-4 sm:px-6 py-10 space-y-6 min-h-[calc(100vh-14rem)]">
-    <!-- Order Success & Generated QR Ticket View -->
+    <!-- Order Success, Pending, or Cancelled View -->
     <template v-if="completedOrder">
       <div
         v-reveal
         class="rounded-2xl border-2 border-black p-6 sm:p-8 shadow-[4px_4px_0px_#000] flex flex-col lg:flex-row lg:items-center justify-between gap-4"
-        :class="completedOrder.orderStatus === 'Pending' ? 'bg-amber-200' : 'bg-[#72a5e4]'"
+        :class="
+          isOrderCancelled
+            ? 'bg-rose-100'
+            : completedOrder.orderStatus === 'Pending'
+              ? 'bg-amber-200'
+              : 'bg-[#72a5e4]'
+        "
       >
         <div class="space-y-1.5">
           <div class="inline-flex items-center gap-2 rounded-full border border-black bg-white px-3 py-1 text-[11px] font-bold text-black">
+            <AlertCircle
+              v-if="isOrderCancelled"
+              class="h-3.5 w-3.5 text-rose-600"
+            />
             <CheckCircle2
+              v-else
               class="h-3.5 w-3.5"
               :class="completedOrder.orderStatus === 'Pending' ? 'text-amber-600' : 'text-emerald-600'"
             />
             {{
-              completedOrder.orderStatus === 'Pending'
-                ? 'MENUNGGU PEMBAYARAN MIDTRANS'
-                : 'PEMBELIAN BERHASIL • QR & EMAIL TERKIRIM'
+              isOrderCancelled
+                ? 'PESANAN DIBATALKAN / KEDALUWARSA'
+                : completedOrder.orderStatus === 'Pending'
+                  ? 'MENUNGGU PEMBAYARAN MIDTRANS'
+                  : 'PEMBELIAN BERHASIL • QR & EMAIL TERKIRIM'
             }}
           </div>
           <h1 class="text-2xl sm:text-3xl font-bold tracking-tight text-black font-sans">
             {{
-              completedOrder.orderStatus === 'Pending'
-                ? 'Selesaikan Pembayaran Instan via Midtrans'
-                : 'Tiket Digital & QR Code Siap Digunakan'
+              isOrderCancelled
+                ? 'Pesanan Tiket Tidak Aktif'
+                : completedOrder.orderStatus === 'Pending'
+                  ? 'Selesaikan Pembayaran Instan via Midtrans'
+                  : 'Tiket Digital & QR Code Siap Digunakan'
             }}
           </h1>
           <p class="text-xs text-slate-900">
             Order Ref: <span class="font-mono font-bold">{{ completedOrder.orderNumber }}</span>
-            <span v-if="completedOrder.orderStatus === 'Pending'">
-              • Total {{ formatCurrency(completedOrder.total) }}
+            <span v-if="isOrderCancelled">
+              • Status: {{ completedOrder.paymentStatus || completedOrder.orderStatus }} — Kuota tiket telah dikembalikan.
+            </span>
+            <span v-else-if="completedOrder.orderStatus === 'Pending'">
+              • Total {{ formatCurrency(completedOrder.total) }} • Sinkronisasi status otomatis aktif
             </span>
             <span v-else-if="completedOrder.emailNotification?.recipient">
               • Email QR dikirim ke <strong>{{ completedOrder.emailNotification.recipient }}</strong>
@@ -402,7 +532,16 @@ onBeforeUnmount(() => {
 
         <div class="flex flex-wrap items-center gap-2 shrink-0">
           <button
-            v-if="completedOrder.emailNotification?.preview_url"
+            v-if="isOrderCancelled"
+            type="button"
+            @click="completedOrder = null"
+            class="luxury-pill inline-flex items-center gap-1.5 rounded-full border border-black bg-black px-5 py-2.5 text-xs font-bold text-white cursor-pointer"
+          >
+            <span>Pesan Tiket Baru</span>
+            <ArrowRight class="h-3.5 w-3.5" />
+          </button>
+          <button
+            v-if="!isOrderCancelled && completedOrder.emailNotification?.preview_url"
             type="button"
             @click="showEmailPreview = true"
             class="luxury-pill inline-flex items-center gap-1.5 rounded-full border border-black bg-white px-4 py-2.5 text-xs font-bold text-black cursor-pointer"
@@ -411,7 +550,7 @@ onBeforeUnmount(() => {
             <span>Lihat Email QR</span>
           </button>
           <button
-            v-if="completedOrder.orderId && completedOrder.orderStatus !== 'Pending'"
+            v-if="!isOrderCancelled && completedOrder.orderId && completedOrder.orderStatus !== 'Pending'"
             type="button"
             @click="handleDownloadOrderPdf"
             class="luxury-pill inline-flex items-center gap-1.5 rounded-full border border-black bg-white px-4 py-2.5 text-xs font-bold text-black cursor-pointer"
@@ -420,7 +559,7 @@ onBeforeUnmount(() => {
             <span>Unduh PDF QR</span>
           </button>
           <RouterLink
-            v-if="completedOrder.orderStatus !== 'Pending'"
+            v-if="!isOrderCancelled && completedOrder.orderStatus !== 'Pending'"
             to="/my-tickets"
             class="luxury-pill inline-flex items-center justify-center gap-2 rounded-full border border-black bg-black px-5 py-2.5 text-xs font-bold text-white"
           >
@@ -438,7 +577,7 @@ onBeforeUnmount(() => {
 
       <!-- Midtrans Instant Payment Card -->
       <div
-        v-if="completedOrder.orderStatus === 'Pending'"
+        v-if="!isOrderCancelled && completedOrder.orderStatus === 'Pending'"
         class="rounded-2xl border-2 border-black bg-white p-6 space-y-4 shadow-[4px_4px_0px_#000]"
       >
         <div class="flex flex-wrap items-center justify-between gap-2 border-b border-black/15 pb-3">
@@ -457,7 +596,7 @@ onBeforeUnmount(() => {
           <button
             type="button"
             @click="launchMidtransPayment()"
-            :disabled="launchingSnap"
+            :disabled="launchingSnap || cancellingOrder"
             class="shimmer-sheen luxury-pill inline-flex items-center gap-2 rounded-full border border-black bg-[#72a5e4] px-6 py-2.5 text-xs font-black text-black shadow-[3px_3px_0px_#000] cursor-pointer disabled:opacity-50"
           >
             <CreditCard class="h-4 w-4" />
@@ -467,7 +606,7 @@ onBeforeUnmount(() => {
           <button
             type="button"
             @click="launchMidtransPayment(null, { forceNew: true })"
-            :disabled="launchingSnap"
+            :disabled="launchingSnap || cancellingOrder"
             class="luxury-pill inline-flex items-center gap-1.5 rounded-full border border-black bg-white px-5 py-2.5 text-xs font-bold text-black hover:bg-slate-100 cursor-pointer disabled:opacity-50"
           >
             <Repeat class="h-3.5 w-3.5" />
@@ -477,17 +616,27 @@ onBeforeUnmount(() => {
           <button
             type="button"
             @click="syncCompletedOrderStatus()"
-            :disabled="syncingPayment"
+            :disabled="syncingPayment || cancellingOrder"
             class="luxury-pill inline-flex items-center gap-1.5 rounded-full border border-black bg-white px-5 py-2.5 text-xs font-bold text-black hover:bg-slate-100 cursor-pointer disabled:opacity-50"
           >
             <RefreshCw class="h-3.5 w-3.5" :class="syncingPayment ? 'animate-spin' : ''" />
             <span>{{ syncingPayment ? 'Memeriksa...' : 'Cek Status Pembayaran' }}</span>
           </button>
+
+          <button
+            type="button"
+            @click="handleCancelPendingOrder"
+            :disabled="cancellingOrder || launchingSnap"
+            class="luxury-pill inline-flex items-center gap-1.5 rounded-full border border-rose-600 bg-rose-50 px-5 py-2.5 text-xs font-bold text-rose-700 hover:bg-rose-100 cursor-pointer disabled:opacity-50"
+          >
+            <Trash2 class="h-3.5 w-3.5" />
+            <span>{{ cancellingOrder ? 'Membatalkan...' : 'Batalkan & Ubah Pesanan' }}</span>
+          </button>
         </div>
       </div>
 
       <div
-        v-if="completedOrder.orderStatus !== 'Pending' && completedOrder.tickets?.length"
+        v-if="!isOrderCancelled && completedOrder.orderStatus !== 'Pending' && completedOrder.tickets?.length"
         class="grid grid-cols-1 md:grid-cols-2 gap-6"
       >
         <div
@@ -586,6 +735,38 @@ onBeforeUnmount(() => {
         </h1>
       </div>
 
+      <div
+        v-if="existingPendingOrderForEvent"
+        class="rounded-2xl border-2 border-black bg-amber-100 p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-[3px_3px_0px_#000]"
+      >
+        <div class="space-y-1 text-xs">
+          <p class="font-bold text-black">
+            Anda memiliki pesanan belum dibayar untuk event ini (<span class="font-mono">{{ existingPendingOrderForEvent.order_number }}</span>)
+          </p>
+          <p class="text-slate-700">
+            Total {{ formatCurrency(existingPendingOrderForEvent.total) }} ({{ existingPendingOrderForEvent.quantity }} tiket). Lanjutkan pembayaran atau batalkan agar kuota kembali tersedia.
+          </p>
+        </div>
+        <div class="flex flex-wrap items-center gap-2 shrink-0">
+          <button
+            type="button"
+            @click="resumeExistingPendingOrder(existingPendingOrderForEvent)"
+            :disabled="launchingSnap || cancellingOrder"
+            class="rounded-full border border-black bg-[#72a5e4] px-4 py-2 text-xs font-bold text-black hover:bg-[#5c93d9] cursor-pointer disabled:opacity-50"
+          >
+            Lanjutkan Pembayaran
+          </button>
+          <button
+            type="button"
+            @click="handleCancelExistingOrder(existingPendingOrderForEvent.id)"
+            :disabled="cancellingOrder || launchingSnap"
+            class="rounded-full border border-rose-600 bg-white px-4 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-50 cursor-pointer disabled:opacity-50"
+          >
+            Batalkan Pesanan Lama
+          </button>
+        </div>
+      </div>
+
       <div class="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
         <!-- Left Column: Data Peserta -->
         <div v-reveal="60" class="md:col-span-7 rounded-xl border border-black bg-[#fafaf9] p-6 sm:p-7 space-y-5">
@@ -681,16 +862,21 @@ onBeforeUnmount(() => {
             <div class="pt-2">
               <button
                 type="submit"
-                :disabled="submitting || !ticketType || ticketType.status !== 'On Sale'"
-                class="luxury-pill w-full rounded-full bg-black py-3.5 text-xs font-bold text-white hover:bg-slate-800 disabled:opacity-50 cursor-pointer"
+                :disabled="submitting || isSoldOut"
+                class="luxury-pill inline-flex items-center justify-center gap-1.5 w-full rounded-full bg-black py-3.5 text-xs font-bold text-white hover:bg-slate-800 disabled:opacity-50 cursor-pointer"
               >
-                {{
-                  submitting
-                    ? 'Memproses Pesanan...'
-                    : totalAmount > 0
-                      ? 'Lanjut ke Pembayaran Midtrans →'
-                      : '✓ Konfirmasi Pesanan & Kirim Email QR'
-                }}
+                <span>
+                  {{
+                    submitting
+                      ? 'Memproses Pesanan...'
+                      : isSoldOut
+                        ? 'Tiket Habis / Tidak Tersedia'
+                        : totalAmount > 0
+                          ? 'Lanjut ke Pembayaran Midtrans'
+                          : 'Konfirmasi Pesanan & Kirim Email QR'
+                  }}
+                </span>
+                <ArrowRight v-if="!submitting && !isSoldOut && totalAmount > 0" class="h-3.5 w-3.5" />
               </button>
             </div>
           </form>
@@ -735,9 +921,10 @@ onBeforeUnmount(() => {
     <p class="text-xs text-slate-600">Event mungkin belum dipublikasikan atau tautan sudah berubah.</p>
     <RouterLink
       to="/events"
-      class="luxury-pill inline-block rounded-full border border-black bg-[#72a5e4] px-6 py-2.5 text-xs font-bold text-black"
+      class="luxury-pill inline-flex items-center gap-1.5 rounded-full border border-black bg-[#72a5e4] px-6 py-2.5 text-xs font-bold text-black"
     >
-      Kembali ke Marketplace &rarr;
+      <span>Kembali ke Marketplace</span>
+      <ArrowRight class="h-3.5 w-3.5" />
     </RouterLink>
   </div>
 </template>

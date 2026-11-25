@@ -1,17 +1,31 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { computed, ref, onBeforeUnmount, onMounted, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 import { useEventWorkspaceStore } from '@/stores/eventWorkspace'
 import { useToastStore } from '@/stores/toast'
-import { formatDateTime } from '@/utils/formatters'
+import { formatCurrency, formatDateTime } from '@/utils/formatters'
 import { downloadTicketQrPng, generateTicketQrPayload } from '@/utils/qrCode'
+import { openMidtransSnap } from '@/utils/midtrans'
 import QrCodeCanvas from '@/components/common/QrCodeCanvas.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
-import { Download, Maximize2, Copy, X, FileText } from 'lucide-vue-next'
+import { Download, Maximize2, Copy, X, FileText, CreditCard, RefreshCw, ArrowRight } from 'lucide-vue-next'
 
 const store = useEventWorkspaceStore()
 const toast = useToastStore()
 const enlargedTicket = ref(null)
+const payingOrderId = ref('')
+const syncingOrderId = ref('')
+const cancellingOrderId = ref('')
+
+const pendingPaidOrders = computed(() =>
+  (store.myOrders || []).filter(
+    (o) =>
+      o.order_status !== 'Cancelled' &&
+      o.order_status !== 'Confirmed' &&
+      !['Paid', 'Verified', 'Not Required'].includes(o.payment_status) &&
+      Number(o.total || 0) > 0
+  )
+)
 
 function isTicketActive(status) {
   return ['valid', 'active'].includes(String(status || '').toLowerCase())
@@ -62,8 +76,139 @@ async function handleCopyCode(text) {
   }
 }
 
-onMounted(() => {
-  store.fetchMyTickets()
+async function syncOrder(orderId, { silent = false, midtransOrderId = '', expectSettled = false } = {}) {
+  syncingOrderId.value = orderId
+  try {
+    const maxAttempts = expectSettled ? 3 : 1
+    let res = null
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      if (attempt > 0) await new Promise((r) => setTimeout(r, attempt === 1 ? 1500 : 2000))
+      res = await store.syncOrderPaymentStatus(orderId, midtransOrderId)
+      if (res?.payment_state === 'settled' || res?.order?.order_status === 'Confirmed') break
+    }
+    await store.fetchMyTickets().catch(() => {})
+    if (!silent) {
+      if (res?.payment_state === 'settled' || res?.order?.order_status === 'Confirmed') {
+        toast.success('Pembayaran terkonfirmasi! Tiket QR Anda sudah aktif.')
+      } else {
+        toast.info(`Status pembayaran: ${res?.order?.payment_status || 'Pending'}.`)
+      }
+    }
+  } catch (err) {
+    if (!silent) toast.error(err?.message || 'Gagal menyinkronkan status pembayaran.')
+  } finally {
+    syncingOrderId.value = ''
+  }
+}
+
+async function handlePayPendingOrder(ord, { forceNew = false } = {}) {
+  payingOrderId.value = ord.id
+  try {
+    const session = await store.createOrderSnapToken(ord.id, { forceNew })
+    if (session?.already_settled || session?.payment_state === 'settled') {
+      await store.fetchMyTickets().catch(() => {})
+      await store.fetchMyOrders().catch(() => {})
+      toast.success('Pembayaran terkonfirmasi! Tiket QR Anda sudah aktif.')
+      return
+    }
+    if (!session?.snap_token) {
+      toast.error(session?.snap_error || 'Token pembayaran Midtrans belum tersedia.')
+      return
+    }
+    const snapRes = await openMidtransSnap(session.snap_token, {
+      clientKey: session.client_key,
+      snapJsUrl: session.snap_js_url
+    })
+    await syncOrder(ord.id, {
+      silent: snapRes.status === 'closed',
+      midtransOrderId: snapRes?.result?.order_id || session.midtrans_order_id || '',
+      expectSettled: snapRes.status === 'success'
+    })
+  } catch (err) {
+    if (err?.code === 'PAYMENT_ALREADY_SETTLED') {
+      await syncOrder(ord.id, { expectSettled: true })
+      return
+    }
+    toast.error(err?.message || 'Gagal membuka jendela pembayaran Midtrans.')
+  } finally {
+    payingOrderId.value = ''
+  }
+}
+
+async function handleCancelPending(ordId) {
+  cancellingOrderId.value = ordId
+  try {
+    await store.cancelMyOrder(ordId)
+    toast.success('Pesanan dibatalkan & kuota tiket dikembalikan.')
+  } catch (err) {
+    toast.error(err?.message || 'Gagal membatalkan pesanan.')
+  } finally {
+    cancellingOrderId.value = ''
+  }
+}
+
+async function syncAllPendingOrders() {
+  if (!pendingPaidOrders.value.length || syncingOrderId.value || payingOrderId.value) return
+  for (const ord of pendingPaidOrders.value.slice(0, 3)) {
+    await syncOrder(ord.id, { silent: true })
+  }
+}
+
+let ticketsPollTimer = null
+let ticketsPollTicks = 0
+
+function stopTicketsPolling() {
+  if (ticketsPollTimer) {
+    clearInterval(ticketsPollTimer)
+    ticketsPollTimer = null
+  }
+  ticketsPollTicks = 0
+}
+
+function handleTicketsFocus() {
+  if (typeof document !== 'undefined' && document.hidden) return
+  syncAllPendingOrders()
+}
+
+watch(
+  () => pendingPaidOrders.value.length,
+  (count) => {
+    if (!count) {
+      stopTicketsPolling()
+      return
+    }
+    if (ticketsPollTimer) return
+    ticketsPollTicks = 0
+    ticketsPollTimer = setInterval(() => {
+      ticketsPollTicks += 1
+      if (ticketsPollTicks > 30) {
+        stopTicketsPolling()
+        return
+      }
+      syncAllPendingOrders()
+    }, 5000)
+  }
+)
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('focus', handleTicketsFocus)
+  document.addEventListener('visibilitychange', handleTicketsFocus)
+}
+
+onBeforeUnmount(() => {
+  stopTicketsPolling()
+  if (typeof window !== 'undefined') {
+    window.removeEventListener('focus', handleTicketsFocus)
+    document.removeEventListener('visibilitychange', handleTicketsFocus)
+  }
+})
+
+onMounted(async () => {
+  await Promise.all([
+    store.fetchMyTickets().catch(() => {}),
+    store.fetchMyOrders().catch(() => {})
+  ])
+  await syncAllPendingOrders()
 })
 </script>
 
@@ -80,10 +225,66 @@ onMounted(() => {
       </div>
       <RouterLink
         to="/profile"
-        class="luxury-pill inline-flex items-center justify-center rounded-full border border-black bg-white px-5 py-2 text-xs font-bold text-black hover:bg-slate-100 shrink-0"
+        class="luxury-pill inline-flex items-center justify-center gap-1.5 rounded-full border border-black bg-white px-5 py-2 text-xs font-bold text-black hover:bg-slate-100 shrink-0"
       >
-        Lihat Profil &amp; Riwayat Pesanan &rarr;
+        <span>Lihat Profil &amp; Riwayat Pesanan</span>
+        <ArrowRight class="h-3.5 w-3.5" />
       </RouterLink>
+    </div>
+
+    <!-- Pending Midtrans Orders Section -->
+    <div v-if="pendingPaidOrders.length" class="space-y-3">
+      <h2 class="text-sm font-bold text-black">Pesanan Menunggu Pembayaran ({{ pendingPaidOrders.length }})</h2>
+      <div class="space-y-3">
+        <div
+          v-for="ord in pendingPaidOrders"
+          :key="ord.id"
+          class="rounded-2xl border-2 border-black bg-amber-100 p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-[3px_3px_0px_#000]"
+        >
+          <div class="space-y-1">
+            <div class="flex flex-wrap items-center gap-2">
+              <span class="rounded-full border border-black bg-white px-2.5 py-0.5 text-[10px] font-bold text-amber-800">
+                Menunggu Pembayaran
+              </span>
+              <span class="font-mono text-xs font-bold text-black">{{ ord.order_number }}</span>
+            </div>
+            <p class="text-xs font-semibold text-black">
+              {{ ord.quantity }} tiket • Total {{ formatCurrency(ord.total) }}
+            </p>
+            <p class="text-[11px] text-slate-700">
+              QR Code akan otomatis muncul setelah pembayaran Midtrans selesai.
+            </p>
+          </div>
+          <div class="flex flex-wrap items-center gap-2 shrink-0">
+            <button
+              type="button"
+              @click="handlePayPendingOrder(ord)"
+              :disabled="payingOrderId === ord.id || cancellingOrderId === ord.id"
+              class="inline-flex items-center gap-1.5 rounded-full border border-black bg-[#72a5e4] px-4 py-2 text-xs font-bold text-black hover:bg-[#5c93d9] cursor-pointer disabled:opacity-50"
+            >
+              <CreditCard class="h-3.5 w-3.5" />
+              <span>{{ payingOrderId === ord.id ? 'Membuka...' : 'Bayar Sekarang' }}</span>
+            </button>
+            <button
+              type="button"
+              @click="syncOrder(ord.id)"
+              :disabled="syncingOrderId === ord.id"
+              class="inline-flex items-center gap-1 rounded-full border border-black bg-white px-3.5 py-2 text-xs font-semibold text-black hover:bg-slate-100 cursor-pointer disabled:opacity-50"
+            >
+              <RefreshCw class="h-3.5 w-3.5" :class="syncingOrderId === ord.id ? 'animate-spin' : ''" />
+              <span>Cek Status</span>
+            </button>
+            <button
+              type="button"
+              @click="handleCancelPending(ord.id)"
+              :disabled="cancellingOrderId === ord.id"
+              class="rounded-full border border-rose-600 bg-white px-3.5 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-50 cursor-pointer disabled:opacity-50"
+            >
+              Batalkan
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <div v-if="store.myTickets.filter((t) => !isTicketPending(t.status)).length > 0" class="space-y-6">
