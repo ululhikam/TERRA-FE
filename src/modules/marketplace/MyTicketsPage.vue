@@ -252,7 +252,7 @@ onMounted(async () => {
               {{ ord.quantity }} tiket • Total {{ formatCurrency(ord.total) }}
             </p>
             <p class="text-[11px] text-slate-700">
-              QR Code akan otomatis muncul setelah pembayaran Midtrans selesai.
+              QR Code &amp; e-ticket PDF akan otomatis aktif setelah pembayaran Midtrans lunas.
             </p>
           </div>
           <div class="flex flex-wrap items-center gap-2 shrink-0">
