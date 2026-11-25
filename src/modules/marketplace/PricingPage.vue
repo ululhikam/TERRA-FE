@@ -161,7 +161,11 @@ async function syncInvoiceStatus({ silent = false, midtransOrderId = '', expectS
       if (attempt > 0) {
         await new Promise((r) => setTimeout(r, attempt === 1 ? 1500 : 2000))
       }
-      res = await workspace.syncBillingPaymentStatus(activeInvoice.value.id, midtransOrderId)
+      res = await workspace.syncBillingPaymentStatus(
+        activeInvoice.value.id,
+        midtransOrderId,
+        expectSettled ? 'settlement' : ''
+      )
       if (res?.transaction) activeInvoice.value = res.transaction
       if (res?.transaction?.status === 'Paid' || res?.subscription?.is_active) break
     }

@@ -78,7 +78,11 @@ onMounted(async () => {
         let syncRes = null
         for (let attempt = 0; attempt < maxAttempts; attempt++) {
           if (attempt > 0) await new Promise((r) => setTimeout(r, attempt === 1 ? 1500 : 2000))
-          syncRes = await store.syncOrderPaymentStatus(redirectOrderRef, redirectOrderRef)
+          syncRes = await store.syncOrderPaymentStatus(
+            redirectOrderRef,
+            redirectOrderRef,
+            redirectSettled ? 'settlement' : ''
+          )
           if (syncRes?.payment_state === 'settled' || syncRes?.order?.order_status === 'Confirmed') break
         }
         if (syncRes?.order) {
@@ -295,7 +299,11 @@ async function syncCompletedOrderStatus({ silent = false, midtransOrderId = '', 
       if (attempt > 0) {
         await new Promise((r) => setTimeout(r, attempt === 1 ? 1500 : 2000))
       }
-      syncRes = await store.syncOrderPaymentStatus(completedOrder.value.orderId, midtransOrderId)
+      syncRes = await store.syncOrderPaymentStatus(
+        completedOrder.value.orderId,
+        midtransOrderId,
+        expectSettled ? 'settlement' : ''
+      )
       if (syncRes?.payment_state === 'settled' || syncRes?.order?.order_status === 'Confirmed') break
     }
     if (syncRes?.order) {

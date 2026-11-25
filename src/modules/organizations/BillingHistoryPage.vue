@@ -227,7 +227,7 @@ async function handleSyncTx(txId, { silent = false, midtransOrderId = '', expect
       if (attempt > 0) {
         await new Promise((r) => setTimeout(r, attempt === 1 ? 1500 : 2000))
       }
-      res = await store.syncBillingPaymentStatus(txId, midtransOrderId)
+      res = await store.syncBillingPaymentStatus(txId, midtransOrderId, expectSettled ? 'settlement' : '')
       if (res?.transaction?.status === 'Paid' || res?.subscription?.is_active) break
     }
     const refreshed = await store.fetchOrganizerBillingHistory().catch(() => null)

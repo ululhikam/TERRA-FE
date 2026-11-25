@@ -234,7 +234,7 @@ async function handleSyncOrder(orderId, { silent = false, midtransOrderId = '', 
       if (attempt > 0) {
         await new Promise((r) => setTimeout(r, attempt === 1 ? 1500 : 2000))
       }
-      res = await workspace.syncOrderPaymentStatus(orderId, midtransOrderId)
+      res = await workspace.syncOrderPaymentStatus(orderId, midtransOrderId, expectSettled ? 'settlement' : '')
       if (res?.payment_state === 'settled' || res?.order?.order_status === 'Confirmed') break
     }
     await workspace.fetchMyTickets().catch(() => {})

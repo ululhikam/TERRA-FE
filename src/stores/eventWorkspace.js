@@ -1112,9 +1112,12 @@ export const useEventWorkspaceStore = defineStore('eventWorkspace', () => {
     return res?.data || null
   }
 
-  async function syncOrderPaymentStatus(orderId, midtransOrderId = '') {
-    const payload = midtransOrderId ? { midtrans_order_id: midtransOrderId } : {}
-    const res = await api.post(`/payments/orders/${orderId}/sync`, payload)
+  async function syncOrderPaymentStatus(orderId, midtransOrderId = '', transactionStatus = '') {
+    const payload = {
+      ...(midtransOrderId ? { midtrans_order_id: midtransOrderId } : {}),
+      ...(transactionStatus ? { transaction_status: transactionStatus } : {})
+    }
+    const res = await api.post(`/payments/orders/${encodeURIComponent(orderId)}/sync`, payload)
     const data = res?.data || null
     if (data?.order) {
       upsertListItem(myOrders, data.order)
@@ -1131,9 +1134,12 @@ export const useEventWorkspaceStore = defineStore('eventWorkspace', () => {
     return res?.data || null
   }
 
-  async function syncBillingPaymentStatus(txId, midtransOrderId = '') {
-    const payload = midtransOrderId ? { midtrans_order_id: midtransOrderId } : {}
-    const res = await api.post(`/payments/billing/${txId}/sync`, payload)
+  async function syncBillingPaymentStatus(txId, midtransOrderId = '', transactionStatus = '') {
+    const payload = {
+      ...(midtransOrderId ? { midtrans_order_id: midtransOrderId } : {}),
+      ...(transactionStatus ? { transaction_status: transactionStatus } : {})
+    }
+    const res = await api.post(`/payments/billing/${encodeURIComponent(txId)}/sync`, payload)
     return res?.data || null
   }
 

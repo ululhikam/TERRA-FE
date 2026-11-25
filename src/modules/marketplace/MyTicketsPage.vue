@@ -83,7 +83,7 @@ async function syncOrder(orderId, { silent = false, midtransOrderId = '', expect
     let res = null
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       if (attempt > 0) await new Promise((r) => setTimeout(r, attempt === 1 ? 1500 : 2000))
-      res = await store.syncOrderPaymentStatus(orderId, midtransOrderId)
+      res = await store.syncOrderPaymentStatus(orderId, midtransOrderId, expectSettled ? 'settlement' : '')
       if (res?.payment_state === 'settled' || res?.order?.order_status === 'Confirmed') break
     }
     await store.fetchMyTickets().catch(() => {})
