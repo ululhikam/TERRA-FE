@@ -4,18 +4,24 @@ import api from '@/services/api'
 
 export const useAuthStore = defineStore('auth', () => {
   let initialUser = null
+  const initialToken = localStorage.getItem('terra_access_token') || ''
   try {
     const savedUser = localStorage.getItem('terra_user')
-    if (savedUser) initialUser = JSON.parse(savedUser)
+    if (savedUser && initialToken) {
+      initialUser = JSON.parse(savedUser)
+    } else if (savedUser && !initialToken) {
+      localStorage.removeItem('terra_user')
+    }
   } catch {
     localStorage.removeItem('terra_user')
   }
   const user = ref(initialUser)
+  const accessToken = ref(initialToken)
 
-  const isAuthenticated = computed(() => Boolean(user.value))
-  const isAdmin = computed(() => user.value?.role === 'admin')
-  const isOrganizer = computed(() => user.value?.role === 'organizer')
-  const isCustomer = computed(() => user.value?.role === 'customer')
+  const isAuthenticated = computed(() => Boolean(user.value && accessToken.value))
+  const isAdmin = computed(() => isAuthenticated.value && user.value?.role === 'admin')
+  const isOrganizer = computed(() => isAuthenticated.value && user.value?.role === 'organizer')
+  const isCustomer = computed(() => isAuthenticated.value && user.value?.role === 'customer')
   const hasActiveSubscription = computed(() => {
     if (!user.value) return false
     if (user.value.role !== 'organizer') return true
@@ -31,6 +37,7 @@ export const useAuthStore = defineStore('auth', () => {
     user.value = nextUser
     localStorage.setItem('terra_user', JSON.stringify(nextUser))
     if (token) {
+      accessToken.value = token
       localStorage.setItem('terra_access_token', token)
     }
   }
@@ -185,9 +192,11 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function loginWithToken(token) {
     if (!token) throw new Error('Token OAuth tidak ditemukan.')
+    accessToken.value = token
     localStorage.setItem('terra_access_token', token)
     const me = await fetchCurrentUser()
     if (!me) {
+      accessToken.value = ''
       localStorage.removeItem('terra_access_token')
       throw new Error('Gagal memuat profil akun Google.')
     }
@@ -221,6 +230,7 @@ export const useAuthStore = defineStore('auth', () => {
       // Ignore network errors on stateless logout
     }
     user.value = null
+    accessToken.value = ''
     localStorage.removeItem('terra_user')
     localStorage.removeItem('terra_access_token')
     localStorage.removeItem('terra_demo_token')
