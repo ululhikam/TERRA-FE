@@ -191,9 +191,13 @@ export function createCameraQrScanner(
     instance = new Html5Qrcode(elementId)
     active = true
     try {
+      const scanConfig = { fps }
+      if (qrbox) {
+        scanConfig.qrbox = typeof qrbox === 'number' ? { width: qrbox, height: qrbox } : qrbox
+      }
       await instance.start(
         cameraConfig,
-        { fps, qrbox: typeof qrbox === 'number' ? { width: qrbox, height: qrbox } : qrbox },
+        scanConfig,
         handleDecoded,
         () => {}
       )
