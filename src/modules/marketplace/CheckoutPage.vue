@@ -56,9 +56,21 @@ onMounted(async () => {
   loadingEvent.value = true
   try {
     await store.fetchEventPublic(route.params.eventSlug).catch(() => {})
-    const redirectOrderRef = String(route.query.order_id || '').trim()
+    const rawOrderQuery =
+      route.query.order_id ?? route.query.order_ref ?? ''
+    const resolvedOrderParam = Array.isArray(rawOrderQuery)
+      ? rawOrderQuery[rawOrderQuery.length - 1]
+      : rawOrderQuery
+    const redirectOrderRef = String(resolvedOrderParam || '')
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean)
+      .pop() || ''
+    const rawTxStatus = Array.isArray(route.query.transaction_status)
+      ? route.query.transaction_status[route.query.transaction_status.length - 1]
+      : route.query.transaction_status
     const redirectSettled = ['settlement', 'capture'].includes(
-      String(route.query.transaction_status || '').toLowerCase()
+      String(rawTxStatus || '').toLowerCase()
     )
     if (redirectOrderRef && authStore.isAuthenticated) {
       try {

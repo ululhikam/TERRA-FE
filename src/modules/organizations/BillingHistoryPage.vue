@@ -65,10 +65,29 @@ async function loadAll() {
     if (catRes?.data?.plans?.[0]) plan.value = catRes.data.plans[0]
     if (histRes) history.value = histRes
 
-    const redirectInvoice = String(route.query.invoice || '').trim()
-    const redirectOrderId = String(route.query.order_id || '').trim()
+    const rawInvoice = Array.isArray(route.query.invoice)
+      ? route.query.invoice[route.query.invoice.length - 1]
+      : route.query.invoice
+    const redirectInvoice =
+      String(rawInvoice || '')
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean)
+        .pop() || ''
+    const rawOrderId = Array.isArray(route.query.order_id)
+      ? route.query.order_id[route.query.order_id.length - 1]
+      : route.query.order_id
+    const redirectOrderId =
+      String(rawOrderId || '')
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean)
+        .pop() || ''
+    const rawTxStatus = Array.isArray(route.query.transaction_status)
+      ? route.query.transaction_status[route.query.transaction_status.length - 1]
+      : route.query.transaction_status
     const redirectSettled = ['settlement', 'capture'].includes(
-      String(route.query.transaction_status || '').toLowerCase()
+      String(rawTxStatus || '').toLowerCase()
     )
     const targetTx =
       (redirectInvoice &&
