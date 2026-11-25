@@ -268,7 +268,7 @@ async function handleSyncTx(txId, { silent = false, midtransOrderId = '', expect
         </span>
         <h1 class="text-3xl font-bold text-black font-sans">Pricing &amp; Langganan Bulanan</h1>
         <p class="text-xs text-slate-600">
-          Harga &amp; paket yang sama persis dengan halaman Pricing publik: 1 paket all-access via Midtrans tanpa biaya tersembunyi.
+          Harga &amp; paket yang sama persis dengan halaman Pricing publik: 1 paket all-access via Midtrans dengan sinkronisasi status otomatis.
         </p>
       </div>
       <span
