@@ -31,6 +31,30 @@ onMounted(async () => {
     if (!event.value || !event.value.ticket_types?.length) {
       await store.fetchEventPublic(route.params.eventSlug)
     }
+    const redirectOrderRef = String(route.query.order_id || '').trim()
+    if (redirectOrderRef && authStore.isAuthenticated) {
+      try {
+        const syncRes = await store.syncOrderPaymentStatus(redirectOrderRef)
+        if (syncRes?.order) {
+          completedOrder.value = {
+            orderId: syncRes.order.id,
+            orderNumber: syncRes.order.order_number,
+            total: syncRes.order.total,
+            orderStatus: syncRes.order.order_status,
+            paymentStatus: syncRes.order.payment_status,
+            order: syncRes.order,
+            tickets: syncRes.tickets || [],
+            emailStatus: syncRes.email_status || null,
+            emailNotification: syncRes.email_status || null
+          }
+          if (syncRes?.payment_state === 'settled' || syncRes?.order?.order_status === 'Confirmed') {
+            toast.success('Pembayaran terkonfirmasi! E-Tiket QR kini aktif dan dikirim ke email Anda.')
+          }
+        }
+      } catch {
+        // Ignore if unauthenticated or order belongs to another account
+      }
+    }
   } catch {
     // Handled by empty state below
   } finally {
@@ -200,11 +224,19 @@ async function confirmOrder() {
   }
 }
 
-async function syncCompletedOrderStatus({ silent = false } = {}) {
+async function syncCompletedOrderStatus({ silent = false, midtransOrderId = '', expectSettled = false } = {}) {
   if (!completedOrder.value?.orderId) return
   syncingPayment.value = true
   try {
-    const syncRes = await store.syncOrderPaymentStatus(completedOrder.value.orderId)
+    const maxAttempts = expectSettled ? 3 : 1
+    let syncRes = null
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      if (attempt > 0) {
+        await new Promise((r) => setTimeout(r, attempt === 1 ? 1500 : 2000))
+      }
+      syncRes = await store.syncOrderPaymentStatus(completedOrder.value.orderId, midtransOrderId)
+      if (syncRes?.payment_state === 'settled' || syncRes?.order?.order_status === 'Confirmed') break
+    }
     if (syncRes?.order) {
       completedOrder.value = {
         ...completedOrder.value,
@@ -246,7 +278,11 @@ async function launchMidtransPayment(initialPayment = null, { forceNew = false }
       clientKey: session.client_key,
       snapJsUrl: session.snap_js_url
     })
-    await syncCompletedOrderStatus({ silent: snapResult.status === 'closed' })
+    await syncCompletedOrderStatus({
+      silent: snapResult.status === 'closed',
+      midtransOrderId: snapResult?.result?.order_id || session.midtrans_order_id || '',
+      expectSettled: snapResult.status === 'success'
+    })
   } catch (err) {
     toast.error(err?.message || 'Gagal membuka pembayaran Midtrans.')
   } finally {

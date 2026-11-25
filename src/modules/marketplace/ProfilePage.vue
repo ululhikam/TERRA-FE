@@ -146,7 +146,11 @@ async function handlePayOrder(order, { forceNew = false } = {}) {
       clientKey: session.client_key,
       snapJsUrl: session.snap_js_url
     })
-    await handleSyncOrder(order.id, { silent: snapRes.status === 'closed' })
+    await handleSyncOrder(order.id, {
+      silent: snapRes.status === 'closed',
+      midtransOrderId: snapRes?.result?.order_id || session.midtrans_order_id || '',
+      expectSettled: snapRes.status === 'success'
+    })
   } catch (err) {
     toast.error(err?.message || 'Gagal membuka pembayaran Midtrans.')
   } finally {
@@ -154,10 +158,18 @@ async function handlePayOrder(order, { forceNew = false } = {}) {
   }
 }
 
-async function handleSyncOrder(orderId, { silent = false } = {}) {
+async function handleSyncOrder(orderId, { silent = false, midtransOrderId = '', expectSettled = false } = {}) {
   syncingOrderId.value = orderId
   try {
-    const res = await workspace.syncOrderPaymentStatus(orderId)
+    const maxAttempts = expectSettled ? 3 : 1
+    let res = null
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      if (attempt > 0) {
+        await new Promise((r) => setTimeout(r, attempt === 1 ? 1500 : 2000))
+      }
+      res = await workspace.syncOrderPaymentStatus(orderId, midtransOrderId)
+      if (res?.payment_state === 'settled' || res?.order?.order_status === 'Confirmed') break
+    }
     await workspace.fetchMyTickets().catch(() => {})
     if (!silent) {
       if (res?.payment_state === 'settled' || res?.order?.order_status === 'Confirmed') {

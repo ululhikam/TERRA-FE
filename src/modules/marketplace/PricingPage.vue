@@ -84,7 +84,10 @@ onMounted(async () => {
       await authStore.fetchCurrentUser().catch(() => {})
       const hist = await workspace.fetchOrganizerBillingHistory().catch(() => null)
       const pendingTx = (hist?.transactions || []).find((t) => t.status === 'Pending')
-      if (pendingTx) activeInvoice.value = pendingTx
+      if (pendingTx) {
+        activeInvoice.value = pendingTx
+        await syncInvoiceStatus({ silent: true })
+      }
     }
   } finally {
     loading.value = false
@@ -114,7 +117,11 @@ async function openSnapSession(tx, { forceNew = false, initialPayment = null } =
       clientKey: session.client_key,
       snapJsUrl: session.snap_js_url
     })
-    await syncInvoiceStatus({ silent: snapRes.status === 'closed' })
+    await syncInvoiceStatus({
+      silent: snapRes.status === 'closed',
+      midtransOrderId: snapRes?.result?.order_id || session.midtrans_order_id || '',
+      expectSettled: snapRes.status === 'success'
+    })
   } catch (err) {
     toast.error(err?.message || 'Gagal membuka jendela Midtrans Snap.')
   } finally {
@@ -144,12 +151,20 @@ async function handleSubscribe() {
   }
 }
 
-async function syncInvoiceStatus({ silent = false } = {}) {
+async function syncInvoiceStatus({ silent = false, midtransOrderId = '', expectSettled = false } = {}) {
   if (!activeInvoice.value?.id) return
   syncingSnap.value = true
   try {
-    const res = await workspace.syncBillingPaymentStatus(activeInvoice.value.id)
-    if (res?.transaction) activeInvoice.value = res.transaction
+    const maxAttempts = expectSettled ? 3 : 1
+    let res = null
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      if (attempt > 0) {
+        await new Promise((r) => setTimeout(r, attempt === 1 ? 1500 : 2000))
+      }
+      res = await workspace.syncBillingPaymentStatus(activeInvoice.value.id, midtransOrderId)
+      if (res?.transaction) activeInvoice.value = res.transaction
+      if (res?.transaction?.status === 'Paid' || res?.subscription?.is_active) break
+    }
     if (res?.transaction?.status === 'Paid' || res?.subscription?.is_active) {
       await authStore.fetchCurrentUser().catch(() => {})
       toast.success('Pembayaran berhasil! Seluruh fitur TERRA Studio kini aktif 30 hari.')

@@ -64,6 +64,24 @@ async function loadAll() {
     ])
     if (catRes?.data?.plans?.[0]) plan.value = catRes.data.plans[0]
     if (histRes) history.value = histRes
+
+    const redirectInvoice = String(route.query.invoice || '').trim()
+    const redirectOrderId = String(route.query.order_id || '').trim()
+    const redirectSettled = ['settlement', 'capture'].includes(
+      String(route.query.transaction_status || '').toLowerCase()
+    )
+    const targetTx =
+      (redirectInvoice &&
+        (history.value?.transactions || []).find((t) => t.invoice_number === redirectInvoice || t.id === redirectInvoice)) ||
+      pendingInvoice.value
+
+    if (targetTx && targetTx.status !== 'Paid' && Number(targetTx.final_amount_idr || 0) > 0) {
+      await handleSyncTx(targetTx.id, {
+        silent: !redirectInvoice && !redirectSettled,
+        midtransOrderId: redirectOrderId,
+        expectSettled: redirectSettled
+      })
+    }
   } finally {
     loading.value = false
   }
@@ -114,7 +132,11 @@ async function handlePayTx(tx, { forceNew = false, initialPayment = null } = {})
       clientKey: session.client_key,
       snapJsUrl: session.snap_js_url
     })
-    await handleSyncTx(tx.id, { silent: snapRes.status === 'closed' })
+    await handleSyncTx(tx.id, {
+      silent: snapRes.status === 'closed',
+      midtransOrderId: snapRes?.result?.order_id || session.midtrans_order_id || '',
+      expectSettled: snapRes.status === 'success'
+    })
   } catch (err) {
     toast.error(err?.message || 'Gagal membuka Midtrans Snap.')
   } finally {
@@ -123,11 +145,19 @@ async function handlePayTx(tx, { forceNew = false, initialPayment = null } = {})
   }
 }
 
-async function handleSyncTx(txId, { silent = false } = {}) {
+async function handleSyncTx(txId, { silent = false, midtransOrderId = '', expectSettled = false } = {}) {
   syncingTxId.value = txId
   try {
     const wasLocked = !authStore.hasActiveSubscription
-    const res = await store.syncBillingPaymentStatus(txId)
+    const maxAttempts = expectSettled ? 3 : 1
+    let res = null
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      if (attempt > 0) {
+        await new Promise((r) => setTimeout(r, attempt === 1 ? 1500 : 2000))
+      }
+      res = await store.syncBillingPaymentStatus(txId, midtransOrderId)
+      if (res?.transaction?.status === 'Paid' || res?.subscription?.is_active) break
+    }
     const refreshed = await store.fetchOrganizerBillingHistory().catch(() => null)
     if (refreshed) history.value = refreshed
 
