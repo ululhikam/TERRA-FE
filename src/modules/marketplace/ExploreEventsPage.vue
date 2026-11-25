@@ -32,7 +32,12 @@ import {
   Ticket,
   ShieldCheck,
   ArrowRight,
-  Star
+  Star,
+  Film,
+  Zap,
+  Smile,
+  Newspaper,
+  Layers
 } from 'lucide-vue-next'
 
 const FALLBACK_POSTER =
@@ -42,7 +47,7 @@ const route = useRoute()
 const authStore = useAuthStore()
 const store = useEventWorkspaceStore()
 
-// ---------------- FILTER & SEARCH STATE (PRESERVED) ----------------
+// ---------------- FILTER & SEARCH STATE (100% PRESERVED) ----------------
 const search = ref(String(route.query.q || ''))
 const selectedCategory = ref(String(route.query.category || ''))
 const selectedFormat = ref(String(route.query.format || ''))
@@ -348,7 +353,7 @@ function startHeroTimer() {
     if (!heroPaused.value && heroSlides.value.length > 1) {
       nextSlide()
     }
-  }, 5500)
+  }, 5000)
 }
 
 function stopHeroTimer() {
@@ -385,8 +390,8 @@ const learningEvents = computed(() => {
   return (matched.length ? matched : allDiscoveryEvents.value).slice(0, 4)
 })
 
-// ---------------- TERRA2GO SCHEDULE WIDGET ----------------
-const scheduleTab = ref('this_week')
+// ---------------- EVENT2GO SCHEDULE WIDGET ----------------
+const scheduleTab = ref('all')
 
 function parseEventDate(evt) {
   const raw = evt?.start_at || evt?.start_date
@@ -397,6 +402,7 @@ function parseEventDate(evt) {
 
 const scheduleEventsByTab = computed(() => {
   const now = new Date()
+  const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59)
   const weekEnd = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
   const monthEnd = new Date(now.getTime() + 31 * 24 * 60 * 60 * 1000)
 
@@ -406,6 +412,10 @@ const scheduleEventsByTab = computed(() => {
     return da - db
   })
 
+  const todayList = sorted.filter((e) => {
+    const d = parseEventDate(e)
+    return d && d >= now && d <= todayEnd
+  })
   const thisWeek = sorted.filter((e) => {
     const d = parseEventDate(e)
     return d && d >= now && d <= weekEnd
@@ -416,33 +426,26 @@ const scheduleEventsByTab = computed(() => {
   })
 
   return {
-    this_week: thisWeek.slice(0, 4),
-    this_month: thisMonth.slice(0, 4),
-    upcoming_all: sorted.slice(0, 4)
+    all: sorted.slice(0, 4),
+    today: (todayList.length ? todayList : sorted).slice(0, 4),
+    this_week: (thisWeek.length ? thisWeek : sorted).slice(0, 4),
+    this_month: (thisMonth.length ? thisMonth : sorted).slice(0, 4)
   }
 })
 
 function ensureValidScheduleTab() {
-  const buckets = scheduleEventsByTab.value
-  if (buckets.this_week.length > 0) {
-    scheduleTab.value = 'this_week'
-  } else if (buckets.this_month.length > 0) {
-    scheduleTab.value = 'this_month'
-  } else {
-    scheduleTab.value = 'upcoming_all'
-  }
+  scheduleTab.value = 'all'
 }
 
 const activeScheduleEvents = computed(() => {
   const buckets = scheduleEventsByTab.value
-  const list = buckets[scheduleTab.value] || []
-  return list.length ? list : buckets.upcoming_all
+  return buckets[scheduleTab.value] || buckets.all
 })
 
 function getCalendarParts(dateStr) {
   const d = dateStr ? new Date(dateStr) : null
   if (!d || Number.isNaN(d.getTime())) {
-    return { month: 'TBD', day: '--', weekday: '' }
+    return { month: 'TBD', day: '--' }
   }
   try {
     const month = new Intl.DateTimeFormat('id-ID', { month: 'short' })
@@ -450,94 +453,74 @@ function getCalendarParts(dateStr) {
       .toUpperCase()
       .replace('.', '')
     const day = new Intl.DateTimeFormat('id-ID', { day: '2-digit' }).format(d)
-    const weekday = new Intl.DateTimeFormat('id-ID', { weekday: 'short' }).format(d)
-    return { month, day, weekday }
+    return { month, day }
   } catch {
-    return { month: 'EVT', day: String(d.getDate()), weekday: '' }
+    return { month: 'EVT', day: String(d.getDate()) }
   }
 }
 
-function viewScheduleRange() {
-  const today = new Date()
-  const isoDay = (d) => d.toISOString().slice(0, 10)
-  if (scheduleTab.value === 'this_week') {
-    const end = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000)
-    applyQuickFilter({ resetFirst: true, date_from: isoDay(today), date_to: isoDay(end), showAll: true })
-  } else if (scheduleTab.value === 'this_month') {
-    const end = new Date(today.getTime() + 31 * 24 * 60 * 60 * 1000)
-    applyQuickFilter({ resetFirst: true, date_from: isoDay(today), date_to: isoDay(end), showAll: true })
-  } else {
-    applyQuickFilter({ resetFirst: true, sort: 'upcoming', showAll: true })
+// ---------------- CATEGORY ICONS (EXACT LOKET APPLIKE ROW) ----------------
+const loketCategories = [
+  {
+    label: 'Konser & Festival',
+    categoryName: 'Musik & Konser',
+    icon: Music,
+    gradient: 'from-amber-400 to-orange-500'
+  },
+  {
+    label: 'Seminar & Talkshow',
+    categoryName: 'Workshop & Edukasi',
+    icon: Users,
+    gradient: 'from-pink-400 to-rose-500'
+  },
+  {
+    label: 'Exhibition & Expo',
+    categoryName: 'Bisnis & Karir',
+    icon: Tag,
+    gradient: 'from-orange-400 to-amber-500'
+  },
+  {
+    label: 'Teater & Seni',
+    categoryName: 'Seni & Desain',
+    icon: Palette,
+    gradient: 'from-purple-500 to-indigo-600'
+  },
+  {
+    label: 'Olahraga & Lari',
+    categoryName: 'Komunitas & Sosial',
+    icon: Zap,
+    gradient: 'from-yellow-400 to-amber-500'
+  },
+  {
+    label: 'Workshop & Kelas',
+    categoryName: 'Workshop & Edukasi',
+    icon: BookOpen,
+    gradient: 'from-sky-400 to-blue-600'
+  },
+  {
+    label: 'Online & Webinar',
+    categoryName: '',
+    format: 'online',
+    icon: Globe,
+    gradient: 'from-blue-500 to-indigo-700'
+  },
+  {
+    label: 'Atraksi & Wisata',
+    categoryName: 'Komunitas & Sosial',
+    icon: Smile,
+    gradient: 'from-rose-400 to-pink-600'
+  },
+  {
+    label: 'Semua Kategori',
+    categoryName: '',
+    showAll: true,
+    icon: Compass,
+    gradient: 'from-orange-500 to-red-500'
   }
-}
+]
 
-// ---------------- CATEGORY ICON SHORTCUTS ----------------
-function resolveCategoryMeta(catName = '') {
-  const lower = String(catName).toLowerCase()
-  if (lower.includes('musik') || lower.includes('konser')) {
-    return { icon: Music, bg: 'bg-rose-50 border-rose-200 text-rose-600' }
-  }
-  if (lower.includes('teknologi') || lower.includes('startup')) {
-    return { icon: Cpu, bg: 'bg-sky-50 border-sky-200 text-sky-600' }
-  }
-  if (lower.includes('workshop') || lower.includes('edukasi')) {
-    return { icon: BookOpen, bg: 'bg-amber-50 border-amber-200 text-amber-600' }
-  }
-  if (lower.includes('bisnis') || lower.includes('karir')) {
-    return { icon: Briefcase, bg: 'bg-indigo-50 border-indigo-200 text-indigo-600' }
-  }
-  if (lower.includes('komunitas') || lower.includes('sosial')) {
-    return { icon: Users, bg: 'bg-emerald-50 border-emerald-200 text-emerald-600' }
-  }
-  if (lower.includes('seni') || lower.includes('desain')) {
-    return { icon: Palette, bg: 'bg-fuchsia-50 border-fuchsia-200 text-fuchsia-600' }
-  }
-  return { icon: Sparkles, bg: 'bg-blue-50 border-blue-200 text-[#1e5cb3]' }
-}
-
-const categoryShortcuts = computed(() => {
-  const base = [
-    {
-      key: 'all',
-      label: 'Semua Event',
-      icon: Compass,
-      bg: 'bg-[#72a5e4]/20 border-[#72a5e4]/50 text-[#0f172a]',
-      action: () => applyQuickFilter({ resetFirst: true, showAll: true })
-    }
-  ]
-
-  for (const c of store.categories || []) {
-    const meta = resolveCategoryMeta(c.name)
-    base.push({
-      key: `cat-${c.id || c.name}`,
-      label: c.name,
-      icon: meta.icon,
-      bg: meta.bg,
-      action: () => applyQuickFilter({ resetFirst: true, category: c.name })
-    })
-  }
-
-  base.push(
-    {
-      key: 'free',
-      label: 'Tiket Gratis',
-      icon: Tag,
-      bg: 'bg-emerald-50 border-emerald-200 text-emerald-700',
-      action: () => applyQuickFilter({ resetFirst: true, price_type: 'free' })
-    },
-    {
-      key: 'online',
-      label: 'Event Online',
-      icon: Globe,
-      bg: 'bg-violet-50 border-violet-200 text-violet-700',
-      action: () => applyQuickFilter({ resetFirst: true, format: 'online' })
-    }
-  )
-  return base
-})
-
-// ---------------- SPOTLIGHT, KONSER, KOMUNITAS ----------------
-const spotlightEvents = computed(() => {
+// ---------------- LOKÉT SCREEN (SPOTLIGHT 3 POSTERS + 1 BLUE CARD) ----------------
+const screenPosters = computed(() => {
   const merged = [...featuredList.value, ...allDiscoveryEvents.value]
   const seen = new Set()
   const out = []
@@ -550,10 +533,6 @@ const spotlightEvents = computed(() => {
   return out
 })
 
-const studioCreateRoute = computed(() =>
-  authStore.isOrganizer ? '/dashboard/events/create' : '/organizer/register'
-)
-
 const concertEvents = computed(() => {
   const matched = allDiscoveryEvents.value.filter((e) =>
     /musik|konser|seni|desain|festival|demafest/i.test(`${e.category || ''} ${e.title || ''}`)
@@ -561,21 +540,25 @@ const concertEvents = computed(() => {
   return (matched.length ? matched : allDiscoveryEvents.value).slice(0, 4)
 })
 
-const communityEvents = computed(() => {
+const attractionEvents = computed(() => {
   const matched = allDiscoveryEvents.value.filter((e) =>
-    /komunitas|sosial|kampus|bisnis|karir|expo/i.test(`${e.category || ''} ${e.title || ''}`)
+    /atraksi|hiburan|wisata|game|expo|komunitas/i.test(`${e.category || ''} ${e.title || ''}`)
   )
   if (matched.length >= 2) return matched.slice(0, 4)
-  return allDiscoveryEvents.value.slice(0, 4)
+  return allDiscoveryEvents.value.slice(1, 5)
 })
 
-// ---------------- KOTA EXPLORATION CARDS ----------------
+const hypeEvents = computed(() => {
+  return allDiscoveryEvents.value.slice(2, 6)
+})
+
+// ---------------- CITY CARDS (WITH LANDMARK ILLUSTRATIONS) ----------------
 const cityConfig = [
   { label: 'DKI Jakarta', query: 'Jakarta', landmark: 'monas' },
-  { label: 'Yogyakarta', query: 'Yogyakarta', landmark: 'tugu' },
+  { label: 'Kota Yogyakarta', query: 'Yogyakarta', landmark: 'tugu' },
   { label: 'Bandung', query: 'Bandung', landmark: 'sate' },
-  { label: 'Surabaya', query: 'Surabaya', landmark: 'sura' },
-  { label: 'Bali & Online', query: 'Bali', landmark: 'bali' }
+  { label: 'Kota Surabaya', query: 'Surabaya', landmark: 'sura' },
+  { label: 'Kuala Lumpur', query: 'Bali', landmark: 'kl' }
 ]
 
 const cityCards = computed(() =>
@@ -588,225 +571,119 @@ const cityCards = computed(() =>
   })
 )
 
-// ---------------- VERIFIED ORGANIZERS ("ORGANIZER PILIHAN") ----------------
-const organizerSplitThemes = [
-  'bg-[#5293dc] text-white',
-  'bg-[#0f172a] text-white',
-  'bg-[#f5b82e] text-slate-950'
+// ---------------- BACAAN SERU! (EDITORIAL CARDS) ----------------
+const blogCards = [
+  {
+    badge: 'PROMO',
+    headline: 'Harga Spesial — Diskon Tiket Early Bird Hingga 75% di TERRA Deals!',
+    bg: 'bg-[#152955] text-white',
+    img: 'https://images.unsplash.com/photo-1501386761578-eac5c94b800a?w=600&q=80',
+    title: 'Tips Berburu Tiket Konser Murah & Aman di Platform TERRA',
+    link: '/pricing'
+  },
+  {
+    badge: 'TIPS',
+    headline: 'Panduan Praktis Nonton Konser & Festival Musik Tahun 2026',
+    bg: 'bg-[#1e5cb3] text-white',
+    img: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&q=80',
+    title: 'Barang Wajib Bawa & Aturan Fast-Lane QR Code di Gate',
+    link: '/events'
+  },
+  {
+    badge: 'STUDIO',
+    headline: 'Ingin Buat Event Sendiri? Aktifkan 13 Modul Kepanitiaan Gratis!',
+    bg: 'bg-[#f59e0b] text-slate-950',
+    img: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=600&q=80',
+    title: 'Solusi Lengkap Manajemen Tiket, Finansial RAB & Gate Scanner EO',
+    link: '/pricing'
+  }
 ]
-
-const verifiedOrganizers = computed(() => {
-  const verifiedFirst = [...(store.organizations || [])].sort(
-    (a, b) =>
-      Number(b.verification_status === 'verified') - Number(a.verification_status === 'verified')
-  )
-  return verifiedFirst.slice(0, 3)
-})
 </script>
 
 <template>
-  <div class="bg-[#fafaf9] min-h-screen">
+  <div class="bg-white min-h-screen text-slate-900 pb-16">
     <!-- =================================================================== -->
-    <!-- 1. FULL-BLEED HERO BANNER CAROUSEL                                  -->
+    <!-- 1. SLIM CLEAN SEARCH & FILTER BAR (TOP OF PAGE)                     -->
     <!-- =================================================================== -->
-    <section
-      class="relative w-full bg-[#0b1220] overflow-hidden"
-      @mouseenter="heroPaused = true"
-      @mouseleave="heroPaused = false"
-    >
-      <!-- Ambient Blurred Slide Backdrop -->
-      <img
-        v-if="currentHeroSlide"
-        :src="currentHeroSlide.banner_url || currentHeroSlide.poster_url || FALLBACK_POSTER"
-        alt=""
-        aria-hidden="true"
-        class="pointer-events-none absolute inset-0 w-full h-full object-cover opacity-30 blur-2xl scale-110 transition-all duration-700"
-      />
-      <div class="pointer-events-none absolute inset-0 bg-gradient-to-b from-[#0b1220]/70 via-[#0b1220]/55 to-[#0b1220]/90" />
-
-      <div class="relative z-10 mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 pt-5 pb-12 sm:pt-7 sm:pb-14">
-        <!-- Main Banner Frame -->
-        <div
-          v-if="currentHeroSlide"
-          class="relative h-[230px] sm:h-[310px] lg:h-[355px] w-full rounded-2xl sm:rounded-3xl overflow-hidden border border-white/15 bg-slate-900 shadow-[0_24px_50px_-14px_rgba(0,0,0,0.65)] group"
-        >
-          <img
-            :src="currentHeroSlide.banner_url || currentHeroSlide.poster_url || FALLBACK_POSTER"
-            :alt="currentHeroSlide.title"
-            class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-[1.02]"
-          />
-          <div class="absolute inset-0 bg-gradient-to-r from-[#090f1d]/95 via-[#090f1d]/65 to-transparent" />
-          <div class="absolute inset-0 bg-gradient-to-t from-[#090f1d]/90 via-transparent to-transparent" />
-
-          <!-- Hero Text & CTA Overlay -->
-          <div class="absolute inset-0 flex flex-col justify-between p-5 sm:p-8 lg:p-10 max-w-2xl">
-            <div class="flex flex-wrap items-center gap-2">
-              <span class="inline-flex items-center gap-1.5 rounded-full bg-[#72a5e4] px-3 py-1 text-[10px] sm:text-xs font-extrabold uppercase tracking-wide text-slate-950">
-                <Sparkles class="h-3 w-3" />
-                {{ currentHeroSlide.is_featured ? 'Spotlight Event' : currentHeroSlide.category || 'TERRA Marketplace' }}
-              </span>
-              <span class="rounded-full bg-white/15 backdrop-blur-xs border border-white/20 px-3 py-1 text-[10px] sm:text-xs font-semibold text-white capitalize">
-                {{ currentHeroSlide.location_type || 'offline' }}
-              </span>
-            </div>
-
-            <div class="space-y-2.5 sm:space-y-3.5">
-              <p class="text-[11px] sm:text-xs font-medium text-sky-200 flex flex-wrap items-center gap-2">
-                <span>{{ formatDate(currentHeroSlide.start_date || currentHeroSlide.start_at) }}</span>
-                <span>•</span>
-                <span class="truncate">{{ currentHeroSlide.location_name || 'Online Event' }}</span>
-              </p>
-              <h1 class="text-xl sm:text-3xl lg:text-4xl font-extrabold tracking-tight text-white leading-tight line-clamp-2">
-                {{ currentHeroSlide.title }}
-              </h1>
-              <div class="flex flex-wrap items-center gap-3 pt-1">
-                <RouterLink
-                  :to="`/events/${currentHeroSlide.slug || currentHeroSlide.id}`"
-                  class="inline-flex items-center gap-2 rounded-full bg-[#72a5e4] hover:bg-[#8ab6eb] px-4 sm:px-6 py-2 sm:py-2.5 text-xs sm:text-sm font-extrabold text-slate-950 shadow-lg transition-colors"
-                >
-                  <span>Dapatkan Tiket</span>
-                  <ArrowRight class="h-4 w-4" />
-                </RouterLink>
-                <span class="rounded-full bg-white/10 backdrop-blur-xs border border-white/20 px-3.5 py-2 text-xs font-bold text-white">
-                  Mulai {{ getPriceDisplay(currentHeroSlide) }}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Left / Right Carousel Arrows -->
-          <button
-            v-if="heroSlides.length > 1"
-            type="button"
-            @click="prevSlide"
-            aria-label="Slide sebelumnya"
-            class="hidden sm:flex absolute left-3 top-1/2 -translate-y-1/2 h-9 w-9 items-center justify-center rounded-full bg-black/55 hover:bg-black/80 text-white border border-white/20 backdrop-blur-xs transition-colors cursor-pointer"
-          >
-            <ChevronLeft class="h-4 w-4" />
-          </button>
-          <button
-            v-if="heroSlides.length > 1"
-            type="button"
-            @click="nextSlide"
-            aria-label="Slide berikutnya"
-            class="hidden sm:flex absolute right-3 top-1/2 -translate-y-1/2 h-9 w-9 items-center justify-center rounded-full bg-black/55 hover:bg-black/80 text-white border border-white/20 backdrop-blur-xs transition-colors cursor-pointer"
-          >
-            <ChevronRight class="h-4 w-4" />
-          </button>
-
-          <!-- Dots Indicator -->
-          <div
-            v-if="heroSlides.length > 1"
-            class="absolute bottom-3.5 right-5 flex items-center gap-1.5"
-          >
-            <button
-              v-for="(slide, idx) in heroSlides"
-              :key="slide.id"
-              type="button"
-              @click="goToSlide(idx)"
-              :aria-label="`Pilih banner ${idx + 1}`"
-              class="h-2 rounded-full transition-all cursor-pointer"
-              :class="idx === activeSlide ? 'w-6 bg-[#72a5e4]' : 'w-2 bg-white/45 hover:bg-white/75'"
-            />
-          </div>
-        </div>
-
-        <!-- Fallback Banner Skeleton while Hydrating -->
-        <div
-          v-else
-          class="h-[230px] sm:h-[310px] lg:h-[355px] w-full rounded-2xl sm:rounded-3xl border border-white/10 bg-slate-800/80 p-8 flex flex-col justify-end"
-        >
-          <h1 class="text-2xl sm:text-4xl font-extrabold text-white tracking-tight">
-            Jelajahi Event Pilihan di TERRA
-          </h1>
-          <p class="mt-2 text-xs sm:text-sm text-slate-300 max-w-xl">
-            Temukan konser, festival kampus, seminar teknologi, dan workshop resmi dengan e-ticket QR instan.
-          </p>
-        </div>
-      </div>
-    </section>
-
-    <!-- =================================================================== -->
-    <!-- 2. FLOATING SEARCH & FILTER BAR                                     -->
-    <!-- =================================================================== -->
-    <div id="explore-catalog-anchor" class="relative z-20 -mt-7 mx-auto max-w-5xl px-4 sm:px-6">
-      <div class="rounded-2xl border border-slate-200/95 bg-white p-2.5 sm:p-3 shadow-[0_14px_34px_-12px_rgba(15,23,42,0.18)] space-y-3">
-        <!-- Primary Toolbar Row -->
-        <div class="flex flex-col lg:flex-row items-stretch lg:items-center gap-2">
+    <div class="border-b border-slate-100 bg-white sticky top-16 z-30 shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
+      <div id="explore-catalog-anchor" class="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-3">
+        <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
+          <!-- Search Input with Loket-style Pill Shape -->
           <div class="relative flex-1">
             <Search class="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
             <input
               v-model="search"
               type="text"
-              placeholder="Cari konser, festival kampus, seminar, atau penyelenggara..."
-              class="w-full rounded-xl border border-slate-200 bg-slate-50/80 pl-10 pr-8 py-2.5 text-xs sm:text-[13px] text-slate-900 placeholder:text-slate-400 focus:border-[#72a5e4] focus:bg-white focus:outline-hidden"
+              placeholder="Cari event, artis, festival, atau kota di sini..."
+              class="w-full rounded-full border border-slate-200 bg-slate-50/80 pl-10 pr-9 py-2 text-xs sm:text-[13px] text-slate-900 placeholder:text-slate-400 focus:border-[#0052cc] focus:bg-white focus:outline-hidden transition-all"
             />
             <button
               v-if="search"
               type="button"
               @click="search = ''"
-              aria-label="Hapus kata kunci"
-              class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 cursor-pointer"
+              aria-label="Hapus pencarian"
+              class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 cursor-pointer"
             >
               <X class="h-3.5 w-3.5" />
             </button>
           </div>
 
-          <div class="grid grid-cols-2 sm:grid-cols-4 lg:flex items-center gap-2">
-            <div class="relative">
+          <!-- Quick Filters -->
+          <div class="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0 [scrollbar-width:none]">
+            <div class="relative shrink-0">
               <select
                 v-model="selectedCategory"
                 aria-label="Filter Kategori"
-                class="terra-select w-full rounded-xl border border-slate-200 bg-slate-50/80 px-3.5 py-2.5 pr-8 text-xs font-semibold text-slate-800 focus:border-[#72a5e4] focus:bg-white focus:outline-hidden appearance-none cursor-pointer"
+                class="terra-select rounded-full border border-slate-200 bg-white px-3.5 py-1.5 pr-7 text-xs font-medium text-slate-700 hover:border-slate-300 focus:border-[#0052cc] focus:outline-hidden appearance-none cursor-pointer"
               >
                 <option value="">Semua Kategori</option>
                 <option v-for="c in store.categories" :key="c.id" :value="c.name">{{ c.name }}</option>
               </select>
-              <ChevronDown class="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-500" />
+              <ChevronDown class="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
             </div>
 
-            <div class="relative">
+            <div class="relative shrink-0">
               <select
                 v-model="selectedFormat"
                 aria-label="Filter Format"
-                class="terra-select w-full rounded-xl border border-slate-200 bg-slate-50/80 px-3.5 py-2.5 pr-8 text-xs font-semibold text-slate-800 focus:border-[#72a5e4] focus:bg-white focus:outline-hidden appearance-none cursor-pointer"
+                class="terra-select rounded-full border border-slate-200 bg-white px-3.5 py-1.5 pr-7 text-xs font-medium text-slate-700 hover:border-slate-300 focus:border-[#0052cc] focus:outline-hidden appearance-none cursor-pointer"
               >
-                <option value="">Semua Format</option>
+                <option value="">Format</option>
                 <option value="offline">Offline</option>
                 <option value="online">Online</option>
                 <option value="hybrid">Hybrid</option>
               </select>
-              <ChevronDown class="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-500" />
+              <ChevronDown class="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
             </div>
 
-            <div class="relative">
+            <div class="relative shrink-0">
               <select
                 v-model="sortBy"
                 aria-label="Urutkan"
-                class="terra-select w-full rounded-xl border border-slate-200 bg-slate-50/80 px-3.5 py-2.5 pr-8 text-xs font-semibold text-slate-800 focus:border-[#72a5e4] focus:bg-white focus:outline-hidden appearance-none cursor-pointer"
+                class="terra-select rounded-full border border-slate-200 bg-white px-3.5 py-1.5 pr-7 text-xs font-medium text-slate-700 hover:border-slate-300 focus:border-[#0052cc] focus:outline-hidden appearance-none cursor-pointer"
               >
                 <option value="upcoming">Terdekat</option>
                 <option value="popular">Populer</option>
                 <option value="newest">Terbaru</option>
               </select>
-              <ChevronDown class="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-500" />
+              <ChevronDown class="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
             </div>
 
             <button
               type="button"
               @click="advancedFiltersOpen = !advancedFiltersOpen"
-              class="inline-flex items-center justify-center gap-1.5 rounded-xl border px-3.5 py-2.5 text-xs font-bold transition-colors cursor-pointer shrink-0"
+              class="inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-bold transition-colors cursor-pointer shrink-0"
               :class="
                 advancedFiltersOpen || activeFilterCount > 0
-                  ? 'border-[#5293dc] bg-[#72a5e4] text-slate-950'
-                  : 'border-slate-200 bg-white text-slate-800 hover:bg-slate-50'
+                  ? 'border-[#0052cc] bg-[#0052cc]/10 text-[#0052cc]'
+                  : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
               "
             >
-              <SlidersHorizontal class="h-3.5 w-3.5" />
-              <span>Filter Lanjutan</span>
+              <SlidersHorizontal class="h-3 w-3" />
+              <span>Filter</span>
               <span
                 v-if="activeFilterCount > 0"
-                class="inline-flex h-4 w-4 items-center justify-center rounded-full bg-slate-950 text-[10px] font-bold text-white"
+                class="inline-flex h-4 w-4 items-center justify-center rounded-full bg-[#0052cc] text-[9px] font-bold text-white"
               >
                 {{ activeFilterCount }}
               </span>
@@ -814,148 +691,226 @@ const verifiedOrganizers = computed(() => {
           </div>
         </div>
 
-        <!-- Expandable Advanced Filter Panel -->
+        <!-- Advanced Filter Tray -->
         <div
           v-if="advancedFiltersOpen"
-          class="pt-3 border-t border-slate-100 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2.5 items-center"
+          class="pt-3 mt-2 border-t border-slate-100 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2.5 items-center"
         >
           <div class="relative">
             <select
               v-model="selectedPriceType"
               aria-label="Filter Harga"
-              class="terra-select w-full rounded-xl border border-slate-200 bg-slate-50/80 px-3.5 py-2 pr-8 text-xs font-medium text-slate-800 focus:border-[#72a5e4] focus:outline-hidden appearance-none cursor-pointer"
+              class="terra-select w-full rounded-full border border-slate-200 bg-white px-3.5 py-1.5 pr-7 text-xs text-slate-700 focus:border-[#0052cc] focus:outline-hidden appearance-none cursor-pointer"
             >
               <option value="">Semua Harga</option>
               <option value="free">Gratis</option>
               <option value="paid">Berbayar</option>
             </select>
-            <ChevronDown class="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-500" />
+            <ChevronDown class="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
           </div>
 
           <input
             v-model="locationQuery"
             type="text"
-            placeholder="Kota / Kampus / Venue..."
-            class="w-full rounded-xl border border-slate-200 bg-slate-50/80 px-3.5 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:border-[#72a5e4] focus:outline-hidden"
+            placeholder="Kota / Lokasi..."
+            class="w-full rounded-full border border-slate-200 bg-white px-3.5 py-1.5 text-xs text-slate-900 placeholder:text-slate-400 focus:border-[#0052cc] focus:outline-hidden"
           />
 
-          <label class="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-1.5 text-xs text-slate-900">
-            <span class="text-[11px] font-semibold text-slate-500 shrink-0">Dari:</span>
-            <input
-              v-model="dateFrom"
-              type="date"
-              aria-label="Tanggal mulai"
-              class="w-full bg-transparent text-xs text-slate-900 focus:outline-hidden"
-            />
+          <label class="flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs text-slate-700">
+            <span class="text-[10px] font-bold text-slate-400">Dari:</span>
+            <input v-model="dateFrom" type="date" class="w-full bg-transparent text-xs text-slate-900 focus:outline-hidden" />
           </label>
 
-          <label class="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-1.5 text-xs text-slate-900">
-            <span class="text-[11px] font-semibold text-slate-500 shrink-0">Sampai:</span>
-            <input
-              v-model="dateTo"
-              type="date"
-              aria-label="Tanggal selesai"
-              class="w-full bg-transparent text-xs text-slate-900 focus:outline-hidden"
-            />
+          <label class="flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs text-slate-700">
+            <span class="text-[10px] font-bold text-slate-400">Sampai:</span>
+            <input v-model="dateTo" type="date" class="w-full bg-transparent text-xs text-slate-900 focus:outline-hidden" />
           </label>
 
           <button
             type="button"
             @click="resetFilters"
-            class="rounded-xl border border-slate-300 bg-white px-4 py-2 text-xs font-bold text-slate-800 hover:bg-slate-100 cursor-pointer"
+            class="rounded-full border border-slate-200 bg-slate-50 hover:bg-slate-100 px-4 py-1.5 text-xs font-bold text-slate-700 cursor-pointer"
           >
-            Reset Semua
+            Reset Filter
           </button>
         </div>
-      </div>
 
-      <!-- Active Filter Chips Row -->
-      <div v-if="activeFilterChips.length" class="mt-3 flex flex-wrap items-center gap-2 text-xs">
-        <span class="text-slate-500 font-semibold">Filter aktif:</span>
-        <button
-          v-for="chip in activeFilterChips"
-          :key="chip.key"
-          type="button"
-          @click="clearFilterChip(chip.key)"
-          class="inline-flex items-center gap-1.5 rounded-full border border-[#72a5e4] bg-[#72a5e4]/20 px-3 py-1 text-xs font-semibold text-slate-900 hover:bg-[#72a5e4]/35 cursor-pointer"
-        >
-          <span>{{ chip.label }}</span>
-          <X class="h-3 w-3" />
-        </button>
-        <button
-          type="button"
-          @click="resetFilters"
-          class="text-xs font-bold text-[#1e5cb3] hover:underline ml-1 cursor-pointer"
-        >
-          Kembali ke Eksplorasi
-        </button>
+        <!-- Filter Chips -->
+        <div v-if="activeFilterChips.length" class="mt-2.5 flex flex-wrap items-center gap-2 text-xs">
+          <span class="text-slate-400 font-medium text-[11px]">Filter aktif:</span>
+          <button
+            v-for="chip in activeFilterChips"
+            :key="chip.key"
+            type="button"
+            @click="clearFilterChip(chip.key)"
+            class="inline-flex items-center gap-1 rounded-full bg-blue-50 border border-blue-200 text-[#0052cc] px-2.5 py-0.5 text-[11px] font-semibold hover:bg-blue-100 cursor-pointer"
+          >
+            <span>{{ chip.label }}</span>
+            <X class="h-3 w-3" />
+          </button>
+          <button
+            type="button"
+            @click="resetFilters"
+            class="text-[11px] font-bold text-slate-500 hover:text-slate-900 underline ml-1 cursor-pointer"
+          >
+            Hapus Semua
+          </button>
+        </div>
       </div>
     </div>
 
     <!-- =================================================================== -->
-    <!-- MAIN BODY: FILTERED RESULTS MODE vs CURATED DISCOVERY SHELVES       -->
+    <!-- 2. HERO CAROUSEL BANNER (ASPECT RATIO MATCHING LOKET HERO)          -->
     <!-- =================================================================== -->
-    <div class="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-8 sm:py-10">
-      <!-- A. FILTERED / PAGINATED SEARCH MODE -->
-      <div v-if="isFilterActive" class="space-y-6">
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div>
-            <h2 class="text-xl sm:text-2xl font-extrabold tracking-tight text-slate-900">
-              Hasil Katalog Acara
+    <div v-if="!isFilterActive" class="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 pt-5">
+      <div
+        class="relative w-full rounded-2xl overflow-hidden bg-slate-950 shadow-md group"
+        @mouseenter="heroPaused = true"
+        @mouseleave="heroPaused = false"
+      >
+        <!-- Slide Visual -->
+        <div
+          v-if="currentHeroSlide"
+          class="relative h-[180px] sm:h-[260px] lg:h-[310px] w-full overflow-hidden"
+        >
+          <img
+            :src="currentHeroSlide.banner_url || currentHeroSlide.poster_url || FALLBACK_POSTER"
+            :alt="currentHeroSlide.title"
+            class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-102"
+          />
+          <!-- Gentle gradient for readability -->
+          <div class="absolute inset-0 bg-gradient-to-r from-black/85 via-black/40 to-transparent" />
+
+          <!-- Banner Content -->
+          <div class="absolute inset-0 flex flex-col justify-center p-6 sm:p-10 max-w-xl text-white space-y-2.5">
+            <span class="inline-flex items-center gap-1 rounded-md bg-[#0052cc] px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-white w-fit">
+              {{ currentHeroSlide.category || 'Featured Event' }}
+            </span>
+            <h2 class="text-xl sm:text-3xl font-extrabold text-white leading-tight line-clamp-2">
+              {{ currentHeroSlide.title }}
             </h2>
+            <p class="text-xs sm:text-sm text-slate-300 truncate">
+              {{ formatDate(currentHeroSlide.start_date || currentHeroSlide.start_at) }} • {{ currentHeroSlide.location_name || 'Online' }}
+            </p>
+            <div class="pt-2">
+              <RouterLink
+                :to="`/events/${currentHeroSlide.slug || currentHeroSlide.id}`"
+                class="inline-flex items-center gap-2 rounded-full bg-white text-slate-950 hover:bg-slate-100 px-5 py-2 text-xs font-bold shadow-md transition-colors"
+              >
+                <span>Beli Tiket</span>
+                <ArrowRight class="h-3.5 w-3.5" />
+              </RouterLink>
+            </div>
+          </div>
+        </div>
+
+        <!-- Floating Pill at Center Bottom (Matching Loket Hero LinkAja Pill) -->
+        <div class="absolute bottom-3 inset-x-0 flex items-center justify-center pointer-events-none">
+          <RouterLink
+            to="/pricing"
+            class="pointer-events-auto inline-flex items-center gap-2 rounded-full bg-white/95 backdrop-blur-md px-4 py-1.5 text-[11px] font-bold text-slate-800 shadow-md hover:bg-white transition-colors"
+          >
+            <span class="text-[#0052cc]">Point-Free Tickets:</span>
+            <span>Beli tiket resmi atau buat event gratis di TERRA</span>
+            <ChevronRight class="h-3.5 w-3.5 text-[#0052cc]" />
+          </RouterLink>
+        </div>
+
+        <!-- Carousel Nav Buttons -->
+        <button
+          v-if="heroSlides.length > 1"
+          type="button"
+          @click="prevSlide"
+          aria-label="Slide sebelumnya"
+          class="absolute left-3 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-white/80 hover:bg-white text-slate-800 flex items-center justify-center shadow-md transition-colors cursor-pointer"
+        >
+          <ChevronLeft class="h-4 w-4" />
+        </button>
+        <button
+          v-if="heroSlides.length > 1"
+          type="button"
+          @click="nextSlide"
+          aria-label="Slide berikutnya"
+          class="absolute right-3 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-white/80 hover:bg-white text-slate-800 flex items-center justify-center shadow-md transition-colors cursor-pointer"
+        >
+          <ChevronRight class="h-4 w-4" />
+        </button>
+
+        <!-- Slide Dots -->
+        <div
+          v-if="heroSlides.length > 1"
+          class="absolute top-4 right-5 flex items-center gap-1.5"
+        >
+          <button
+            v-for="(slide, idx) in heroSlides"
+            :key="slide.id"
+            type="button"
+            @click="goToSlide(idx)"
+            class="h-1.5 rounded-full transition-all cursor-pointer"
+            :class="idx === activeSlide ? 'w-5 bg-white' : 'w-1.5 bg-white/50'"
+          />
+        </div>
+      </div>
+    </div>
+
+    <!-- =================================================================== -->
+    <!-- MAIN CONTENT CONTAINER                                              -->
+    <!-- =================================================================== -->
+    <div class="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 mt-8">
+      <!-- ----------------------------------------------------------------- -->
+      <!-- A. SEARCH RESULTS VIEW (WHEN SEARCH/FILTER IS ACTIVE)             -->
+      <!-- ----------------------------------------------------------------- -->
+      <div v-if="isFilterActive" class="space-y-6">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+          <div>
+            <h1 class="text-xl font-bold text-slate-900">
+              Hasil Pencarian Acara
+            </h1>
             <p class="text-xs text-slate-500 mt-0.5">
-              Menampilkan <span class="font-bold text-slate-900">{{ totalCount }}</span> acara sesuai pencarian &amp; filter Anda.
+              Menampilkan <span class="font-bold text-slate-900">{{ totalCount }}</span> event
             </p>
           </div>
           <button
             type="button"
             @click="resetFilters"
-            class="self-start sm:self-auto inline-flex items-center gap-1.5 rounded-full border border-slate-300 bg-white px-4 py-1.5 text-xs font-bold text-slate-800 hover:border-slate-900 transition-colors cursor-pointer"
+            class="inline-flex items-center gap-1 text-xs font-bold text-[#0052cc] hover:underline cursor-pointer"
           >
-            <X class="h-3.5 w-3.5" />
-            <span>Reset &amp; Kembali ke Eksplorasi</span>
+            <span>Kembali ke Jelajah</span>
           </button>
         </div>
 
-        <!-- Loading Skeleton Grid -->
-        <div
-          v-if="loading && !items.length"
-          class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5"
-        >
-          <div
-            v-for="n in 8"
-            :key="n"
-            class="h-72 rounded-2xl border border-slate-200 bg-white animate-pulse"
-          />
+        <div v-if="loading && !items.length" class="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
+          <div v-for="n in 8" :key="n" class="space-y-2 animate-pulse">
+            <div class="aspect-[16/9] rounded-xl bg-slate-200" />
+            <div class="h-3 w-1/3 bg-slate-200 rounded" />
+            <div class="h-4 w-full bg-slate-200 rounded" />
+            <div class="h-3 w-1/2 bg-slate-200 rounded" />
+          </div>
         </div>
 
-        <!-- 4-Column Results Grid -->
         <div v-else-if="items.length" class="space-y-8">
-          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
             <ExploreEventCard v-for="evt in items" :key="evt.id" :event="evt" />
           </div>
 
-          <!-- Pagination Controls (Preserved) -->
-          <div
-            v-if="totalPages > 1"
-            class="flex items-center justify-center gap-3 pt-2 text-xs"
-          >
+          <!-- Pagination -->
+          <div v-if="totalPages > 1" class="flex items-center justify-center gap-3 pt-4 text-xs">
             <button
               type="button"
               :disabled="currentPage <= 1"
               @click="currentPage--"
-              class="rounded-full border border-slate-300 bg-white px-4 py-2 font-bold text-slate-800 hover:border-slate-900 disabled:opacity-40 cursor-pointer"
+              class="rounded-full border border-slate-200 bg-white px-4 py-2 font-bold text-slate-700 disabled:opacity-40 cursor-pointer hover:bg-slate-50"
             >
               Sebelumnya
             </button>
-            <span class="font-mono font-bold text-slate-900">
+            <span class="font-bold text-slate-900">
               Halaman {{ currentPage }} / {{ totalPages }}
             </span>
             <button
               type="button"
               :disabled="currentPage >= totalPages"
               @click="currentPage++"
-              class="rounded-full border border-slate-300 bg-white px-4 py-2 font-bold text-slate-800 hover:border-slate-900 disabled:opacity-40 cursor-pointer"
+              class="rounded-full border border-slate-200 bg-white px-4 py-2 font-bold text-slate-700 disabled:opacity-40 cursor-pointer hover:bg-slate-50"
             >
               Berikutnya
             </button>
@@ -964,278 +919,224 @@ const verifiedOrganizers = computed(() => {
 
         <EmptyState
           v-else
-          title="Tidak ada acara ditemukan"
-          description="Coba ubah kata kunci pencarian atau sesuaikan filter kategori Anda."
+          title="Tidak ada event ditemukan"
+          description="Coba ubah kata kunci atau bersihkan filter Anda."
         />
       </div>
 
-      <!-- B. CURATED LOKET-INSPIRED DISCOVERY VIEW -->
-      <div v-else class="space-y-12 sm:space-y-14">
-        <!-- SHELF 1: Event Seru Untukmu (4-col) -->
+      <!-- ----------------------------------------------------------------- -->
+      <!-- B. DEFAULT LOKET-INSPIRED MULTI-SHELF DISCOVERY VIEW              -->
+      <!-- ----------------------------------------------------------------- -->
+      <div v-else class="space-y-12">
+        <!-- 1. EVENT SERU UNTUKMU -->
         <section class="space-y-4">
-          <div class="flex items-center justify-between gap-3">
-            <div class="flex items-center gap-2">
-              <span class="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-[#72a5e4]/25 text-[#1e5cb3]">
-                <Sparkles class="h-4 w-4" />
-              </span>
-              <h2 class="text-lg sm:text-xl font-extrabold tracking-tight text-slate-900">
-                Event Seru Untukmu
-              </h2>
-            </div>
+          <div class="flex items-center justify-between">
+            <h2 class="text-[17px] sm:text-lg font-bold text-slate-900 flex items-center gap-2">
+              <span class="text-[#0052cc] font-extrabold">&gt;</span>
+              <span>Event Seru Untukmu</span>
+            </h2>
             <button
               type="button"
               @click="applyQuickFilter({ resetFirst: true, showAll: true })"
-              class="text-xs font-bold text-[#1e5cb3] hover:underline inline-flex items-center gap-1 cursor-pointer shrink-0"
+              class="text-xs font-bold text-[#0052cc] hover:underline cursor-pointer"
             >
-              <span>Lihat Semua</span>
-              <ChevronRight class="h-3.5 w-3.5" />
+              Lihat Semua &gt;
             </button>
           </div>
 
-          <div
-            v-if="discoveryLoading && !recommendedEvents.length"
-            class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5"
-          >
-            <div v-for="n in 4" :key="n" class="h-64 rounded-2xl bg-slate-200/70 animate-pulse" />
-          </div>
-          <div
-            v-else
-            class="flex lg:grid lg:grid-cols-4 gap-4 sm:gap-5 overflow-x-auto pb-2 lg:pb-0 snap-x snap-mandatory [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-          >
-            <div
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
+            <ExploreEventCard
               v-for="evt in recommendedEvents"
               :key="`rec-${evt.id}`"
-              class="min-w-[260px] sm:min-w-[280px] lg:min-w-0 snap-start flex"
-            >
-              <ExploreEventCard :event="evt" class="w-full" />
-            </div>
+              :event="evt"
+            />
           </div>
         </section>
 
-        <!-- SHELF 2: Lagi Trending (3-col Wide Showcase) -->
+        <!-- 2. LAGI TRENDING (3 WIDE BANNER CARDS) -->
         <section v-if="trendingEvents.length" class="space-y-4">
-          <div class="flex items-center justify-between gap-3">
-            <div class="flex items-center gap-2">
-              <span class="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-amber-100 text-amber-600">
-                <Flame class="h-4 w-4" />
-              </span>
-              <h2 class="text-lg sm:text-xl font-extrabold tracking-tight text-slate-900">
-                Lagi Trending
-              </h2>
-            </div>
+          <div class="flex items-center justify-between">
+            <h2 class="text-[17px] sm:text-lg font-bold text-slate-900 flex items-center gap-2">
+              <span class="text-amber-500 font-extrabold">&gt;</span>
+              <span>Lagi Trending</span>
+            </h2>
             <button
               type="button"
               @click="applyQuickFilter({ resetFirst: true, sort: 'popular' })"
-              class="text-xs font-bold text-[#1e5cb3] hover:underline inline-flex items-center gap-1 cursor-pointer shrink-0"
+              class="text-xs font-bold text-[#0052cc] hover:underline cursor-pointer"
             >
-              <span>Lihat Semua</span>
-              <ChevronRight class="h-3.5 w-3.5" />
+              Lihat Semua &gt;
             </button>
           </div>
 
-          <div class="flex md:grid md:grid-cols-3 gap-4 sm:gap-5 overflow-x-auto pb-2 md:pb-0 snap-x snap-mandatory [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
             <RouterLink
               v-for="(evt, idx) in trendingEvents"
               :key="`trend-${evt.id}`"
               :to="`/events/${evt.slug || evt.id}`"
-              class="min-w-[285px] md:min-w-0 snap-start group rounded-2xl border border-slate-200/90 bg-white overflow-hidden shadow-[0_2px_10px_-4px_rgba(15,23,42,0.06)] hover:shadow-[0_14px_30px_-10px_rgba(15,23,42,0.16)] hover:border-[#72a5e4] transition-all"
+              class="group cursor-pointer space-y-2"
             >
-              <div class="relative aspect-[16/9] bg-slate-900 overflow-hidden">
+              <div class="relative aspect-[16/9] w-full rounded-xl overflow-hidden bg-slate-100 shadow-xs group-hover:shadow-md transition-shadow">
                 <img
                   :src="evt.banner_url || evt.poster_url || FALLBACK_POSTER"
                   :alt="evt.title"
                   loading="lazy"
-                  class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                  class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                 />
-                <span class="absolute top-3 left-3 rounded-full bg-slate-950/85 backdrop-blur-xs text-white px-2.5 py-0.5 text-[10px] font-extrabold">
-                  #{{ idx + 1 }} Trending
-                </span>
               </div>
-              <div class="p-4 flex items-center justify-between gap-3">
-                <div class="min-w-0 space-y-1">
-                  <h3 class="text-sm font-bold text-slate-900 truncate group-hover:text-[#1e5cb3]">
-                    {{ evt.title }}
-                  </h3>
-                  <div class="flex items-center gap-2 text-[11px] font-semibold">
-                    <span class="inline-flex items-center gap-1 text-amber-600">
-                      <Star class="h-3.5 w-3.5 fill-amber-400 text-amber-500" />
-                      {{ getSoldCount(evt) > 0 ? `${getSoldCount(evt)}+ tiket terjual` : 'Banyak diminati' }}
-                    </span>
-                    <span class="text-slate-300">•</span>
-                    <span class="text-slate-600 font-bold">{{ getPriceDisplay(evt) }}</span>
-                  </div>
+              <div class="space-y-1">
+                <h3 class="text-sm font-bold text-slate-900 line-clamp-1 group-hover:text-[#0052cc] transition-colors">
+                  {{ evt.title }}
+                </h3>
+                <div class="flex items-center gap-1.5 text-xs text-amber-600 font-semibold">
+                  <Star class="h-3.5 w-3.5 fill-amber-400 text-amber-500" />
+                  <span>Trending #{{ idx + 1 }}</span>
+                  <span class="text-slate-400 font-normal ml-1">• {{ getPriceDisplay(evt) }}</span>
                 </div>
-                <span class="h-8 w-8 rounded-full border border-slate-200 bg-slate-50 group-hover:bg-[#72a5e4] group-hover:border-[#5293dc] flex items-center justify-center shrink-0 transition-colors">
-                  <ChevronRight class="h-4 w-4 text-slate-700" />
-                </span>
               </div>
             </RouterLink>
           </div>
         </section>
 
-        <!-- SHELF 3: Workshop & Edukasi Terpopuler (4-col) -->
+        <!-- 3. PROGRAM BELAJAR TERPOPULER (WORKSHOP / EDUKASI) -->
         <section v-if="learningEvents.length" class="space-y-4">
-          <div class="flex items-center justify-between gap-3">
-            <div class="flex items-center gap-2">
-              <span class="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700">
-                <GraduationCap class="h-4 w-4" />
-              </span>
-              <h2 class="text-lg sm:text-xl font-extrabold tracking-tight text-slate-900">
-                Workshop &amp; Edukasi Terpopuler
-              </h2>
-            </div>
+          <div class="flex items-center justify-between">
+            <h2 class="text-[17px] sm:text-lg font-bold text-slate-900 flex items-center gap-2">
+              <span class="text-[#0052cc] font-extrabold">&gt;</span>
+              <span>Program Belajar Terpopuler</span>
+            </h2>
             <button
               type="button"
               @click="applyQuickFilter({ resetFirst: true, category: 'Workshop & Edukasi' })"
-              class="text-xs font-bold text-[#1e5cb3] hover:underline inline-flex items-center gap-1 cursor-pointer shrink-0"
+              class="text-xs font-bold text-[#0052cc] hover:underline cursor-pointer"
             >
-              <span>Lihat Semua</span>
-              <ChevronRight class="h-3.5 w-3.5" />
+              Lihat Semua &gt;
             </button>
           </div>
 
-          <div class="flex lg:grid lg:grid-cols-4 gap-4 sm:gap-5 overflow-x-auto pb-2 lg:pb-0 snap-x snap-mandatory [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            <div
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
+            <ExploreEventCard
               v-for="evt in learningEvents"
               :key="`learn-${evt.id}`"
-              class="min-w-[260px] sm:min-w-[280px] lg:min-w-0 snap-start flex"
-            >
-              <ExploreEventCard :event="evt" class="w-full" />
-            </div>
+              :event="evt"
+            />
           </div>
         </section>
 
-        <!-- SHELF 4: TERRA2Go Split Calendar Schedule Widget -->
-        <section
-          v-reveal
-          class="rounded-3xl border border-slate-200 bg-white p-5 sm:p-7 shadow-[0_4px_20px_-8px_rgba(15,23,42,0.08)]"
-        >
-          <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-stretch">
-            <!-- Left Graphic Feature Panel -->
-            <div class="lg:col-span-5 rounded-2xl bg-gradient-to-br from-[#0f172a] via-[#13294b] to-[#1e4b85] p-6 sm:p-7 text-white flex flex-col justify-between relative overflow-hidden min-h-[260px]">
-              <div class="pointer-events-none absolute -right-10 -bottom-10 h-48 w-48 rounded-full bg-[#72a5e4]/20 blur-2xl" />
-              <div class="pointer-events-none absolute right-6 top-6 opacity-15">
-                <Calendar class="h-28 w-28 text-white" />
-              </div>
-
-              <div class="relative z-10 space-y-3">
-                <span class="inline-flex items-center gap-1.5 rounded-full bg-[#72a5e4] px-3 py-1 text-[10px] font-extrabold uppercase tracking-wider text-slate-950">
-                  <Calendar class="h-3 w-3" />
-                  TERRA2Go Agenda
+        <!-- 4. EVENT2GO (SPLIT CALENDAR SCHEDULE WIDGET) -->
+        <section class="border border-slate-200/90 rounded-2xl bg-white p-5 sm:p-6 shadow-xs">
+          <div class="flex flex-col lg:flex-row gap-6 lg:gap-8 items-stretch">
+            <!-- Left Isometric Computer/Calendar Card -->
+            <div class="lg:w-[38%] rounded-xl bg-gradient-to-br from-[#122854] via-[#1a3c7e] to-[#2563eb] p-6 text-white flex flex-col justify-between relative overflow-hidden min-h-[280px]">
+              <div class="space-y-2 relative z-10">
+                <span class="inline-block rounded-md bg-white/20 backdrop-blur-xs px-2.5 py-1 text-[11px] font-bold">
+                  Event2Go
                 </span>
-                <h2 class="text-2xl sm:text-3xl font-extrabold tracking-tight leading-tight">
-                  Jadwal Event Terdekat Untukmu
-                </h2>
-                <p class="text-xs sm:text-sm text-sky-100/90 leading-relaxed max-w-sm">
-                  Cek agenda acara minggu ini atau bulan ini dan amankan e-ticket QR sebelum kuota habis.
+                <h3 class="text-2xl font-black leading-tight">
+                  Semua event seru dalam genggaman.
+                </h3>
+                <p class="text-xs text-blue-100">
+                  Cek agenda harian dan amankan tiket event pilihanmu sekarang.
                 </p>
               </div>
 
-              <div class="relative z-10 pt-6 flex items-center justify-between">
+              <!-- Graphic Elements -->
+              <div class="py-4 flex justify-center relative z-10">
+                <div class="w-36 h-28 rounded-xl bg-white/10 backdrop-blur-md border border-white/20 p-3 shadow-lg flex flex-col justify-between">
+                  <div class="h-3 w-12 bg-[#72a5e4] rounded" />
+                  <div class="space-y-1.5">
+                    <div class="h-2 w-full bg-white/40 rounded" />
+                    <div class="h-2 w-3/4 bg-white/30 rounded" />
+                  </div>
+                  <div class="text-[10px] font-black text-[#72a5e4] text-right">TERRA.ID</div>
+                </div>
+              </div>
+
+              <div class="relative z-10">
                 <button
                   type="button"
-                  @click="viewScheduleRange"
-                  class="inline-flex items-center gap-2 rounded-full bg-white text-slate-950 hover:bg-[#72a5e4] px-4 py-2 text-xs font-extrabold transition-colors cursor-pointer"
+                  @click="applyQuickFilter({ resetFirst: true, showAll: true })"
+                  class="w-full text-center rounded-lg bg-white text-slate-900 font-bold text-xs py-2 hover:bg-blue-50 transition-colors cursor-pointer"
                 >
-                  <span>Jelajahi Agenda</span>
-                  <ArrowRight class="h-3.5 w-3.5" />
+                  Jelajahi Semua Jadwal
                 </button>
-                <span class="font-mono text-[11px] text-sky-200">
-                  {{ allDiscoveryEvents.length }} Event Aktif
-                </span>
               </div>
             </div>
 
-            <!-- Right Tabbed Agenda List -->
-            <div class="lg:col-span-7 flex flex-col justify-between space-y-4">
-              <div class="flex flex-wrap items-center justify-between gap-3">
-                <div class="inline-flex items-center gap-2">
+            <!-- Right Schedule List with Date Boxes -->
+            <div class="lg:w-[62%] flex flex-col justify-between space-y-4">
+              <!-- Header with Tabs -->
+              <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
+                <div class="flex items-center gap-1.5 sm:gap-2">
+                  <span class="font-bold text-sm text-slate-900 mr-1 flex items-center gap-1.5">
+                    <Calendar class="h-4 w-4 text-[#0052cc]" />
+                    Event2Go
+                  </span>
                   <button
+                    v-for="t in [
+                      { key: 'all', label: 'Semua' },
+                      { key: 'today', label: 'Hari Ini' },
+                      { key: 'this_week', label: 'Minggu Ini' },
+                      { key: 'this_month', label: 'Bulan Ini' }
+                    ]"
+                    :key="t.key"
                     type="button"
-                    @click="scheduleTab = 'this_week'"
-                    class="rounded-full px-3.5 py-1.5 text-xs font-bold border transition-colors cursor-pointer"
+                    @click="scheduleTab = t.key"
+                    class="rounded-full px-3 py-1 text-xs font-semibold transition-colors cursor-pointer"
                     :class="
-                      scheduleTab === 'this_week'
-                        ? 'border-[#5293dc] bg-[#72a5e4]/20 text-[#0f172a]'
-                        : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                      scheduleTab === t.key
+                        ? 'bg-[#0052cc] text-white'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                     "
                   >
-                    Minggu Ini
-                  </button>
-                  <button
-                    type="button"
-                    @click="scheduleTab = 'this_month'"
-                    class="rounded-full px-3.5 py-1.5 text-xs font-bold border transition-colors cursor-pointer"
-                    :class="
-                      scheduleTab === 'this_month'
-                        ? 'border-[#5293dc] bg-[#72a5e4]/20 text-[#0f172a]'
-                        : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
-                    "
-                  >
-                    Bulan Ini
-                  </button>
-                  <button
-                    type="button"
-                    @click="scheduleTab = 'upcoming_all'"
-                    class="rounded-full px-3.5 py-1.5 text-xs font-bold border transition-colors cursor-pointer"
-                    :class="
-                      scheduleTab === 'upcoming_all'
-                        ? 'border-[#5293dc] bg-[#72a5e4]/20 text-[#0f172a]'
-                        : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
-                    "
-                  >
-                    Segera Hadir
+                    {{ t.label }}
                   </button>
                 </div>
 
                 <button
                   type="button"
-                  @click="viewScheduleRange"
-                  class="text-xs font-bold text-[#1e5cb3] hover:underline inline-flex items-center gap-1 cursor-pointer"
+                  @click="applyQuickFilter({ resetFirst: true, showAll: true })"
+                  class="text-xs font-bold text-[#0052cc] hover:underline cursor-pointer"
                 >
-                  <span>Lihat Semua Event</span>
-                  <ChevronRight class="h-3.5 w-3.5" />
+                  Lihat Semua Event &gt;
                 </button>
               </div>
 
+              <!-- 4 Event Items in Schedule -->
               <div class="divide-y divide-slate-100">
                 <RouterLink
                   v-for="evt in activeScheduleEvents"
                   :key="`sched-${evt.id}`"
                   :to="`/events/${evt.slug || evt.id}`"
-                  class="group py-3 first:pt-1 last:pb-1 flex items-center gap-3.5 sm:gap-4 hover:bg-slate-50/80 rounded-xl px-2 -mx-2 transition-colors"
+                  class="py-3 flex items-center gap-3.5 group hover:bg-slate-50/80 rounded-lg px-2 -mx-2 transition-colors"
                 >
-                  <!-- Date Badge -->
-                  <div class="w-12 h-14 rounded-xl border border-slate-200 bg-[#fafaf9] flex flex-col items-center justify-center shrink-0">
-                    <span class="text-[9px] font-extrabold tracking-wider text-[#1e5cb3]">
-                      {{ getCalendarParts(evt.start_at || evt.start_date).month }}
-                    </span>
-                    <span class="text-lg font-black leading-none text-slate-900">
+                  <!-- Square Date Box -->
+                  <div class="w-12 h-12 rounded-lg border border-slate-200 bg-white flex flex-col items-center justify-center shrink-0 shadow-2xs">
+                    <span class="text-base font-black leading-none text-slate-900">
                       {{ getCalendarParts(evt.start_at || evt.start_date).day }}
                     </span>
-                    <span class="text-[9px] font-medium text-slate-400">
-                      {{ getCalendarParts(evt.start_at || evt.start_date).weekday }}
+                    <span class="text-[9px] font-extrabold uppercase text-slate-400 mt-0.5">
+                      {{ getCalendarParts(evt.start_at || evt.start_date).month }}
                     </span>
                   </div>
 
-                  <!-- Event Info -->
-                  <div class="flex-1 min-w-0 space-y-1">
-                    <h3 class="text-xs sm:text-sm font-bold text-slate-900 truncate group-hover:text-[#1e5cb3]">
+                  <!-- Title & Details -->
+                  <div class="flex-1 min-w-0 space-y-0.5">
+                    <h4 class="text-[13px] font-bold text-slate-900 truncate group-hover:text-[#0052cc] transition-colors">
                       {{ evt.title }}
-                    </h3>
+                    </h4>
                     <p class="text-[11px] text-slate-500 truncate">
-                      {{ evt.location_name || 'Online Event' }} •
-                      <span class="font-bold text-slate-700">{{ getPriceDisplay(evt) }}</span>
+                      {{ formatDate(evt.start_at || evt.start_date) }} • {{ evt.location_name || 'Online' }}
                     </p>
                   </div>
 
-                  <!-- Right Mini Thumbnail -->
-                  <div class="hidden sm:block w-24 h-14 rounded-xl overflow-hidden bg-slate-900 border border-slate-200 shrink-0">
+                  <!-- Right Mini Banner -->
+                  <div class="w-20 h-10 rounded-md overflow-hidden bg-slate-100 shrink-0">
                     <img
-                      :src="evt.poster_url || evt.banner_url || FALLBACK_POSTER"
+                      :src="evt.banner_url || evt.poster_url || FALLBACK_POSTER"
                       :alt="evt.title"
                       loading="lazy"
-                      class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      class="w-full h-full object-cover group-hover:scale-105 transition-transform"
                     />
                   </div>
                 </RouterLink>
@@ -1244,222 +1145,220 @@ const verifiedOrganizers = computed(() => {
           </div>
         </section>
 
-        <!-- SHELF 5: TERRA Ecosystem Promo Strip + Horizontal Icon Category Bar -->
+        <!-- 5. PROMO BANNER STRIP & APPLIKE CATEGORY ICONS -->
         <section class="space-y-6">
-          <!-- Full-Width Ecosystem Banner -->
-          <RouterLink
-            to="/pricing"
-            class="block rounded-2xl sm:rounded-3xl border border-slate-900/15 bg-gradient-to-r from-[#0f172a] via-[#1b3a6b] to-[#72a5e4] p-5 sm:px-8 sm:py-6 text-white shadow-md hover:shadow-xl transition-shadow group overflow-hidden relative"
-          >
-            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 relative z-10">
-              <div class="space-y-1.5">
-                <div class="inline-flex items-center gap-2 text-[11px] font-extrabold uppercase tracking-wider text-sky-200">
-                  <Ticket class="h-3.5 w-3.5" />
-                  <span>TERRA Studio Event Organizer</span>
-                </div>
-                <h2 class="text-lg sm:text-2xl font-extrabold tracking-tight text-white">
-                  Bikin Event &amp; Jual Tiket QR Otomatis? Mulai Gratis 14 Hari Pro Trial!
-                </h2>
-                <p class="text-xs text-sky-100/90 max-w-2xl">
-                  13 modul kerja kepanitiaan, pembayaran QRIS &amp; Virtual Account instan, plus Live Gate Scanner.
-                </p>
-              </div>
-
-              <div class="flex flex-wrap items-center gap-2.5 shrink-0">
-                <span class="rounded-full bg-emerald-400 text-slate-950 px-3.5 py-1.5 text-xs font-black">
-                  Rp0 Starter
-                </span>
-                <span class="rounded-full bg-amber-300 text-slate-950 px-3.5 py-1.5 text-xs font-black">
-                  14 Hari Pro Trial
-                </span>
-                <span class="inline-flex items-center gap-1.5 rounded-full bg-white text-slate-950 group-hover:bg-sky-100 px-4 py-1.5 text-xs font-extrabold transition-colors">
-                  <span>Lihat Paket</span>
-                  <ArrowRight class="h-3.5 w-3.5" />
-                </span>
-              </div>
-            </div>
-          </RouterLink>
-
-          <!-- Horizontal Category Icon Shortcut Bar -->
-          <div class="flex items-stretch gap-3 overflow-x-auto pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            <button
-              v-for="cat in categoryShortcuts"
-              :key="cat.key"
-              type="button"
-              @click="cat.action()"
-              class="min-w-[104px] sm:min-w-[116px] flex-1 flex flex-col items-center gap-2 rounded-2xl border border-slate-200/80 bg-white px-3 py-3.5 hover:border-[#72a5e4] hover:shadow-sm transition-all cursor-pointer group"
-            >
-              <span
-                class="h-10 w-10 rounded-xl border flex items-center justify-center transition-transform group-hover:scale-105"
-                :class="cat.bg"
-              >
-                <component :is="cat.icon" class="h-5 w-5" />
+          <!-- Horizontal Promo Banner (Matching BISA PAS BISA #PASTIBISA) -->
+          <div class="rounded-2xl bg-gradient-to-r from-sky-400 via-sky-300 to-blue-400 p-3 sm:p-4 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-3 text-slate-950 overflow-hidden">
+            <div class="flex items-center gap-3">
+              <span class="font-black text-xs sm:text-sm tracking-wider uppercase bg-white/70 px-3 py-1 rounded-full text-blue-900">
+                #PASTIBISA
               </span>
-              <span class="text-[11px] font-bold text-slate-700 group-hover:text-slate-950 text-center leading-tight line-clamp-2">
+              <p class="text-xs sm:text-sm font-extrabold text-blue-950">
+                Dapatkan Tiket Event Resmi dengan Pembayaran QRIS &amp; E-Ticket QR Instan!
+              </p>
+            </div>
+
+            <!-- Discount / Feature Badges -->
+            <div class="flex items-center gap-1.5 shrink-0">
+              <span class="h-8 w-8 rounded-full bg-emerald-500 text-white font-extrabold text-[9px] flex items-center justify-center shadow-xs">
+                15%
+              </span>
+              <span class="h-8 w-8 rounded-full bg-lime-400 text-slate-950 font-extrabold text-[9px] flex items-center justify-center shadow-xs">
+                75%
+              </span>
+              <span class="h-8 w-8 rounded-full bg-sky-200 text-blue-950 font-extrabold text-[9px] flex items-center justify-center shadow-xs">
+                Rp0
+              </span>
+              <span class="h-8 w-8 rounded-full bg-orange-500 text-white font-extrabold text-[9px] flex items-center justify-center shadow-xs">
+                100%
+              </span>
+              <span class="h-8 w-8 rounded-full bg-rose-500 text-white font-extrabold text-[9px] flex items-center justify-center shadow-xs">
+                50%
+              </span>
+            </div>
+          </div>
+
+          <!-- App-style Category Icons (Horizontal Row matching Loket) -->
+          <div class="grid grid-cols-3 sm:grid-cols-5 lg:grid-cols-9 gap-3 sm:gap-4">
+            <button
+              v-for="cat in loketCategories"
+              :key="cat.label"
+              type="button"
+              @click="
+                cat.showAll
+                  ? applyQuickFilter({ resetFirst: true, showAll: true })
+                  : cat.format
+                    ? applyQuickFilter({ resetFirst: true, format: cat.format })
+                    : applyQuickFilter({ resetFirst: true, category: cat.categoryName })
+              "
+              class="group flex flex-col items-center gap-2 cursor-pointer transition-transform hover:-translate-y-0.5"
+            >
+              <div
+                class="h-14 w-14 rounded-2xl bg-gradient-to-br flex items-center justify-center shadow-sm group-hover:shadow-md transition-shadow"
+                :class="cat.gradient"
+              >
+                <component :is="cat.icon" class="h-6 w-6 text-white" />
+              </div>
+              <span class="text-[11px] font-bold text-slate-700 text-center leading-tight line-clamp-2">
                 {{ cat.label }}
               </span>
             </button>
           </div>
         </section>
 
-        <!-- SHELF 6: Spotlight Event Pilihan (3 Vertical Posters + Dark Studio EO CTA Card) -->
-        <section v-if="spotlightEvents.length" class="space-y-4">
-          <div class="flex items-center justify-between gap-3">
-            <div class="flex items-center gap-2">
-              <span class="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-[#0f172a] text-[#72a5e4]">
-                <Sparkles class="h-4 w-4" />
-              </span>
-              <h2 class="text-lg sm:text-xl font-extrabold tracking-tight text-slate-900">
-                Spotlight Event Pilihan
-              </h2>
-            </div>
-            <span class="text-xs font-semibold text-slate-500 hidden sm:inline">
-              Kurasi acara unggulan &amp; Studio EO
-            </span>
+        <!-- 6. LOKÉT SCREEN (3 VERTICAL POSTERS + 1 BLUE PROMO CARD) -->
+        <section v-if="screenPosters.length" class="space-y-4">
+          <div class="flex items-center justify-between">
+            <h2 class="text-[17px] sm:text-lg font-bold text-slate-900 flex items-center gap-2">
+              <span class="text-[#0052cc] font-extrabold">&gt;</span>
+              <span>LOKÉT Screen</span>
+            </h2>
           </div>
 
-          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+          <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+            <!-- 3 Vertical Poster Cards (Movie Poster Aspect Ratio) -->
             <RouterLink
-              v-for="evt in spotlightEvents"
-              :key="`spot-${evt.id}`"
+              v-for="evt in screenPosters"
+              :key="`screen-${evt.id}`"
               :to="`/events/${evt.slug || evt.id}`"
-              class="group relative aspect-[3/4] rounded-2xl overflow-hidden border border-slate-200 bg-slate-900 shadow-sm hover:shadow-xl transition-all"
+              class="group cursor-pointer rounded-xl overflow-hidden aspect-[2/3] relative bg-slate-900 shadow-md hover:shadow-xl transition-all"
             >
               <img
                 :src="evt.poster_url || evt.banner_url || FALLBACK_POSTER"
                 :alt="evt.title"
                 loading="lazy"
-                class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
               />
-              <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/25 to-transparent" />
-              <div class="absolute inset-x-0 bottom-0 p-4 space-y-1.5 text-white">
-                <span class="inline-block rounded-full bg-[#72a5e4] px-2.5 py-0.5 text-[10px] font-extrabold text-slate-950">
-                  {{ evt.category || 'Unggulan' }}
+              <div class="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
+              <div class="absolute inset-x-0 bottom-0 p-3.5 space-y-1 text-white">
+                <span class="inline-block rounded-md bg-[#0052cc] px-2 py-0.5 text-[9px] font-bold">
+                  {{ evt.category || 'Spotlight' }}
                 </span>
-                <h3 class="text-sm sm:text-base font-extrabold leading-snug line-clamp-2 group-hover:underline">
+                <h4 class="text-xs sm:text-sm font-bold line-clamp-2 leading-tight">
                   {{ evt.title }}
-                </h3>
-                <p class="text-[11px] text-slate-200 truncate">
-                  {{ formatDate(evt.start_date || evt.start_at) }} • {{ getPriceDisplay(evt) }}
+                </h4>
+                <p class="text-[10px] text-slate-300">
+                  {{ formatDate(evt.start_at || evt.start_date) }}
                 </p>
               </div>
             </RouterLink>
 
-            <!-- 4th Card: Studio EO CTA Card (matching LOKET Screen right card) -->
-            <div class="relative aspect-[3/4] rounded-2xl overflow-hidden bg-gradient-to-br from-[#0f172a] via-[#13294b] to-[#1d4478] p-6 text-white flex flex-col justify-between border border-slate-800 shadow-md">
-              <div class="pointer-events-none absolute -right-8 -top-8 h-36 w-36 rounded-full bg-[#72a5e4]/25 blur-2xl" />
-              <div class="relative z-10 space-y-3">
-                <span class="inline-flex items-center gap-1 rounded-full bg-[#72a5e4]/20 border border-[#72a5e4]/40 px-2.5 py-1 text-[10px] font-bold text-[#72a5e4]">
-                  TERRA Studio EO
-                </span>
-                <h3 class="text-xl sm:text-2xl font-extrabold leading-tight">
-                  Promosikan acaramu di halaman depan TERRA.
+            <!-- 4th Card: Loket Screen Call-to-Action Blue Card -->
+            <div class="rounded-xl bg-[#152955] p-6 text-white flex flex-col justify-between aspect-[2/3] relative overflow-hidden shadow-md">
+              <div class="space-y-3 relative z-10">
+                <h3 class="text-lg sm:text-xl font-black leading-snug">
+                  Temukan tontonan berikutnya di layar lebar.
                 </h3>
-                <p class="text-xs text-sky-100/85 leading-relaxed">
-                  Kelola tim panitia, jual tiket QR berbayar atau gratis, dan pantau check-in peserta secara real-time.
+                <p class="text-xs text-slate-300 leading-relaxed">
+                  Beli tiket pertunjukan, konser, dan festival favoritmu sekarang.
                 </p>
               </div>
 
-              <div class="relative z-10 space-y-2.5">
-                <RouterLink
-                  :to="studioCreateRoute"
-                  class="block w-full text-center rounded-full bg-[#72a5e4] hover:bg-[#8bb7ec] px-4 py-2.5 text-xs font-extrabold text-slate-950 transition-colors"
-                >
-                  Buat Event Sekarang
-                </RouterLink>
+              <div class="space-y-4 relative z-10">
                 <RouterLink
                   to="/pricing"
-                  class="block w-full text-center rounded-full border border-white/25 hover:bg-white/10 px-4 py-2 text-xs font-bold text-white transition-colors"
+                  class="block w-full text-center rounded-lg bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold text-xs py-2.5 transition-colors shadow-sm"
                 >
-                  Pelajari Paket EO
+                  Beli Tiket Sekarang
                 </RouterLink>
+                <div class="flex justify-center">
+                  <div class="h-10 w-16 bg-white/10 rounded-full flex items-center justify-center">
+                    <Smile class="h-6 w-6 text-amber-400" />
+                  </div>
+                </div>
               </div>
             </div>
           </div>
         </section>
 
-        <!-- SHELF 7: Konser & Festival Spesial Untukmu (4-col) -->
+        <!-- 7. KONSER SPESIAL UNTUKMU -->
         <section v-if="concertEvents.length" class="space-y-4">
-          <div class="flex items-center justify-between gap-3">
-            <div class="flex items-center gap-2">
-              <span class="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-rose-100 text-rose-600">
-                <Music class="h-4 w-4" />
-              </span>
-              <h2 class="text-lg sm:text-xl font-extrabold tracking-tight text-slate-900">
-                Konser &amp; Festival Spesial Untukmu
-              </h2>
-            </div>
+          <div class="flex items-center justify-between">
+            <h2 class="text-[17px] sm:text-lg font-bold text-slate-900 flex items-center gap-2">
+              <span class="text-[#0052cc] font-extrabold">&gt;</span>
+              <span>Konser Spesial Untukmu</span>
+            </h2>
             <button
               type="button"
               @click="applyQuickFilter({ resetFirst: true, category: 'Musik & Konser' })"
-              class="text-xs font-bold text-[#1e5cb3] hover:underline inline-flex items-center gap-1 cursor-pointer shrink-0"
+              class="text-xs font-bold text-[#0052cc] hover:underline cursor-pointer"
             >
-              <span>Lihat Semua</span>
-              <ChevronRight class="h-3.5 w-3.5" />
+              Lihat Semua &gt;
             </button>
           </div>
 
-          <div class="flex lg:grid lg:grid-cols-4 gap-4 sm:gap-5 overflow-x-auto pb-2 lg:pb-0 snap-x snap-mandatory [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            <div
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
+            <ExploreEventCard
               v-for="evt in concertEvents"
               :key="`concert-${evt.id}`"
-              class="min-w-[260px] sm:min-w-[280px] lg:min-w-0 snap-start flex"
-            >
-              <ExploreEventCard :event="evt" class="w-full" />
-            </div>
+              :event="evt"
+            />
           </div>
         </section>
 
-        <!-- SHELF 8: Siap Seru-seruan Bareng Komunitas? (4-col) -->
-        <section v-if="communityEvents.length" class="space-y-4">
-          <div class="flex items-center justify-between gap-3">
-            <div class="flex items-center gap-2">
-              <span class="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-100 text-indigo-600">
-                <Users class="h-4 w-4" />
-              </span>
-              <h2 class="text-lg sm:text-xl font-extrabold tracking-tight text-slate-900">
-                Siap Seru-seruan Bareng Komunitas?
-              </h2>
-            </div>
-            <button
-              type="button"
-              @click="applyQuickFilter({ resetFirst: true, category: 'Komunitas & Sosial' })"
-              class="text-xs font-bold text-[#1e5cb3] hover:underline inline-flex items-center gap-1 cursor-pointer shrink-0"
-            >
-              <span>Lihat Semua</span>
-              <ChevronRight class="h-3.5 w-3.5" />
-            </button>
-          </div>
-
-          <div class="flex lg:grid lg:grid-cols-4 gap-4 sm:gap-5 overflow-x-auto pb-2 lg:pb-0 snap-x snap-mandatory [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            <div
-              v-for="evt in communityEvents"
-              :key="`comm-${evt.id}`"
-              class="min-w-[260px] sm:min-w-[280px] lg:min-w-0 snap-start flex"
-            >
-              <ExploreEventCard :event="evt" class="w-full" />
-            </div>
-          </div>
-        </section>
-
-        <!-- SHELF 9: Jelajahi Event di Kotamu (5-Column City Landmark Cards) -->
-        <section v-reveal class="space-y-4">
-          <div class="flex items-center justify-between gap-3">
-            <div class="flex items-center gap-2">
-              <span class="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-[#72a5e4]/25 text-[#1e5cb3]">
-                <MapPin class="h-4 w-4" />
-              </span>
-              <h2 class="text-lg sm:text-xl font-extrabold tracking-tight text-slate-900">
-                Jelajahi Event di Kotamu
-              </h2>
-            </div>
+        <!-- 8. SIAP SERU-SERUAN? -->
+        <section v-if="attractionEvents.length" class="space-y-4">
+          <div class="flex items-center justify-between">
+            <h2 class="text-[17px] sm:text-lg font-bold text-slate-900 flex items-center gap-2">
+              <span class="text-[#0052cc] font-extrabold">&gt;</span>
+              <span>Siap Seru-seruan?</span>
+            </h2>
             <button
               type="button"
               @click="applyQuickFilter({ resetFirst: true, showAll: true })"
-              class="text-xs font-bold text-[#1e5cb3] hover:underline inline-flex items-center gap-1 cursor-pointer shrink-0"
+              class="text-xs font-bold text-[#0052cc] hover:underline cursor-pointer"
             >
-              <span>Lihat Semua</span>
-              <ChevronRight class="h-3.5 w-3.5" />
+              Lihat Semua &gt;
+            </button>
+          </div>
+
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
+            <ExploreEventCard
+              v-for="evt in attractionEvents"
+              :key="`attract-${evt.id}`"
+              :event="evt"
+            />
+          </div>
+        </section>
+
+        <!-- 9. LAGI HYPE DI K-POP -->
+        <section v-if="hypeEvents.length" class="space-y-4">
+          <div class="flex items-center justify-between">
+            <h2 class="text-[17px] sm:text-lg font-bold text-slate-900 flex items-center gap-2">
+              <span class="text-[#0052cc] font-extrabold">&gt;</span>
+              <span>Lagi Hype di K-Pop</span>
+            </h2>
+            <button
+              type="button"
+              @click="applyQuickFilter({ resetFirst: true, showAll: true })"
+              class="text-xs font-bold text-[#0052cc] hover:underline cursor-pointer"
+            >
+              Lihat Semua &gt;
+            </button>
+          </div>
+
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
+            <ExploreEventCard
+              v-for="evt in hypeEvents"
+              :key="`hype-${evt.id}`"
+              :event="evt"
+            />
+          </div>
+        </section>
+
+        <!-- 10. JELAJAHI EVENT DI KOTAMU (5 CARDS WITH LANDMARK VECTORS) -->
+        <section class="space-y-4">
+          <div class="flex items-center justify-between">
+            <h2 class="text-[17px] sm:text-lg font-bold text-slate-900 flex items-center gap-2">
+              <span class="text-[#0052cc] font-extrabold">&gt;</span>
+              <span>Jelajahi Event di Kotamu</span>
+            </h2>
+            <button
+              type="button"
+              @click="applyQuickFilter({ resetFirst: true, showAll: true })"
+              class="text-xs font-bold text-[#0052cc] hover:underline cursor-pointer"
+            >
+              Lihat Semua &gt;
             </button>
           </div>
 
@@ -1468,152 +1367,95 @@ const verifiedOrganizers = computed(() => {
               v-for="city in cityCards"
               :key="city.label"
               type="button"
-              @click="
-                city.query === 'Bali'
-                  ? applyQuickFilter({ resetFirst: true, format: 'online' })
-                  : applyQuickFilter({ resetFirst: true, location: city.query })
-              "
-              class="group relative h-24 sm:h-28 rounded-2xl border border-slate-200/90 bg-white p-3.5 text-left flex flex-col justify-between overflow-hidden shadow-2xs hover:border-[#72a5e4] hover:shadow-md transition-all cursor-pointer"
+              @click="applyQuickFilter({ resetFirst: true, location: city.query })"
+              class="group relative h-20 rounded-xl border border-slate-200/90 bg-white p-3 text-left flex items-center justify-between overflow-hidden shadow-2xs hover:border-[#0052cc] hover:shadow-xs transition-all cursor-pointer"
             >
               <div class="relative z-10">
-                <p class="text-xs sm:text-sm font-extrabold text-slate-900 group-hover:text-[#1e5cb3] leading-tight">
+                <p class="text-xs sm:text-sm font-bold text-slate-900 group-hover:text-[#0052cc] leading-tight">
                   {{ city.label }}
                 </p>
-                <p class="text-[10px] font-medium text-slate-400 mt-0.5">
-                  {{ city.query === 'Bali' ? 'Event Online & Resort' : `${city.count} event` }}
-                </p>
+                <span class="text-[10px] text-slate-400 block mt-0.5">
+                  {{ city.count }} Event
+                </span>
               </div>
-              <span class="relative z-10 inline-flex h-5 w-5 items-center justify-center rounded-full bg-slate-100 group-hover:bg-[#72a5e4] text-slate-600 group-hover:text-slate-950 transition-colors">
-                <ChevronRight class="h-3 w-3" />
-              </span>
 
-              <!-- Custom Landmark Line Illustration -->
-              <svg
-                v-if="city.landmark === 'monas'"
-                viewBox="0 0 64 72"
-                class="pointer-events-none absolute right-2 bottom-0 h-20 w-16 text-slate-200 group-hover:text-[#72a5e4]/50 transition-colors"
-                fill="currentColor"
-              >
-                <path d="M31 4l3 7h-6l3-7zm-3 9h6v4h-6v-4zm1 6h4l3 34h-10l3-34zm-11 34h26l4 7H14l4-7zm-6 8h38v7H12v-7z" />
-              </svg>
-              <svg
-                v-else-if="city.landmark === 'tugu'"
-                viewBox="0 0 64 72"
-                class="pointer-events-none absolute right-2 bottom-0 h-20 w-16 text-slate-200 group-hover:text-[#72a5e4]/50 transition-colors"
-                fill="currentColor"
-              >
-                <path d="M32 6l3 10h-6l3-10zm-4 12h8v24h-8V18zm-4 25h16v6H24v-6zm-6 8h28v10H18V51zm-6 11h40v6H12v-6z" />
-              </svg>
-              <svg
-                v-else-if="city.landmark === 'sate'"
-                viewBox="0 0 72 64"
-                class="pointer-events-none absolute right-2 bottom-0 h-16 w-20 text-slate-200 group-hover:text-[#72a5e4]/50 transition-colors"
-                fill="currentColor"
-              >
-                <path d="M36 8l2 8h-4l2-8zm-6 9h12l2 10H28l2-10zm-14 12h40v8H16v-8zm-8 10h56v19H8V39z" />
-              </svg>
-              <svg
-                v-else-if="city.landmark === 'sura'"
-                viewBox="0 0 64 64"
-                class="pointer-events-none absolute right-2 bottom-0 h-16 w-16 text-slate-200 group-hover:text-[#72a5e4]/50 transition-colors"
-                fill="currentColor"
-              >
-                <path d="M22 18c8-10 22-8 26 2-5 2-9 6-9 12 0 5 3 10 8 13-6 7-20 7-26-2 4-5 5-16 1-25zm-8 34h36v6H14v-6z" />
-              </svg>
-              <svg
-                v-else
-                viewBox="0 0 64 64"
-                class="pointer-events-none absolute right-2 bottom-0 h-16 w-16 text-slate-200 group-hover:text-[#72a5e4]/50 transition-colors"
-                fill="currentColor"
-              >
-                <path d="M18 14h10v44H18V14zm18 0h10v44H36V14zm-22-4h36v5H14v-5zm4 20h28v6H18v-6zm-6 26h40v4H12v-4z" />
-              </svg>
+              <!-- Landmark Vector Illustration -->
+              <div class="w-12 h-12 flex items-center justify-center shrink-0 text-slate-300 group-hover:text-blue-500 transition-colors">
+                <svg v-if="city.landmark === 'monas'" viewBox="0 0 64 64" class="h-10 w-10" fill="currentColor">
+                  <path d="M31 4l3 7h-6l3-7zm-3 9h6v4h-6v-4zm1 6h4l3 34h-10l3-34zm-11 34h26l4 7H14l4-7z" />
+                </svg>
+                <svg v-else-if="city.landmark === 'tugu'" viewBox="0 0 64 64" class="h-10 w-10" fill="currentColor">
+                  <path d="M32 6l3 10h-6l3-10zm-4 12h8v24h-8V18zm-4 25h16v6H24v-6zm-6 8h28v10H18V51z" />
+                </svg>
+                <svg v-else-if="city.landmark === 'sate'" viewBox="0 0 64 64" class="h-10 w-10" fill="currentColor">
+                  <path d="M36 8l2 8h-4l2-8zm-6 9h12l2 10H28l2-10zm-14 12h40v8H16v-8zm-8 10h56v19H8V39z" />
+                </svg>
+                <svg v-else-if="city.landmark === 'sura'" viewBox="0 0 64 64" class="h-10 w-10" fill="currentColor">
+                  <path d="M22 18c8-10 22-8 26 2-5 2-9 6-9 12 0 5 3 10 8 13-6 7-20 7-26-2 4-5 5-16 1-25z" />
+                </svg>
+                <svg v-else viewBox="0 0 64 64" class="h-10 w-10" fill="currentColor">
+                  <path d="M18 14h10v44H18V14zm18 0h10v44H36V14zm-22-4h36v5H14v-5z" />
+                </svg>
+              </div>
             </button>
           </div>
         </section>
 
-        <!-- SHELF 10: Organizer Terverifikasi Pilihan (3 Two-Tone Cards matching Bottom Reference Row) -->
-        <section v-if="verifiedOrganizers.length" v-reveal class="space-y-4">
-          <div class="flex items-center justify-between gap-3">
-            <div class="flex items-center gap-2">
-              <span class="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-sky-100 text-[#1e5cb3]">
-                <ShieldCheck class="h-4 w-4" />
-              </span>
-              <h2 class="text-lg sm:text-xl font-extrabold tracking-tight text-slate-900">
-                Organizer Terverifikasi Pilihan
-              </h2>
-            </div>
-            <RouterLink
-              to="/organizer/register"
-              class="text-xs font-bold text-[#1e5cb3] hover:underline inline-flex items-center gap-1 shrink-0"
+        <!-- 11. BACAAN SERU! (3 EDITORIAL SPLIT CARDS) -->
+        <section class="space-y-4">
+          <div class="flex items-center justify-between">
+            <h2 class="text-[17px] sm:text-lg font-bold text-slate-900 flex items-center gap-2">
+              <span class="text-[#0052cc] font-extrabold">&gt;</span>
+              <span>Bacaan Seru!</span>
+            </h2>
+            <button
+              type="button"
+              @click="applyQuickFilter({ resetFirst: true, showAll: true })"
+              class="text-xs font-bold text-[#0052cc] hover:underline cursor-pointer"
             >
-              <span>Gabung Organizer</span>
-              <ChevronRight class="h-3.5 w-3.5" />
-            </RouterLink>
+              Lihat Semua &gt;
+            </button>
           </div>
 
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-5">
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
             <RouterLink
-              v-for="(org, idx) in verifiedOrganizers"
-              :key="org.id"
-              :to="`/organizers/${org.slug}`"
-              class="group rounded-2xl border border-slate-200/90 bg-white overflow-hidden shadow-2xs hover:shadow-lg hover:border-[#72a5e4] transition-all flex flex-col justify-between"
+              v-for="blog in blogCards"
+              :key="blog.headline"
+              :to="blog.link"
+              class="group cursor-pointer space-y-2"
             >
-              <!-- Two-Tone Split Top Card -->
-              <div class="grid grid-cols-12 h-36 sm:h-40">
-                <div
-                  class="col-span-6 p-4 flex flex-col justify-between"
-                  :class="organizerSplitThemes[idx % organizerSplitThemes.length]"
-                >
-                  <span class="inline-flex items-center gap-1 text-[10px] font-extrabold uppercase tracking-wide opacity-90">
-                    <ShieldCheck class="h-3 w-3" />
-                    {{ org.verification_status === 'verified' ? 'Verified EO' : 'Official EO' }}
-                  </span>
-                  <p class="text-xs sm:text-sm font-extrabold leading-snug line-clamp-3">
-                    {{ org.name }}
-                  </p>
-                </div>
-                <div class="col-span-6 bg-slate-900 relative overflow-hidden">
-                  <img
-                    :src="org.cover_url || org.logo_url || FALLBACK_POSTER"
-                    :alt="org.name"
-                    loading="lazy"
-                    class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                  />
+              <!-- 2-Tone Split Banner -->
+              <div class="rounded-xl overflow-hidden border border-slate-200/90 shadow-2xs group-hover:shadow-md transition-shadow">
+                <div class="grid grid-cols-12 h-32">
+                  <div
+                    class="col-span-6 p-3.5 flex flex-col justify-between"
+                    :class="blog.bg"
+                  >
+                    <span class="text-[9px] font-black tracking-wider uppercase opacity-90">
+                      {{ blog.badge }}
+                    </span>
+                    <p class="text-xs font-black leading-snug line-clamp-3">
+                      {{ blog.headline }}
+                    </p>
+                  </div>
+                  <div class="col-span-6 bg-slate-900 overflow-hidden">
+                    <img
+                      :src="blog.img"
+                      :alt="blog.title"
+                      loading="lazy"
+                      class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    />
+                  </div>
                 </div>
               </div>
 
-              <!-- Card Footer Caption -->
-              <div class="p-4 space-y-1.5">
-                <h3 class="text-sm font-bold text-slate-900 group-hover:text-[#1e5cb3] line-clamp-1">
-                  {{ org.name }} — {{ org.event_count || 0 }} Event Aktif
-                </h3>
-                <p class="text-xs text-slate-500 line-clamp-2">
-                  {{ org.description || 'Penyelenggara acara kampus, seminar, dan konser terverifikasi di ekosistem TERRA.' }}
-                </p>
-              </div>
+              <!-- Title Below -->
+              <h4 class="text-xs sm:text-[13px] font-bold text-slate-900 line-clamp-2 leading-snug group-hover:text-[#0052cc] transition-colors">
+                {{ blog.title }}
+              </h4>
             </RouterLink>
           </div>
         </section>
-
-        <!-- Bottom CTA Strip to Browse Full Paginated Catalog -->
-        <div class="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div class="text-center sm:text-left">
-            <h3 class="text-base font-extrabold text-slate-900">
-              Ingin melihat seluruh daftar acara sekaligus?
-            </h3>
-            <p class="text-xs text-slate-500 mt-0.5">
-              Jelajahi seluruh {{ totalCount }} acara dengan tampilan grid katalog lengkap dan paginasi.
-            </p>
-          </div>
-          <button
-            type="button"
-            @click="applyQuickFilter({ resetFirst: true, showAll: true })"
-            class="rounded-full bg-[#0f172a] hover:bg-[#1e5cb3] px-5 py-2.5 text-xs font-extrabold text-white transition-colors cursor-pointer shrink-0"
-          >
-            Buka Katalog Lengkap ({{ totalCount }})
-          </button>
-        </div>
       </div>
     </div>
   </div>
