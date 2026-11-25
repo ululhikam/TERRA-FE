@@ -180,12 +180,12 @@ async function handleLogout() {
     >
       <!-- Brand Header: Click TERRA Logo to Collapse/Expand with Pinwheel Spin -->
       <div
-        class="pt-4 pb-3 shrink-0 flex items-center justify-between border-b border-black/10"
+        class="h-16 shrink-0 flex items-center justify-between border-b border-black"
         :class="sidebarCollapsed ? 'lg:px-2 lg:justify-center px-4' : 'px-4'"
       >
         <div
-          class="flex flex-col items-start gap-1.5 min-w-0"
-          :class="sidebarCollapsed ? 'lg:items-center' : ''"
+          class="flex items-center gap-2 min-w-0"
+          :class="sidebarCollapsed ? 'lg:justify-center' : ''"
         >
           <button
             type="button"
@@ -205,9 +205,9 @@ async function handleLogout() {
           <RouterLink
             v-if="!sidebarCollapsed"
             to="/dashboard"
-            class="rounded-full border border-black bg-white px-3.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-black hover:bg-[#72a5e4] transition-colors"
+            class="rounded-full border border-black bg-white px-2.5 py-0.5 font-mono text-[10px] font-medium text-black hover:bg-[#72a5e4] transition-colors shrink-0"
           >
-            STUDIO
+            Studio
           </RouterLink>
         </div>
 
@@ -224,9 +224,9 @@ async function handleLogout() {
           <div class="space-y-1">
             <p
               v-if="!sidebarCollapsed"
-              class="px-2 text-[9px] font-bold uppercase tracking-wider text-slate-500 truncate"
+              class="px-2 text-[11px] font-medium text-slate-500 truncate"
             >
-              MENU UTAMA
+              Menu utama
             </p>
             <nav class="space-y-1">
               <RouterLink
@@ -272,7 +272,7 @@ async function handleLogout() {
                 </span>
                 <span
                   v-if="!sidebarCollapsed && unreadNotifCount > 0"
-                  class="rounded-full border border-black bg-[#72a5e4] px-1.5 py-0.5 text-[10px] font-bold text-black leading-none"
+                  class="rounded-full border border-black bg-[#72a5e4] px-1.5 py-0.5 font-mono text-[10px] font-bold tabular-nums text-black leading-none"
                 >
                   {{ unreadNotifCount }}
                 </span>
@@ -283,9 +283,9 @@ async function handleLogout() {
           <div class="space-y-1">
             <p
               v-if="!sidebarCollapsed"
-              class="px-2 text-[9px] font-bold uppercase tracking-wider text-slate-500 truncate"
+              class="px-2 text-[11px] font-medium text-slate-500 truncate"
             >
-              KELOLA ACARA
+              Kelola acara
             </p>
             <nav class="space-y-1">
               <RouterLink
@@ -299,7 +299,7 @@ async function handleLogout() {
                   <CalendarDays class="h-4 w-4 shrink-0 text-black" />
                   <span v-if="!sidebarCollapsed" class="truncate">Acara Saya</span>
                 </div>
-                <span v-if="!sidebarCollapsed" class="text-[11px] font-bold text-black shrink-0">
+                <span v-if="!sidebarCollapsed" class="font-mono text-[11px] font-semibold tabular-nums text-black shrink-0">
                   {{ store.events.length }}
                 </span>
               </RouterLink>
@@ -335,27 +335,27 @@ async function handleLogout() {
               v-if="!sidebarCollapsed"
               class="rounded-xl border border-black bg-[#72a5e4] p-3 space-y-1.5 text-black"
             >
-              <span class="text-[9px] font-bold uppercase tracking-wider text-slate-900 block">
-                ACARA AKTIF
+              <span class="text-[10px] font-semibold text-black/80 block">
+                Acara aktif
               </span>
               <p class="text-xs font-bold text-black leading-snug line-clamp-2">
                 {{ currentEvent.title }}
               </p>
               <div>
-                <span class="inline-block rounded-full border border-black bg-white px-2.5 py-0.5 text-[10px] font-bold text-black">
-                  {{ currentEvent.publication_status || currentEvent.status || 'Published' }}
+                <span class="inline-block rounded-full border border-black bg-white px-2.5 py-0.5 text-[10px] font-semibold text-black capitalize">
+                  {{ currentEvent.publication_status || currentEvent.status || 'Draft' }}
                 </span>
               </div>
             </div>
           </div>
 
-          <!-- PENGATURAN ACARA -->
+          <!-- Pengaturan acara -->
           <div class="space-y-1">
             <p
               v-if="!sidebarCollapsed"
-              class="px-2 text-[9px] font-bold uppercase tracking-wider text-slate-500 truncate"
+              class="px-2 text-[11px] font-medium text-slate-500 truncate"
             >
-              PENGATURAN ACARA
+              Pengaturan acara
             </p>
             <nav class="space-y-0.5">
               <RouterLink
@@ -391,7 +391,7 @@ async function handleLogout() {
                   <SlidersHorizontal class="h-3.5 w-3.5 shrink-0 text-black" />
                   <span v-if="!sidebarCollapsed" class="truncate">Fitur &amp; Modul</span>
                 </div>
-                <span v-if="!sidebarCollapsed" class="text-[10px] font-bold text-black shrink-0">
+                <span v-if="!sidebarCollapsed" class="font-mono text-[10px] font-semibold tabular-nums text-black shrink-0">
                   {{ currentEvent.enabled_modules.length }}
                 </span>
               </RouterLink>
@@ -409,7 +409,7 @@ async function handleLogout() {
             </nav>
           </div>
 
-          <!-- JADWAL & PANITIA -->
+          <!-- Jadwal & panitia -->
           <div
             v-if="
               ((hasModule('timeline') || hasModule('tasks')) && hasPermission('Manage Timeline')) ||
@@ -419,9 +419,9 @@ async function handleLogout() {
           >
             <p
               v-if="!sidebarCollapsed"
-              class="px-2 text-[9px] font-bold uppercase tracking-wider text-slate-500 truncate"
+              class="px-2 text-[11px] font-medium text-slate-500 truncate"
             >
-              JADWAL &amp; PANITIA
+              Jadwal &amp; panitia
             </p>
             <nav class="space-y-0.5">
               <RouterLink
@@ -460,7 +460,7 @@ async function handleLogout() {
             </nav>
           </div>
 
-          <!-- TIKET & PESERTA -->
+          <!-- Tiket & peserta -->
           <div
             v-if="
               (hasModule('ticketing') && hasPermission('Manage Tickets')) ||
@@ -471,9 +471,9 @@ async function handleLogout() {
           >
             <p
               v-if="!sidebarCollapsed"
-              class="px-2 text-[9px] font-bold uppercase tracking-wider text-slate-500 truncate"
+              class="px-2 text-[11px] font-medium text-slate-500 truncate"
             >
-              TIKET &amp; PESERTA
+              Tiket &amp; peserta
             </p>
             <nav class="space-y-0.5">
               <RouterLink
@@ -523,7 +523,7 @@ async function handleLogout() {
             </nav>
           </div>
 
-          <!-- KEUANGAN & LOGISTIK -->
+          <!-- Keuangan & logistik -->
           <div
             v-if="
               (hasModule('finance') && hasPermission('View Finance')) ||
@@ -536,9 +536,9 @@ async function handleLogout() {
           >
             <p
               v-if="!sidebarCollapsed"
-              class="px-2 text-[9px] font-bold uppercase tracking-wider text-slate-500 truncate"
+              class="px-2 text-[11px] font-medium text-slate-500 truncate"
             >
-              KEUANGAN &amp; LOGISTIK
+              Keuangan &amp; logistik
             </p>
             <nav class="space-y-0.5">
               <RouterLink
@@ -566,13 +566,13 @@ async function handleLogout() {
             </nav>
           </div>
 
-          <!-- LAPORAN -->
+          <!-- Laporan -->
           <div v-if="hasModule('reports') || hasPermission('View Event')" class="space-y-1">
             <p
               v-if="!sidebarCollapsed"
-              class="px-2 text-[9px] font-bold uppercase tracking-wider text-slate-500 truncate"
+              class="px-2 text-[11px] font-medium text-slate-500 truncate"
             >
-              LAPORAN
+              Laporan
             </p>
             <nav class="space-y-0.5">
               <RouterLink
@@ -606,14 +606,11 @@ async function handleLogout() {
       <div class="p-3 shrink-0 border-t border-black/10">
         <RouterLink
           to="/"
-          class="flex items-center justify-center gap-2 rounded-full border border-black bg-white px-3 py-2 text-xs font-bold text-black hover:bg-slate-100 transition-colors"
+          class="flex items-center justify-center gap-2 rounded-full border border-black bg-white px-3 py-2 text-xs font-semibold text-black hover:bg-slate-100 transition-colors"
           title="Lihat Halaman Publik"
         >
-          <ExternalLink v-if="sidebarCollapsed" class="h-3.5 w-3.5 shrink-0" />
-          <template v-else>
-            <span class="truncate">Lihat Halaman Publik</span>
-            <span>↗</span>
-          </template>
+          <ExternalLink class="h-3.5 w-3.5 shrink-0" />
+          <span v-if="!sidebarCollapsed" class="truncate">Halaman Publik</span>
         </RouterLink>
       </div>
 
@@ -634,51 +631,55 @@ async function handleLogout() {
     <!-- Top Navigation Bar -->
     <header
       :class="isResizingSidebar ? '' : 'transition-[left] duration-200 ease-in-out'"
-      class="fixed top-0 right-0 left-0 lg:left-[var(--sidebar-w)] h-16 border-b border-black bg-[#fafaf9]/95 z-30 flex items-center justify-between px-4 sm:px-6"
+      class="fixed top-0 right-0 left-0 lg:left-[var(--sidebar-w)] h-16 border-b border-black bg-[#fafaf9]/95 backdrop-blur-sm z-30 flex items-center justify-between px-4 sm:px-6"
     >
       <div class="flex items-center gap-3 min-w-0">
         <button
           @click="sidebarOpen = true"
           class="lg:hidden rounded-lg border border-black p-1.5 text-black hover:bg-slate-100 shrink-0"
+          aria-label="Buka menu navigasi"
         >
           <Menu class="h-5 w-5" />
         </button>
 
         <div class="flex items-center gap-2 text-xs text-slate-500 min-w-0">
           <span class="shrink-0">Penyelenggara</span>
-          <span class="shrink-0">/</span>
-          <span class="text-slate-700 font-medium truncate">
+          <span class="shrink-0 text-slate-400">/</span>
+          <span class="text-black font-semibold truncate">
             {{ isEventWorkspace && currentEvent ? currentEvent.title : 'Ruang Kerja Acara' }}
           </span>
         </div>
       </div>
 
       <!-- User Profile, Mobile Quick QR Scanner Shortcut & Logout -->
-      <div class="flex items-center gap-2 sm:gap-3 shrink-0">
+      <div class="flex items-center gap-2.5 sm:gap-3 shrink-0">
         <RouterLink
           v-if="isEventWorkspace && currentEvent && hasModule('check_in')"
           :to="`/dashboard/events/${currentEvent.id}/check-in`"
-          class="lg:hidden inline-flex items-center gap-1 rounded-full border border-black bg-[#72a5e4] px-3 py-1 text-[11px] font-black text-black shadow-[2px_2px_0px_#000]"
+          class="lg:hidden inline-flex items-center gap-1 rounded-full border border-black bg-[#72a5e4] px-3 py-1 text-[11px] font-bold text-black hover:bg-[#5c93d9] transition-colors"
         >
           <QrCode class="h-3.5 w-3.5" />
           <span>Scan QR</span>
         </RouterLink>
         <span
-          class="hidden md:inline-flex items-center gap-1 rounded-full border border-black bg-[#72a5e4] px-3 py-1 text-[10px] font-bold text-black"
+          class="hidden md:inline-flex items-center gap-1 rounded-full border border-black bg-[#72a5e4] px-3 py-1 font-mono text-[11px] font-semibold text-black"
         >
           {{ subscriptionBadgeLabel }}
         </span>
-        <div class="text-left hidden sm:block">
-          <p class="text-xs font-bold text-black">{{ authStore.user?.full_name || authStore.user?.email || 'Organizer' }}</p>
-          <p class="text-[11px] text-slate-500 truncate max-w-[180px]">{{ authStore.user?.email || '' }}</p>
+        <div class="hidden sm:flex items-center gap-2 pl-2 border-l border-black/15">
+          <div class="h-7 w-7 rounded-full border border-black bg-white flex items-center justify-center shrink-0">
+            <User class="h-3.5 w-3.5 text-black" />
+          </div>
+          <div class="text-left leading-tight">
+            <p class="text-xs font-semibold text-black truncate max-w-[150px]">{{ authStore.user?.full_name || authStore.user?.email || 'Organizer' }}</p>
+            <p class="text-[11px] text-slate-500 truncate max-w-[160px]">{{ authStore.user?.email || '' }}</p>
+          </div>
         </div>
-        <button class="p-1 text-black hover:text-slate-600">
-          <User class="h-4 w-4" />
-        </button>
         <button
           @click="handleLogout"
-          class="p-1 text-black hover:text-rose-600 cursor-pointer"
+          class="inline-flex items-center justify-center h-8 w-8 rounded-full border border-transparent text-slate-700 hover:border-black hover:bg-rose-50 hover:text-rose-700 transition-colors cursor-pointer"
           title="Keluar dari Studio"
+          aria-label="Keluar dari Studio"
         >
           <LogOut class="h-4 w-4" />
         </button>

@@ -241,15 +241,12 @@ async function handleProofUpload(e) {
 <template>
   <div class="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-10 sm:py-14 space-y-12">
     <!-- Hero Header -->
-    <div class="text-center max-w-3xl mx-auto space-y-4">
-      <span class="inline-flex items-center gap-1.5 rounded-full border border-black bg-[#72a5e4] px-4 py-1 text-[11px] font-bold uppercase tracking-wider text-black">
-        TERRA PRICING • MODEL PER EVENT
-      </span>
-      <h1 class="text-3xl sm:text-5xl font-bold tracking-tight text-black font-editorial leading-tight">
-        One Platform. <strong class="font-sans font-black">Every Event.</strong>
+    <div class="text-center max-w-2xl mx-auto space-y-4">
+      <h1 class="text-3xl sm:text-5xl font-extrabold tracking-tight text-black leading-tight">
+        Skema harga transparan per acara
       </h1>
-      <p class="text-sm sm:text-base text-slate-600 leading-relaxed">
-        Bayar hanya untuk event yang Anda selenggarakan — tanpa kewajiban langganan bulanan otomatis, tanpa biaya tersembunyi, dan tanpa komisi tiket.
+      <p class="text-xs sm:text-sm text-slate-600 leading-relaxed">
+        Bayar hanya untuk acara yang Anda selenggarakan — tanpa langganan bulanan otomatis, tanpa biaya tersembunyi, dan tanpa komisi tiket.
       </p>
 
       <!-- Community Toggle -->
@@ -257,7 +254,7 @@ async function handleProofUpload(e) {
         <button
           type="button"
           @click="showCommunityPrices = !showCommunityPrices"
-          class="inline-flex items-center gap-2 rounded-full border-2 border-black px-5 py-2 text-xs font-bold transition-colors cursor-pointer"
+          class="inline-flex items-center gap-2 rounded-full border border-black px-5 py-2 text-xs font-bold transition-colors cursor-pointer"
           :class="showCommunityPrices ? 'bg-[#72a5e4] text-black' : 'bg-white text-black hover:bg-slate-100'"
         >
           <Tag class="h-3.5 w-3.5" />
@@ -277,103 +274,107 @@ async function handleProofUpload(e) {
       <div
         v-for="plan in plans"
         :key="plan.code"
-        class="rounded-3xl border-2 border-black p-6 flex flex-col justify-between space-y-6 transition-transform"
+        class="rounded-2xl flex flex-col justify-between overflow-hidden transition-transform"
         :class="
           plan.is_popular
-            ? 'bg-[#72a5e4]/20 shadow-[6px_6px_0_#000]'
-            : 'bg-white shadow-[4px_4px_0_#000]'
+            ? 'border-2 border-black bg-white shadow-[5px_5px_0_#000]'
+            : 'border-[1.5px] border-black bg-white'
         "
       >
-        <div class="space-y-4">
-          <div class="flex items-center justify-between gap-2">
-            <span class="rounded-full border border-black bg-white px-3 py-0.5 text-[10px] font-black uppercase tracking-wider text-black">
-              {{ plan.name }}
-            </span>
-            <span
-              v-if="plan.is_popular"
-              class="rounded-full border border-black bg-[#72a5e4] px-2.5 py-0.5 text-[10px] font-bold text-black"
-            >
-              Paling Populer
-            </span>
-            <span
-              v-else-if="plan.trial_days > 0"
-              class="rounded-full border border-black bg-white px-2.5 py-0.5 text-[10px] font-bold text-black"
-            >
-              Trial {{ plan.trial_days }} Hari
-            </span>
-          </div>
-
-          <div>
-            <div class="flex items-baseline gap-1.5">
-              <span class="text-3xl font-black text-black">
-                {{ displayedPrice(plan) === 0 ? 'Rp0' : formatCurrency(displayedPrice(plan)) }}
-              </span>
-              <span class="text-xs font-medium text-slate-500">
-                {{ plan.price_idr === 0 ? '/ gratis' : '/ event' }}
-              </span>
-            </div>
-            <p
-              v-if="showCommunityPrices && plan.community_discount_pct > 0"
-              class="text-[11px] font-bold text-emerald-700 mt-0.5"
-            >
-              Hemat {{ plan.community_discount_pct }}% dari harga normal {{ formatCurrency(plan.price_idr) }}
-            </p>
-            <p
-              v-else-if="plan.early_access_price_idr"
-              class="text-[11px] font-semibold text-slate-600 mt-0.5"
-            >
-              Early Access 100 organizer pertama: <strong class="text-black">{{ formatCurrency(plan.early_access_price_idr) }}</strong>
-            </p>
-          </div>
-
-          <p class="text-xs text-slate-700 leading-relaxed">
-            {{ plan.description }}
-          </p>
-
-          <div class="rounded-xl border border-black/15 bg-[#fafaf9] p-3 text-[11px] space-y-1">
-            <div class="flex justify-between">
-              <span class="text-slate-500">Maks. Peserta</span>
-              <span class="font-bold text-black">{{ Number(plan.max_participants).toLocaleString('id-ID') }} org</span>
-            </div>
-            <div class="flex justify-between">
-              <span class="text-slate-500">Panitia / Tim</span>
-              <span class="font-bold text-black">{{ plan.max_team_members }} akun</span>
-            </div>
-            <div class="flex justify-between">
-              <span class="text-slate-500">Modul Terbuka</span>
-              <span class="font-bold text-black">{{ (plan.allowed_modules || []).length }} / 13 modul</span>
-            </div>
-          </div>
-
-          <ul class="space-y-2 text-xs text-slate-700 pt-1">
-            <li v-for="(feat, i) in (plan.features || [])" :key="i" class="flex items-start gap-2">
-              <CheckCircle2 class="h-3.5 w-3.5 text-black shrink-0 mt-0.5" />
-              <span>{{ feat }}</span>
-            </li>
-          </ul>
+        <div
+          v-if="plan.is_popular"
+          class="bg-[#72a5e4] border-b border-black px-6 py-2 flex items-center justify-between text-xs font-bold text-black"
+        >
+          <span>{{ plan.name }}</span>
+          <span>Paling Populer</span>
         </div>
 
-        <button
-          type="button"
-          @click="selectPlan(plan)"
-          class="w-full rounded-full border border-black py-3 px-4 text-xs font-bold text-center inline-flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-          :class="
-            plan.is_popular
-              ? 'bg-black text-white hover:bg-slate-800'
-              : 'bg-[#fafaf9] text-black hover:bg-[#72a5e4]'
-          "
-        >
-          <span>{{ plan.price_idr === 0 ? 'Aktifkan Paket Free' : `Pilih Paket ${plan.name}` }}</span>
-          <ArrowRight class="h-3.5 w-3.5" />
-        </button>
+        <div class="p-6 flex-1 flex flex-col justify-between space-y-6">
+          <div class="space-y-4">
+            <div v-if="!plan.is_popular" class="flex items-center justify-between gap-2">
+              <span class="rounded-full border border-black bg-[#fafaf9] px-3 py-0.5 text-[11px] font-bold text-black">
+                {{ plan.name }}
+              </span>
+              <span
+                v-if="plan.trial_days > 0"
+                class="rounded-full border border-black/30 bg-white px-2.5 py-0.5 text-[11px] font-semibold text-black"
+              >
+                Trial {{ plan.trial_days }} Hari
+              </span>
+            </div>
+
+            <div>
+              <div class="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5">
+                <span class="font-mono text-2xl xl:text-[26px] font-bold tracking-tight tabular-nums text-black whitespace-nowrap">
+                  {{ displayedPrice(plan) === 0 ? 'Rp0' : formatCurrency(displayedPrice(plan)) }}
+                </span>
+                <span class="text-xs font-medium text-slate-500 whitespace-nowrap">
+                  {{ plan.price_idr === 0 ? '/ gratis' : '/ event' }}
+                </span>
+              </div>
+              <p
+                v-if="showCommunityPrices && plan.community_discount_pct > 0"
+                class="text-[11px] font-bold text-emerald-700 mt-1"
+              >
+                Hemat {{ plan.community_discount_pct }}% dari {{ formatCurrency(plan.price_idr) }}
+              </p>
+              <p
+                v-else-if="plan.early_access_price_idr"
+                class="text-[11px] font-medium text-slate-600 mt-1"
+              >
+                Early Access: <strong class="font-mono text-black">{{ formatCurrency(plan.early_access_price_idr) }}</strong>
+              </p>
+            </div>
+
+            <p class="text-xs text-slate-600 leading-relaxed">
+              {{ plan.description }}
+            </p>
+
+            <div class="rounded-xl border border-black/15 bg-[#fafaf9] p-3 text-[11px] space-y-1.5">
+              <div class="flex justify-between">
+                <span class="text-slate-500">Maks. Peserta</span>
+                <span class="font-mono font-bold text-black">{{ Number(plan.max_participants).toLocaleString('id-ID') }}</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-slate-500">Panitia / Tim</span>
+                <span class="font-mono font-bold text-black">{{ plan.max_team_members }} akun</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-slate-500">Modul Aktif</span>
+                <span class="font-mono font-bold text-black">{{ (plan.allowed_modules || []).length }} / 13</span>
+              </div>
+            </div>
+
+            <ul class="space-y-2 text-xs text-slate-700 pt-1">
+              <li v-for="(feat, i) in (plan.features || [])" :key="i" class="flex items-start gap-2">
+                <CheckCircle2 class="h-3.5 w-3.5 text-black shrink-0 mt-0.5" />
+                <span>{{ feat }}</span>
+              </li>
+            </ul>
+          </div>
+
+          <button
+            type="button"
+            @click="selectPlan(plan)"
+            class="luxury-pill w-full rounded-full border border-black py-3 px-4 text-xs font-bold text-center inline-flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+            :class="
+              plan.is_popular
+                ? 'bg-black text-white hover:bg-slate-800'
+                : 'bg-[#fafaf9] text-black hover:bg-[#72a5e4]'
+            "
+          >
+            <span>{{ plan.price_idr === 0 ? 'Aktifkan Paket Free' : `Pilih Paket ${plan.name}` }}</span>
+            <ArrowRight class="h-3.5 w-3.5" />
+          </button>
+        </div>
       </div>
     </div>
 
     <!-- 14 Days Pro Access Trial Banner -->
     <div class="rounded-3xl border-2 border-black bg-[#72a5e4]/25 p-6 sm:p-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
       <div class="space-y-2 max-w-2xl">
-        <span class="inline-flex items-center gap-1.5 rounded-full border border-black bg-white px-3 py-0.5 text-[10px] font-bold uppercase text-black">
-          <Sparkles class="h-3 w-3" /> Program Uji Coba Tanpa Risiko
+        <span class="inline-flex items-center gap-1.5 rounded-full border border-black bg-white px-3 py-0.5 text-[10px] font-bold text-black">
+          <Sparkles class="h-3 w-3" /> Program uji coba tanpa risiko
         </span>
         <h2 class="text-2xl font-bold text-black font-editorial">
           14 Days Pro Access — Gratis Tanpa Kartu Kredit
@@ -385,9 +386,10 @@ async function handleProofUpload(e) {
       <button
         type="button"
         @click="selectTrial"
-        class="rounded-full border border-black bg-black px-6 py-3 text-xs font-bold text-white hover:bg-slate-800 shrink-0 cursor-pointer"
+        class="inline-flex items-center justify-center gap-1.5 rounded-full border border-black bg-black px-6 py-3 text-xs font-bold text-white hover:bg-slate-800 shrink-0 cursor-pointer"
       >
-        Coba 14 Days Pro Access &rarr;
+        <span>Coba 14 Days Pro Access</span>
+        <ArrowRight class="h-3.5 w-3.5" />
       </button>
     </div>
 
@@ -409,15 +411,16 @@ async function handleProofUpload(e) {
                 {{ bnd.event_quota }} Event • {{ bnd.plan_code.toUpperCase() }}
               </span>
               <h3 class="text-sm font-bold text-black pt-1">{{ bnd.name }}</h3>
-              <p class="text-xl font-black text-black">{{ formatCurrency(bnd.bundle_price_idr) }}</p>
+              <p class="font-mono text-xl font-bold tabular-nums text-black">{{ formatCurrency(bnd.bundle_price_idr) }}</p>
               <p class="text-[11px] text-slate-600">{{ bnd.description }}</p>
             </div>
             <button
               type="button"
               @click="selectBundle(bnd)"
-              class="w-full text-center rounded-full border border-black bg-white py-2 text-[11px] font-bold text-black hover:bg-black hover:text-white transition-colors cursor-pointer"
+              class="inline-flex items-center justify-center gap-1.5 w-full text-center rounded-full border border-black bg-white py-2 text-[11px] font-bold text-black hover:bg-black hover:text-white transition-colors cursor-pointer"
             >
-              Pilih Kuota Bundle &rarr;
+              <span>Pilih Kuota Bundle</span>
+              <ArrowRight class="h-3.5 w-3.5" />
             </button>
           </div>
         </div>

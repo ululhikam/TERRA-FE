@@ -9,10 +9,7 @@ const authStore = useAuthStore()
 const router = useRouter()
 const route = useRoute()
 const mobileOpen = ref(false)
-const isScrolled = ref(false)
 const scrollProgress = ref(0)
-const bubbleOpen = ref(false)
-const floatingNavRef = ref(null)
 const footerRef = ref(null)
 const footerGrowth = ref(0)
 let footerTarget = 0
@@ -51,27 +48,14 @@ function updateFooterRootGrowth() {
 }
 
 function handleScroll() {
-  const scrolled = window.scrollY > 72
-  isScrolled.value = scrolled
-  if (!scrolled) {
-    bubbleOpen.value = false
-  }
   const docEl = document.documentElement
   const maxScroll = Math.max(1, docEl.scrollHeight - window.innerHeight)
   scrollProgress.value = clamp01((window.scrollY || 0) / maxScroll)
   updateFooterRootGrowth()
 }
 
-function handleDocumentClick(e) {
-  if (!bubbleOpen.value) return
-  if (floatingNavRef.value && !floatingNavRef.value.contains(e.target)) {
-    bubbleOpen.value = false
-  }
-}
-
 function handleKeydown(e) {
   if (e.key === 'Escape') {
-    bubbleOpen.value = false
     mobileOpen.value = false
   }
 }
@@ -79,7 +63,6 @@ function handleKeydown(e) {
 watch(
   () => route.fullPath,
   () => {
-    bubbleOpen.value = false
     mobileOpen.value = false
   }
 )
@@ -89,22 +72,19 @@ onMounted(() => {
   handleScroll()
   window.addEventListener('scroll', handleScroll, { passive: true })
   window.addEventListener('resize', updateFooterRootGrowth, { passive: true })
-  document.addEventListener('click', handleDocumentClick)
-  document.addEventListener('keydown', handleKeydown)
+  window.addEventListener('keydown', handleKeydown)
 })
 
 onBeforeUnmount(() => {
   window.removeEventListener('scroll', handleScroll)
   window.removeEventListener('resize', updateFooterRootGrowth)
-  document.removeEventListener('click', handleDocumentClick)
-  document.removeEventListener('keydown', handleKeydown)
+  window.removeEventListener('keydown', handleKeydown)
   if (footerRaf) cancelAnimationFrame(footerRaf)
 })
 
 async function handleLogout() {
   await authStore.logout()
   mobileOpen.value = false
-  bubbleOpen.value = false
   router.push('/')
 }
 
@@ -116,67 +96,66 @@ function scrollToTop() {
 <template>
   <div class="min-h-dvh flex flex-col bg-[#fafaf9] text-slate-900 bg-grid-paper selection:bg-[#72a5e4] selection:text-black overflow-x-clip">
     <!-- Top Scroll Progress Bar -->
-    <div class="fixed top-0 left-0 right-0 z-[60] h-[0.45vh] min-h-[3px] bg-transparent pointer-events-none">
+    <div class="fixed top-0 left-0 right-0 z-[60] h-[3px] bg-transparent pointer-events-none">
       <div
         class="h-full bg-[#72a5e4] border-r border-b border-black transition-[width] duration-100 ease-out"
         :style="{ width: `${Math.round(scrollProgress * 100)}%` }"
       />
     </div>
 
-    <!-- Top Navbar: Full-width edge-to-edge at top -> collapses into centered Logo pill on scroll -> click logo pops out Bubble Navbar -->
-    <header class="sticky top-0 z-50 h-[8vh] min-h-[3.5rem] max-h-[5rem] pointer-events-none">
-      <!-- Expanded Full Navbar (Always sticky on mobile; collapses into floating bubble on desktop scroll) -->
-      <div
-        class="border-b border-black bg-[#fafaf9]/95 backdrop-blur-xs transition-all duration-300 ease-out"
-        :class="
-          isScrolled
-            ? 'opacity-100 translate-y-0 pointer-events-auto md:opacity-0 md:-translate-y-4 md:pointer-events-none'
-            : 'opacity-100 translate-y-0 pointer-events-auto'
-        "
-      >
-        <div class="relative flex h-[8vh] min-h-[3.5rem] max-h-[5rem] w-full items-center justify-between px-[3.5vw] sm:px-[2.5vw] lg:px-[2vw]">
+    <!-- Top Navbar: Solid architectural 64px sticky bar aligned to max-w-[1080px] -->
+    <header class="sticky top-0 z-50 h-16 border-b border-black bg-[#fafaf9]">
+      <div class="h-full">
+        <div class="mx-auto flex h-full max-w-[1080px] items-center justify-between px-4 sm:px-6 lg:px-8">
           <!-- Left Brand Logo: TERRA -->
           <RouterLink to="/" class="flex items-center shrink-0 z-10">
             <TerraLogo size="md" />
           </RouterLink>
 
-          <!-- Center Navigation Pills (True Viewport Center regardless of left/right width difference) -->
-          <nav class="hidden md:flex items-center gap-2 lg:gap-2.5 absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
-            <a
-              href="/#about"
-              class="luxury-pill rounded-full border border-black bg-white px-4 py-1.5 text-xs font-semibold text-black"
-            >
-              About
-            </a>
+          <!-- Center Navigation Links -->
+          <nav class="hidden md:flex items-center gap-1 lg:gap-2">
             <RouterLink
-              to="/pricing"
-              class="luxury-pill rounded-full border border-black bg-white px-4 py-1.5 text-xs font-semibold text-black"
+              to="/events"
+              class="rounded-full px-3.5 py-1.5 text-xs font-semibold transition-colors"
+              :class="route.path === '/events' ? 'bg-black text-white' : 'text-slate-700 hover:text-black hover:bg-black/5'"
             >
-              Pricing
+              Jelajahi Event
             </RouterLink>
             <a
               href="/#how-it-works"
-              class="luxury-pill rounded-full border border-black bg-white px-4 py-1.5 text-xs font-semibold text-black"
+              class="rounded-full px-3.5 py-1.5 text-xs font-semibold text-slate-700 hover:text-black hover:bg-black/5 transition-colors"
             >
               Cara Kerja
             </a>
-            <RouterLink
-              to="/events"
-              class="luxury-pill rounded-full border border-black px-4 py-1.5 text-xs font-semibold"
-              :class="route.path === '/events' ? 'bg-black text-white' : 'bg-white text-black'"
+            <a
+              href="/#about"
+              class="rounded-full px-3.5 py-1.5 text-xs font-semibold text-slate-700 hover:text-black hover:bg-black/5 transition-colors"
             >
-              Jelajahi Event
+              Tentang
+            </a>
+            <RouterLink
+              to="/pricing"
+              class="rounded-full px-3.5 py-1.5 text-xs font-semibold transition-colors"
+              :class="route.path === '/pricing' ? 'bg-black text-white' : 'text-slate-700 hover:text-black hover:bg-black/5'"
+            >
+              Harga
             </RouterLink>
           </nav>
 
           <!-- Right Action Buttons -->
-          <div class="hidden md:flex items-center gap-2.5 shrink-0">
+          <div class="hidden md:flex items-center gap-2 shrink-0">
             <template v-if="!authStore.isAuthenticated">
               <RouterLink
-                to="/login"
-                class="luxury-pill rounded-full border border-black bg-[#72a5e4] px-6 py-1.5 text-xs font-bold text-black"
+                to="/organizer/login"
+                class="rounded-full px-3.5 py-1.5 text-xs font-semibold text-slate-700 hover:text-black transition-colors"
               >
-                Login
+                Studio EO
+              </RouterLink>
+              <RouterLink
+                to="/login"
+                class="luxury-pill rounded-full border border-black bg-[#72a5e4] px-5 py-1.5 text-xs font-bold text-black"
+              >
+                Masuk
               </RouterLink>
             </template>
 
@@ -189,14 +168,15 @@ function scrollToTop() {
               </RouterLink>
               <RouterLink
                 to="/profile"
-                class="luxury-pill rounded-full border border-black bg-white px-4 py-1.5 text-xs font-semibold text-black"
+                class="rounded-full border border-black/25 bg-white px-3.5 py-1.5 text-xs font-semibold text-black hover:border-black transition-colors max-w-[160px] truncate"
               >
-                {{ authStore.user?.full_name || authStore.user?.email || 'Peserta' }} (Peserta)
+                {{ authStore.user?.full_name || authStore.user?.email || 'Profil' }}
               </RouterLink>
               <button
                 @click="handleLogout"
-                class="p-1.5 text-black hover:text-rose-600 transition-colors cursor-pointer"
+                class="p-1.5 text-slate-600 hover:text-rose-600 transition-colors cursor-pointer"
                 title="Keluar"
+                aria-label="Keluar"
               >
                 <LogOut class="h-4 w-4" />
               </button>
@@ -205,20 +185,21 @@ function scrollToTop() {
             <template v-else-if="authStore.isOrganizer">
               <RouterLink
                 to="/dashboard"
-                class="luxury-pill rounded-full border border-black bg-[#72a5e4] px-5 py-1.5 text-xs font-bold text-black"
+                class="luxury-pill rounded-full border border-black bg-[#72a5e4] px-4 py-1.5 text-xs font-bold text-black"
               >
-                Dashboard
+                Dashboard Studio
               </RouterLink>
               <RouterLink
                 to="/dashboard"
-                class="luxury-pill rounded-full border border-black bg-white px-5 py-1.5 text-xs font-semibold text-black"
+                class="rounded-full border border-black/25 bg-white px-3.5 py-1.5 text-xs font-semibold text-black hover:border-black transition-colors max-w-[160px] truncate"
               >
                 {{ authStore.user?.full_name || authStore.user?.email || 'Organizer' }}
               </RouterLink>
               <button
                 @click="handleLogout"
-                class="p-1.5 text-black hover:text-rose-600 transition-colors cursor-pointer"
+                class="p-1.5 text-slate-600 hover:text-rose-600 transition-colors cursor-pointer"
                 title="Keluar"
+                aria-label="Keluar"
               >
                 <LogOut class="h-4 w-4" />
               </button>
@@ -233,15 +214,16 @@ function scrollToTop() {
               </RouterLink>
               <button
                 @click="handleLogout"
-                class="p-1.5 text-black hover:text-rose-600 transition-colors cursor-pointer"
+                class="p-1.5 text-slate-600 hover:text-rose-600 transition-colors cursor-pointer"
                 title="Keluar"
+                aria-label="Keluar"
               >
                 <LogOut class="h-4 w-4" />
               </button>
             </template>
           </div>
 
-          <!-- Mobile Menu Button (Clean single control on top right) -->
+          <!-- Mobile Menu Button -->
           <div class="flex md:hidden items-center z-10">
             <button
               @click="mobileOpen = !mobileOpen"
@@ -259,10 +241,10 @@ function scrollToTop() {
         <Transition name="drawer-slide">
           <div
             v-if="mobileOpen"
-            class="md:hidden fixed inset-x-0 top-[8vh] z-50 px-[3.5vw] pt-2 pb-4 pointer-events-auto"
+            class="md:hidden fixed inset-x-0 top-16 z-50 px-4 pt-2 pb-4 pointer-events-auto"
           >
             <div
-              class="fixed inset-0 top-[8vh] bg-black/35 backdrop-blur-2xs -z-10"
+              class="fixed inset-0 top-16 bg-black/35 backdrop-blur-2xs -z-10"
               @click="mobileOpen = false"
             />
             <div class="rounded-3xl border-2 border-black bg-[#fafaf9] p-4 flex flex-col gap-3.5 shadow-[6px_6px_0px_#000]">
@@ -382,155 +364,6 @@ function scrollToTop() {
           </div>
         </Transition>
       </div>
-
-      <!-- Scrolled Centered Logo Pill + Expandable Floating Bubble Navbar (Desktop md+ only; mobile uses sticky app bar + bottom dock) -->
-      <div
-        ref="floatingNavRef"
-        class="hidden md:flex fixed top-3 inset-x-0 z-50 flex-col items-center px-3 transition-all duration-300 ease-out"
-        :class="
-          isScrolled
-            ? 'opacity-100 translate-y-0 scale-100 pointer-events-none'
-            : 'opacity-0 -translate-y-4 scale-90 pointer-events-none'
-        "
-      >
-        <!-- Centered Logo Button Only -->
-        <button
-          type="button"
-          @click.stop="bubbleOpen = !bubbleOpen"
-          :aria-expanded="bubbleOpen"
-          aria-label="Toggle Menu Navigasi TERRA"
-          class="group relative flex h-12 w-12 items-center justify-center rounded-full border-2 border-black bg-[#fafaf9]/95 backdrop-blur-md shadow-[3px_3px_0px_#000] hover:shadow-[4px_4px_0px_#000] hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 cursor-pointer"
-          :class="[
-            isScrolled ? 'pointer-events-auto' : 'pointer-events-none',
-            bubbleOpen ? 'bg-[#72a5e4] ring-2 ring-black/10' : ''
-          ]"
-        >
-          <img
-            src="/terra-logo.png"
-            alt="TERRA"
-            class="h-7 w-7 object-contain transition-transform duration-300 group-hover:scale-110"
-            :class="bubbleOpen ? 'rotate-45 scale-95' : ''"
-          />
-        </button>
-
-        <!-- Pop-out Bubble Navbar Menu -->
-        <Transition name="bubble-pop">
-          <div
-            v-if="isScrolled && bubbleOpen"
-            class="pointer-events-auto mt-3 w-auto max-w-[94vw] rounded-3xl md:rounded-full border-2 border-black bg-[#fafaf9]/98 backdrop-blur-md px-3 py-2.5 sm:px-4 sm:py-2 shadow-[5px_5px_0px_#000]"
-          >
-            <nav class="flex flex-wrap items-center justify-center gap-1.5 sm:gap-2">
-              <RouterLink
-                to="/"
-                @click="bubbleOpen = false"
-                class="luxury-pill rounded-full border border-black px-3.5 py-1.5 text-xs font-bold transition-colors"
-                :class="route.path === '/' ? 'bg-black text-white' : 'bg-white text-black'"
-              >
-                Beranda
-              </RouterLink>
-              <a
-                href="/#about"
-                @click="bubbleOpen = false"
-                class="luxury-pill rounded-full border border-black bg-white px-3.5 py-1.5 text-xs font-semibold text-black"
-              >
-                About
-              </a>
-              <a
-                href="/#pricing"
-                @click="bubbleOpen = false"
-                class="luxury-pill rounded-full border border-black bg-white px-3.5 py-1.5 text-xs font-semibold text-black"
-              >
-                Pricing
-              </a>
-              <a
-                href="/#how-it-works"
-                @click="bubbleOpen = false"
-                class="luxury-pill rounded-full border border-black bg-white px-3.5 py-1.5 text-xs font-semibold text-black"
-              >
-                Cara Kerja
-              </a>
-              <RouterLink
-                to="/events"
-                @click="bubbleOpen = false"
-                class="luxury-pill rounded-full border border-black px-3.5 py-1.5 text-xs font-semibold"
-                :class="route.path === '/events' ? 'bg-black text-white' : 'bg-white text-black'"
-              >
-                Jelajahi Event
-              </RouterLink>
-
-              <span class="hidden sm:inline-block h-4 w-px bg-black/20 mx-0.5" />
-
-              <template v-if="!authStore.isAuthenticated">
-                <RouterLink
-                  to="/login"
-                  @click="bubbleOpen = false"
-                  class="luxury-pill rounded-full border border-black bg-[#72a5e4] px-4 py-1.5 text-xs font-bold text-black"
-                >
-                  Login
-                </RouterLink>
-              </template>
-
-              <template v-else-if="authStore.isCustomer">
-                <RouterLink
-                  to="/my-tickets"
-                  @click="bubbleOpen = false"
-                  class="luxury-pill rounded-full border border-black bg-[#72a5e4] px-3.5 py-1.5 text-xs font-bold text-black"
-                >
-                  Tiket Saya
-                </RouterLink>
-                <RouterLink
-                  to="/profile"
-                  @click="bubbleOpen = false"
-                  class="luxury-pill rounded-full border border-black bg-white px-3.5 py-1.5 text-xs font-semibold text-black"
-                >
-                  Profil
-                </RouterLink>
-                <button
-                  @click="handleLogout"
-                  class="rounded-full border border-black bg-white p-1.5 text-black hover:bg-rose-50 hover:text-rose-600 transition-colors cursor-pointer"
-                  title="Keluar"
-                >
-                  <LogOut class="h-3.5 w-3.5" />
-                </button>
-              </template>
-
-              <template v-else-if="authStore.isOrganizer">
-                <RouterLink
-                  to="/dashboard"
-                  @click="bubbleOpen = false"
-                  class="luxury-pill rounded-full border border-black bg-[#72a5e4] px-3.5 py-1.5 text-xs font-bold text-black"
-                >
-                  Dashboard
-                </RouterLink>
-                <button
-                  @click="handleLogout"
-                  class="rounded-full border border-black bg-white p-1.5 text-black hover:bg-rose-50 hover:text-rose-600 transition-colors cursor-pointer"
-                  title="Keluar"
-                >
-                  <LogOut class="h-3.5 w-3.5" />
-                </button>
-              </template>
-
-              <template v-else>
-                <RouterLink
-                  to="/admin"
-                  @click="bubbleOpen = false"
-                  class="luxury-pill rounded-full border border-black bg-black px-3.5 py-1.5 text-xs font-bold text-white"
-                >
-                  Admin Panel
-                </RouterLink>
-                <button
-                  @click="handleLogout"
-                  class="rounded-full border border-black bg-white p-1.5 text-black hover:bg-rose-50 hover:text-rose-600 transition-colors cursor-pointer"
-                  title="Keluar"
-                >
-                  <LogOut class="h-3.5 w-3.5" />
-                </button>
-              </template>
-            </nav>
-          </div>
-        </Transition>
-      </div>
     </header>
 
     <!-- Main Content Area -->
@@ -547,13 +380,13 @@ function scrollToTop() {
     <!-- =================================================================== -->
     <footer
       ref="footerRef"
-      class="relative overflow-hidden z-20"
-      :class="route.path === '/' ? 'mt-0' : 'mt-12 border-t border-black'"
+      class="relative overflow-hidden z-20 border-t border-black"
+      :class="route.path === '/' ? 'mt-0' : 'mt-12'"
     >
       <!-- Connected Left & Right Ribbon Terminals Growing Seamlessly into Footer -->
       <svg
         v-if="route.path === '/'"
-        class="pointer-events-none block absolute inset-x-0 top-0 w-full h-full z-0"
+        class="pointer-events-none hidden xl:block absolute inset-x-0 top-0 w-full h-full z-0"
         viewBox="0 0 1440 480"
         preserveAspectRatio="none"
         fill="none"
@@ -655,60 +488,35 @@ function scrollToTop() {
         </g>
       </svg>
 
-      <div class="mx-auto max-w-5xl px-8 sm:px-10 lg:px-8 pt-12 pb-10 border-x border-black/15 relative z-10 space-y-10">
-        <!-- Interlocking Stepped Pixel Bridges at Top of Footer -->
-        <div v-if="route.path === '/'" class="flex items-start justify-between absolute top-0 left-8 right-8 pointer-events-none">
-          <div class="flex items-start">
-            <div class="h-4 w-12 bg-[#72a5e4] border-b border-x border-black" />
-            <div class="h-2.5 w-8 bg-black" />
-          </div>
-          <div class="flex items-start">
-            <div class="h-2.5 w-8 bg-black" />
-            <div class="h-4 w-12 bg-[#72a5e4] border-b border-x border-black" />
-          </div>
-        </div>
-
+      <div class="mx-auto max-w-[1080px] px-4 sm:px-6 lg:px-8 pt-12 pb-10 border-x border-black/15 relative z-10 space-y-10">
         <span class="pointer-events-none hidden sm:block absolute top-2 -left-[5px] text-xs font-mono text-black leading-none">+</span>
         <span class="pointer-events-none hidden sm:block absolute top-2 -right-[5px] text-xs font-mono text-black leading-none">+</span>
 
-        <!-- Top Footer Showcase CTA Card -->
-        <div class="luxury-card relative rounded-2xl border-2 border-black bg-white p-6 sm:p-8 shadow-[5px_5px_0px_#000] overflow-hidden">
-          <!-- Corner Pixel Accents -->
-          <div class="absolute top-0 left-0 flex">
-            <div class="h-2.5 w-6 bg-[#72a5e4] border-b border-r border-black" />
-          </div>
-          <div class="absolute bottom-0 right-0 flex">
-            <div class="h-2.5 w-6 bg-black" />
-          </div>
+        <!-- Top Footer Horizontal Split CTA Bar -->
+        <div class="relative rounded-2xl border-2 border-black bg-white p-6 sm:p-8 shadow-[4px_4px_0px_#000] overflow-hidden">
+          <div class="absolute top-0 left-0 h-2 w-6 bg-[#72a5e4] border-b border-r border-black" />
+          <div class="absolute bottom-0 right-0 h-2 w-6 bg-black" />
 
-          <div class="flex flex-col items-center text-center gap-5">
-            <div class="flex flex-col sm:flex-row items-center gap-3 sm:gap-4">
-              <!-- Bespoke 3D Ticket Star Emblem -->
-              <div class="h-12 w-12 rounded-2xl border-2 border-black bg-[#72a5e4] shadow-[3px_3px_0px_#000] flex items-center justify-center shrink-0">
-                <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none">
-                  <path d="M12 2L14.8 9.2L22 12L14.8 14.8L12 22L9.2 14.8L2 12L9.2 9.2L12 2Z" fill="#fff" stroke="#000" stroke-width="1.8" stroke-linejoin="round" />
-                </svg>
-              </div>
-              <div class="space-y-1">
-                <span class="text-[9px] font-bold uppercase tracking-widest text-slate-500 block">
-                  READY TO LAUNCH OR ATTEND?
-                </span>
-                <h3 class="text-lg sm:text-xl font-black tracking-tight text-black font-sans">
-                  Siap Berburu Tiket Konser atau Mengelola Event <span class="font-editorial font-normal">Skala Besar?</span>
-                </h3>
-              </div>
+          <div class="flex flex-col md:flex-row md:items-center justify-between gap-6 text-left">
+            <div class="space-y-1.5 max-w-xl">
+              <h3 class="text-xl sm:text-2xl font-extrabold tracking-tight text-black leading-snug">
+                Mulai selenggarakan acara atau temukan tiket berikutnya
+              </h3>
+              <p class="text-xs sm:text-sm text-slate-600 leading-relaxed">
+                Dari konser dan festival kampus hingga konferensi berskala nasional dengan tiket QR resmi.
+              </p>
             </div>
 
-            <div class="flex flex-wrap items-center justify-center gap-3">
+            <div class="flex flex-wrap items-center gap-2.5 shrink-0">
               <RouterLink
                 to="/events"
-                class="luxury-pill rounded-full border border-black bg-[#72a5e4] px-6 py-2.5 text-xs font-bold text-black"
+                class="luxury-pill rounded-full border border-black bg-[#72a5e4] px-5 py-2.5 text-xs font-bold text-black"
               >
-                Jelajahi Event &rarr;
+                Jelajahi Event
               </RouterLink>
               <RouterLink
                 to="/organizer/login"
-                class="luxury-pill rounded-full bg-black px-6 py-2.5 text-xs font-bold text-white"
+                class="luxury-pill rounded-full border border-black bg-black px-5 py-2.5 text-xs font-bold text-white"
               >
                 Buka Organizer Studio
               </RouterLink>
@@ -716,165 +524,102 @@ function scrollToTop() {
           </div>
         </div>
 
-        <!-- Centered Architectural Footer Brand & Navigation Grid -->
-        <div class="flex flex-col items-center text-center space-y-10 pb-10 border-b border-black">
-          <!-- Brand Identity & Live Ecosystem Status (Centered cleanly away from side lines) -->
-          <div class="flex flex-col items-center text-center space-y-4 max-w-md mx-auto">
-            <div class="flex items-center justify-center gap-3">
-              <TerraLogo size="xl" />
-              <span class="rounded-full border border-black bg-[#72a5e4] px-2.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-black shadow-[2px_2px_0px_#000]">
+        <!-- 12-Column International Footer Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-10 py-10 border-y border-black/15 text-left">
+          <!-- Brand Identity (Cols 1-5) -->
+          <div class="md:col-span-5 space-y-4">
+            <div class="flex items-center gap-2.5">
+              <TerraLogo size="lg" />
+              <span class="rounded-full border border-black bg-[#72a5e4] px-2 py-0.5 text-[10px] font-mono font-bold text-black">
                 v2.6
               </span>
             </div>
 
-            <p class="text-xs text-slate-700 leading-relaxed font-editorial">
-              Platform terpadu untuk manajemen event modular 13-engine dan marketplace tiket QR publik dengan validasi atomik.
+            <p class="text-xs sm:text-sm text-slate-600 leading-relaxed max-w-[44ch]">
+              Platform terpadu untuk manajemen kepanitiaan 13 modul dan marketplace tiket QR digital dengan validasi anti-duplikasi.
             </p>
 
-            <!-- Live Status Pill -->
-            <div class="inline-flex items-center gap-2 rounded-full border border-black bg-white px-3.5 py-1 text-[10px] font-bold text-black">
-              <span class="h-2 w-2 rounded-full bg-[#72a5e4] border border-black animate-pulse" />
-              <span>All 13 Modular Engines Operational</span>
+            <div class="inline-flex items-center gap-2 rounded-full border border-black/25 bg-white px-3 py-1 text-[11px] font-semibold text-slate-700">
+              <span class="h-2 w-2 rounded-full bg-emerald-500 border border-black animate-pulse" />
+              <span>13 modul aktif • Sistem operasional</span>
             </div>
           </div>
 
-          <!-- 3-Column Centered Navigation Links (Compact 2-col on mobile) -->
-          <div class="w-full grid grid-cols-2 sm:grid-cols-3 gap-6 sm:gap-8 pt-2">
-            <!-- Col 1: Marketplace Peserta -->
-            <div class="flex flex-col items-center space-y-2.5">
-              <h4 class="text-[10px] font-black uppercase tracking-wider text-black inline-flex items-center gap-1.5">
-                <span class="h-1.5 w-1.5 bg-[#72a5e4] border border-black inline-block" />
-                MARKETPLACE PESERTA
-              </h4>
-              <ul class="space-y-2 text-xs text-slate-700 font-medium">
+          <!-- 3 Left-Aligned Navigation Columns (Cols 6-12) -->
+          <div class="md:col-span-7 grid grid-cols-2 sm:grid-cols-3 gap-8">
+            <div class="space-y-3">
+              <h4 class="text-xs font-bold text-black">Marketplace</h4>
+              <ul class="space-y-2 text-xs text-slate-600">
                 <li>
-                  <RouterLink to="/events" class="inline-flex items-center gap-1 hover:text-black">
-                    <span>Jelajahi Event</span>
-                    <ArrowUpRight class="h-3 w-3 opacity-60" />
-                  </RouterLink>
+                  <RouterLink to="/events" class="hover:text-black hover:underline">Jelajahi Event</RouterLink>
                 </li>
                 <li>
-                  <RouterLink to="/login" class="inline-flex items-center gap-1 hover:text-black">
-                    <span>Masuk Peserta</span>
-                    <ArrowUpRight class="h-3 w-3 opacity-60" />
-                  </RouterLink>
+                  <RouterLink to="/my-tickets" class="hover:text-black hover:underline">Tiket Saya</RouterLink>
                 </li>
                 <li>
-                  <RouterLink to="/register" class="inline-flex items-center gap-1 hover:text-black">
-                    <span>Daftar Peserta</span>
-                    <ArrowUpRight class="h-3 w-3 opacity-60" />
-                  </RouterLink>
+                  <RouterLink to="/login" class="hover:text-black hover:underline">Masuk Peserta</RouterLink>
                 </li>
                 <li>
-                  <RouterLink to="/my-tickets" class="inline-flex items-center gap-1 hover:text-black">
-                    <span>Tiket Saya</span>
-                    <ArrowUpRight class="h-3 w-3 opacity-60" />
-                  </RouterLink>
+                  <RouterLink to="/register" class="hover:text-black hover:underline">Daftar Peserta</RouterLink>
                 </li>
               </ul>
             </div>
 
-            <!-- Col 2: Penyelenggara (Organizer) -->
-            <div class="flex flex-col items-center space-y-2.5 sm:border-x sm:border-black/15 sm:px-4">
-              <h4 class="text-[10px] font-black uppercase tracking-wider text-black inline-flex items-center gap-1.5">
-                <span class="h-1.5 w-1.5 bg-black inline-block" />
-                ORGANIZER
-              </h4>
-              <ul class="space-y-2 text-xs text-slate-700 font-medium">
+            <div class="space-y-3">
+              <h4 class="text-xs font-bold text-black">Organizer Studio</h4>
+              <ul class="space-y-2 text-xs text-slate-600">
                 <li>
-                  <RouterLink to="/organizer/login" class="inline-flex items-center gap-1 hover:text-black">
-                    <span>Organizer Studio</span>
-                    <ArrowUpRight class="h-3 w-3 opacity-60" />
-                  </RouterLink>
+                  <RouterLink to="/organizer/login" class="hover:text-black hover:underline">Masuk Studio</RouterLink>
                 </li>
                 <li>
-                  <RouterLink to="/organizer/register" class="inline-flex items-center gap-1 hover:text-black">
-                    <span>Daftar Organizer</span>
-                    <ArrowUpRight class="h-3 w-3 opacity-60" />
-                  </RouterLink>
+                  <RouterLink to="/organizer/register" class="hover:text-black hover:underline">Daftar Organizer</RouterLink>
                 </li>
                 <li>
-                  <RouterLink to="/dashboard" class="inline-flex items-center gap-1 hover:text-black">
-                    <span>13 Modul Event</span>
-                    <ArrowUpRight class="h-3 w-3 opacity-60" />
-                  </RouterLink>
+                  <RouterLink to="/dashboard" class="hover:text-black hover:underline">Ruang Kerja 13 Modul</RouterLink>
                 </li>
                 <li>
-                  <RouterLink to="/pricing" class="inline-flex items-center gap-1 hover:text-black">
-                    <span>Paket &amp; Harga</span>
-                    <ArrowUpRight class="h-3 w-3 opacity-60" />
-                  </RouterLink>
+                  <RouterLink to="/pricing" class="hover:text-black hover:underline">Skema Harga</RouterLink>
                 </li>
               </ul>
             </div>
 
-            <!-- Col 3: Platform -->
-            <div class="col-span-2 sm:col-span-1 flex flex-col items-center space-y-2.5 pt-2 sm:pt-0 border-t sm:border-t-0 border-black/10">
-              <h4 class="text-[10px] font-black uppercase tracking-wider text-black inline-flex items-center gap-1.5">
-                <span class="h-1.5 w-1.5 bg-[#72a5e4] border border-black inline-block" />
-                PLATFORM
-              </h4>
-              <ul class="space-y-2 text-xs text-slate-700 font-medium">
+            <div class="col-span-2 sm:col-span-1 space-y-3">
+              <h4 class="text-xs font-bold text-black">Platform</h4>
+              <ul class="space-y-2 text-xs text-slate-600">
                 <li>
-                  <RouterLink to="/admin/login" class="inline-flex items-center gap-1 hover:text-black">
-                    <span>Admin Console</span>
-                    <ArrowUpRight class="h-3 w-3 opacity-60" />
-                  </RouterLink>
+                  <a href="/#about" class="hover:text-black hover:underline">Tentang TERRA</a>
                 </li>
-                <li class="pt-1">
-                  <span class="inline-block rounded-lg border border-black/20 bg-white px-2.5 py-1 text-[10px] font-mono text-slate-600">
-                    Vue 3 + Express API
-                  </span>
+                <li>
+                  <a href="/#how-it-works" class="hover:text-black hover:underline">Cara Kerja</a>
+                </li>
+                <li>
+                  <RouterLink to="/admin/login" class="hover:text-black hover:underline">Admin Console</RouterLink>
                 </li>
               </ul>
             </div>
           </div>
         </div>
 
-        <!-- Bottom Signature Bar (Centered) -->
-        <div class="flex flex-col items-center text-center text-xs text-slate-600 gap-4">
-          <div class="flex flex-wrap items-center justify-center gap-3">
+        <!-- Bottom Bar: Left Copyright, Right Scroll Top -->
+        <div class="flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-600">
+          <div class="flex items-center gap-3">
             <div class="flex items-end">
               <div class="h-3 w-3 bg-black" />
-              <div class="h-3 w-6 bg-[#72a5e4] border border-black" />
+              <div class="h-3 w-5 bg-[#72a5e4] border border-black" />
             </div>
-            <p class="font-medium text-black">© 2026 TERRA Platform. All rights reserved.</p>
+            <p class="font-medium text-black">© 2026 TERRA. Seluruh hak cipta dilindungi.</p>
           </div>
 
-          <div class="flex flex-wrap items-center justify-center gap-4">
-            <span class="text-[11px] text-slate-500">
-              Modular Event Management &amp; Ticket Marketplace
-            </span>
-            <button
-              @click="scrollToTop"
-              type="button"
-              class="luxury-pill inline-flex items-center gap-1.5 rounded-full border border-black bg-white px-4 py-1.5 text-[11px] font-bold text-black cursor-pointer"
-            >
-              <span>Ke Atas</span>
-              <ArrowUp class="h-3 w-3" />
-            </button>
-          </div>
+          <button
+            @click="scrollToTop"
+            type="button"
+            class="luxury-pill inline-flex items-center gap-1.5 rounded-full border border-black bg-white px-4 py-1.5 text-xs font-semibold text-black cursor-pointer"
+          >
+            <span>Kembali ke atas</span>
+            <ArrowUp class="h-3.5 w-3.5" />
+          </button>
         </div>
       </div>
     </footer>
   </div>
 </template>
-
-<style scoped>
-.bubble-pop-enter-active {
-  transition: opacity 0.24s cubic-bezier(0.22, 1, 0.36, 1),
-    transform 0.28s cubic-bezier(0.34, 1.56, 0.64, 1);
-  transform-origin: top center;
-}
-
-.bubble-pop-leave-active {
-  transition: opacity 0.16s ease-in, transform 0.18s ease-in;
-  transform-origin: top center;
-}
-
-.bubble-pop-enter-from,
-.bubble-pop-leave-to {
-  opacity: 0;
-  transform: translateY(-10px) scale(0.88);
-}
-</style>

@@ -10,8 +10,7 @@ import {
   ArrowUpRight,
   QrCode,
   Layers,
-  ShieldCheck,
-  Sparkles
+  ShieldCheck
 } from 'lucide-vue-next'
 
 const router = useRouter()
@@ -51,9 +50,23 @@ const catalogCards = computed(() => {
   return list.slice(0, 6)
 })
 
+const moduleGroups = [
+  {
+    phase: 'Perencanaan',
+    items: ['Profil Acara', 'Timeline WBS', 'Tugas Kanban', 'Tim & Akses']
+  },
+  {
+    phase: 'Tiket & Gate',
+    items: ['Tiket QR & PDF', 'Daftar Peserta', 'Gate Scanner']
+  },
+  {
+    phase: 'Keuangan & Relasi',
+    items: ['Keuangan & RAB', 'Vendor', 'Sponsor', 'Dokumen', 'Laporan', 'Survei']
+  }
+]
+
 const roleFlows = {
   customer: {
-    badge: 'ALUR PESERTA',
     ctaLabel: 'Jelajahi Event',
     ctaTo: '/events',
     secondaryLabel: 'Tiket Saya',
@@ -62,22 +75,21 @@ const roleFlows = {
       {
         num: '01',
         title: 'Pilih Acara & Tiket',
-        desc: 'Temukan konser, festival kampus, atau workshop sesuai minatmu.'
+        desc: 'Temukan konser, festival kampus, atau workshop resmi sesuai minat Anda.'
       },
       {
         num: '02',
         title: 'Checkout Instan',
-        desc: 'Tiket gratis langsung aktif; tiket berbayar diverifikasi cepat.'
+        desc: 'Tiket gratis langsung aktif; tiket berbayar terverifikasi cepat dan transparan.'
       },
       {
         num: '03',
         title: 'Scan QR di Gate',
-        desc: 'Terima PDF & email E-Ticket berlogo acara, siap dipindai.'
+        desc: 'Terima email beserta QR Code dan file PDF siap pindai saat masuk lokasi.'
       }
     ]
   },
   organizer: {
-    badge: 'ALUR ORGANIZER',
     ctaLabel: 'Buka Organizer Studio',
     ctaTo: '/organizer/login',
     secondaryLabel: 'Daftar Organizer',
@@ -86,17 +98,17 @@ const roleFlows = {
       {
         num: '01',
         title: 'Aktifkan Modul Acara',
-        desc: 'Pilih dari 13 modul: Timeline WBS, Kanban, RBAC Tim, hingga RAB.'
+        desc: 'Pilih dari 13 modul: Timeline WBS, Kanban, RBAC Tim, hingga keuangan RAB.'
       },
       {
         num: '02',
         title: 'Publikasi & Jual Tiket',
-        desc: 'Atur tier tiket dan pantau pemasukan otomatis secara real-time.'
+        desc: 'Atur tier kuota tiket dan pantau pemasukan tercatat otomatis secara real-time.'
       },
       {
         num: '03',
-        title: 'Fullscreen Gate Scanner',
-        desc: 'Validasi kehadiran peserta dengan kamera QR anti-duplikasi.'
+        title: 'Gate Check-in Scanner',
+        desc: 'Validasi kehadiran peserta dengan kamera atau unggah gambar QR anti-duplikasi.'
       }
     ]
   }
@@ -180,154 +192,123 @@ onBeforeUnmount(() => {
 <template>
   <div class="relative overflow-hidden selection:bg-[#72a5e4] selection:text-black">
     <!-- =================================================================== -->
-    <!-- 1. CLEAN HERO SECTION (VISUAL GRAFFITI + COMPACT SEARCH)            -->
+    <!-- 1. HERO SECTION (FOCUSED GRAFFITI CENTERPIECE + SEARCH COMMAND)     -->
     <!-- =================================================================== -->
-    <section class="relative sm:min-h-[84dvh] md:min-h-[90dvh] flex flex-col items-center justify-center overflow-visible">
-      <div class="w-full max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-6 sm:py-[3vh] relative z-10 space-y-3.5 sm:space-y-[2.5vh] flex flex-col justify-center">
-        <!-- Minimal Top Header -->
-        <div class="flex flex-col items-center text-center relative z-20">
-          <div class="inline-flex items-center gap-1.5 rounded-full border border-black bg-white px-3 py-1 shadow-[2px_2px_0px_#000]">
-            <span class="h-1.5 w-1.5 rounded-full bg-[#72a5e4] border border-black" />
-            <span class="text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-black">
-              TICKETING &amp; MODULAR EVENT ECOSYSTEM
-            </span>
-          </div>
-        </div>
-
-        <!-- Center Pure Vector SVG Bubble Graffiti Art ("TERRA") -->
-        <div class="relative z-30 pointer-events-none">
-          <!-- Floating Kinetic Chips (Tablet & Desktop sm+ only so mobile stays ultra-clean) -->
-          <div
-            class="hidden sm:inline-flex items-center gap-1.5 absolute -top-2 left-6 z-40 rounded-full border border-black bg-[#72a5e4] px-3 py-1 text-[10px] font-black text-black shadow-[2px_2px_0px_#000] animate-float-slow"
-          >
-            <QrCode class="h-3 w-3" />
-            <span>INSTANT QR PASS</span>
-          </div>
-          <div
-            class="hidden sm:inline-flex items-center gap-1.5 absolute -bottom-1 right-6 z-40 rounded-full border border-black bg-white px-3 py-1 text-[10px] font-black text-black shadow-[2px_2px_0px_#000] animate-float-slow"
-            style="animation-delay: -2.5s"
-          >
-            <Sparkles class="h-3 w-3 text-[#72a5e4]" />
-            <span>13 MODULAR ENGINES</span>
-          </div>
-
+    <section class="relative sm:min-h-[82dvh] flex flex-col justify-between overflow-visible">
+      <div class="w-full max-w-[1080px] mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-8 sm:py-10 relative z-10 flex-1 flex flex-col justify-center space-y-6">
+        <!-- Center Pure Vector SVG Bubble Graffiti Art ("TERRA" + Scroll-Growing Roots) -->
+        <div class="relative z-10 pointer-events-none">
           <BubbleGraffiti full-bleed :scroll-offset="scrollY" />
         </div>
 
-        <!-- Concise Headline + Sleek Single-Row Search Pill -->
-        <div class="max-w-2xl mx-auto w-full text-center space-y-3.5 sm:space-y-4 relative z-20">
-          <h1 class="text-xl sm:text-4xl font-black tracking-tight text-black font-sans leading-snug px-2">
-            Tiket Konser, Festival Kampus &amp;
-            <span class="font-editorial font-normal underline decoration-[#72a5e4] decoration-2 sm:decoration-4 underline-offset-4">
-              Ruang Kerja Event
-            </span>
-          </h1>
+        <!-- Confident Headline + Search Command Bar -->
+        <div class="max-w-2xl mx-auto w-full text-center space-y-4 relative z-30">
+          <div class="space-y-2">
+            <h1 class="text-2xl sm:text-4xl md:text-[42px] font-extrabold tracking-tight text-black leading-[1.12]">
+              Satu platform untuk tiket acara &amp; operasional kepanitiaan.
+            </h1>
+            <p class="max-w-xl mx-auto text-xs sm:text-sm text-slate-600 leading-relaxed">
+              Temukan konser, festival kampus, dan workshop resmi dengan e-ticket QR &amp; PDF instan, terhubung langsung dengan 13 modul studio panitia.
+            </p>
+          </div>
 
-          <!-- Single-Row Pill Search Bar on Both Mobile & Desktop -->
+          <!-- Search Command Bar -->
           <form
             @submit.prevent="handleSearch"
-            class="luxury-card flex items-center rounded-full border-2 border-black bg-white p-1.5 pl-3.5 sm:pl-4 gap-1.5 sm:gap-2 shadow-[3px_3px_0px_#000] sm:shadow-[4px_4px_0px_#000]"
+            class="flex items-center rounded-full border-2 border-black bg-white p-1.5 pl-4 gap-2 shadow-[4px_4px_0px_#000]"
           >
             <Search class="h-4 w-4 text-slate-400 shrink-0" />
             <input
               v-model="searchQuery"
               type="text"
               placeholder="Cari konser, DEMAFEST, workshop..."
-              class="w-full min-w-0 bg-transparent px-1.5 py-1.5 text-xs sm:text-sm text-black placeholder:text-slate-400 focus:outline-hidden"
+              class="w-full min-w-0 bg-transparent px-1 py-1.5 text-xs sm:text-sm text-black placeholder:text-slate-400 focus:outline-hidden"
             />
 
             <div class="hidden sm:flex items-center border-l border-black/15 pl-3 pr-1 shrink-0">
               <MapPin class="h-3.5 w-3.5 text-slate-400 mr-1.5 shrink-0" />
-              <select
-                v-model="selectedCity"
-                aria-label="Filter Lokasi Event"
-                class="bg-transparent text-xs font-semibold text-slate-700 focus:outline-hidden pr-2 cursor-pointer"
-              >
-                <option value="">Semua Lokasi</option>
-                <option value="Yogyakarta">Yogyakarta</option>
-                <option value="Jakarta">Jakarta</option>
-                <option value="Bandung">Bandung</option>
-                <option value="Bali">Bali</option>
-                <option value="Online">Online</option>
-              </select>
+              <div class="relative inline-flex items-center">
+                <select
+                  v-model="selectedCity"
+                  aria-label="Filter Lokasi Event"
+                  class="terra-select bg-transparent text-xs font-semibold text-slate-700 focus:outline-hidden appearance-none pr-5 cursor-pointer"
+                >
+                  <option value="">Semua Lokasi</option>
+                  <option value="Yogyakarta">Yogyakarta</option>
+                  <option value="Jakarta">Jakarta</option>
+                  <option value="Bandung">Bandung</option>
+                  <option value="Bali">Bali</option>
+                  <option value="Online">Online</option>
+                </select>
+                <ChevronDown class="pointer-events-none absolute right-0.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-500" />
+              </div>
             </div>
 
             <button
               type="submit"
-              class="shimmer-sheen luxury-pill rounded-full bg-black px-4 sm:px-6 py-2 sm:py-2.5 text-xs font-bold text-white hover:bg-slate-800 transition-colors shrink-0 cursor-pointer"
+              class="shimmer-sheen luxury-pill rounded-full bg-black px-5 sm:px-6 py-2.5 text-xs font-bold text-white hover:bg-slate-800 transition-colors shrink-0 cursor-pointer"
             >
-              Cari Tiket
+              Cari Acara
             </button>
           </form>
 
-          <!-- Centered Non-Clipping Quick Tags -->
+          <!-- Clean Quick-Filter Pills -->
           <div class="flex flex-wrap items-center justify-center gap-1.5 text-[11px]">
             <button
-              v-for="tag in ['DEMAFEST', 'Tech Summit', 'Konser', 'Workshop', 'Gratis']"
-              :key="tag"
-              @click="quickSearch(tag)"
-              class="luxury-pill rounded-full border border-black bg-white px-3 py-1 font-semibold text-black cursor-pointer"
+              v-for="tag in [
+                { label: 'DEMAFEST', query: 'DEMAFEST' },
+                { label: 'Tech Summit', query: 'Tech Summit' },
+                { label: 'Konser', query: 'Konser' },
+                { label: 'Workshop', query: 'Workshop' },
+                { label: 'Tiket Gratis', query: 'Gratis' }
+              ]"
+              :key="tag.label"
+              type="button"
+              @click="quickSearch(tag.query)"
+              class="luxury-pill rounded-full border border-black/25 bg-white px-3 py-1 font-medium text-slate-700 hover:border-black hover:text-black cursor-pointer"
             >
-              {{ tag }}
+              {{ tag.label }}
             </button>
           </div>
         </div>
       </div>
 
-      <!-- Kinetic Marquee Ticker -->
-      <div class="w-full border-y sm:border-t sm:border-b-0 border-black bg-black text-white py-2 overflow-hidden relative z-10 select-none">
-        <div class="animate-marquee flex items-center gap-7 text-[10px] font-bold uppercase tracking-[0.18em]">
-          <template v-for="n in 2" :key="n">
-            <span class="flex items-center gap-2"><span class="h-2 w-2 rounded-full bg-[#72a5e4]" /> E-TICKET PDF &amp; EMAIL BERLOGO EVENT</span>
-            <span>✦</span>
-            <span class="flex items-center gap-2"><span class="h-2 w-2 rounded-full bg-[#72a5e4]" /> FULLSCREEN LIVE QR GATE SCANNER</span>
-            <span>✦</span>
-            <span class="flex items-center gap-2"><span class="h-2 w-2 rounded-full bg-[#72a5e4]" /> 13 MODULAR EVENT WORKSPACE</span>
-            <span>✦</span>
-            <span class="flex items-center gap-2"><span class="h-2 w-2 rounded-full bg-[#72a5e4]" /> 100% VERIFIED ORGANIZER</span>
-            <span>✦</span>
-          </template>
-        </div>
-      </div>
-
-      <!-- 3-Highlight Strip (Desktop/Tablet sm+ only so mobile stays clean and unclipped) -->
-      <div class="hidden sm:block w-full border-y border-black bg-[#72a5e4] text-black relative z-10">
-        <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between gap-4 text-xs font-bold">
-          <span class="inline-flex items-center gap-1.5">
+      <!-- Single Architectural Proof Strip -->
+      <div class="w-full border-y border-black bg-[#72a5e4] text-black relative z-10">
+        <div class="max-w-[1080px] mx-auto px-4 sm:px-6 lg:px-8 py-3 grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4 text-xs font-semibold">
+          <div class="flex items-center sm:justify-start gap-2">
             <QrCode class="h-4 w-4 shrink-0" />
-            E-Ticket PDF &amp; Email Berlogo Event
-          </span>
-          <span class="text-black/40">•</span>
-          <span class="inline-flex items-center gap-1.5">
+            <span>E-Ticket QR &amp; PDF instan</span>
+          </div>
+          <div class="flex items-center sm:justify-center gap-2 sm:border-x sm:border-black/20">
             <ShieldCheck class="h-4 w-4 shrink-0" />
-            100% Organizer Terverifikasi
-          </span>
-          <span class="text-black/40">•</span>
-          <span class="inline-flex items-center gap-1.5">
+            <span>Penyelenggara terverifikasi</span>
+          </div>
+          <div class="flex items-center sm:justify-end gap-2">
             <Layers class="h-4 w-4 shrink-0" />
-            13 Modul Manajemen Kepanitiaan
-          </span>
+            <span>13 modul ruang kerja panitia</span>
+          </div>
         </div>
       </div>
     </section>
 
     <!-- =================================================================== -->
-    <!-- 2. VISUAL EVENT SHOWCASE (CLEAN POSTER CARDS, MINIMAL TEXT)         -->
+    <!-- 2. VISUAL EVENT SHOWCASE (PROGRAMME GRID)                           -->
     <!-- =================================================================== -->
-    <section class="relative z-10 py-8 sm:py-[7vh]">
-      <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 space-y-4 sm:space-y-[3.5vh]">
-        <!-- Section Title + Compact Filter Pills -->
-        <div class="reveal-section flex flex-col sm:flex-row sm:items-end justify-between gap-3">
-          <div>
-            <span class="text-[10px] font-black uppercase tracking-widest text-slate-500 block">
-              MARKETPLACE
-            </span>
-            <h2 class="text-xl sm:text-3xl font-black tracking-tight text-black">
-              Event <span class="font-editorial font-normal">Pilihan Minggu Ini</span>
+    <section class="relative z-10 py-14 sm:py-20">
+      <div class="max-w-[1080px] mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
+        <!-- Left-Aligned Section Title + Segmented Filter Tabs -->
+        <div class="reveal-section flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+          <div class="space-y-1">
+            <h2 class="text-2xl sm:text-3xl font-extrabold tracking-tight text-black">
+              Jadwal &amp; Acara Pilihan
             </h2>
+            <p class="text-xs sm:text-sm text-slate-600">
+              Acara publik pilihan dari penyelenggara terverifikasi di seluruh Indonesia.
+            </p>
           </div>
 
-          <div class="flex flex-wrap items-center gap-1.5">
+          <div class="inline-flex flex-wrap items-center gap-1 rounded-full border border-black bg-white p-1 self-start sm:self-auto">
             <button
               v-for="tab in [
                 { key: 'all', label: 'Semua' },
@@ -336,9 +317,10 @@ onBeforeUnmount(() => {
                 { key: 'online', label: 'Online' }
               ]"
               :key="tab.key"
+              type="button"
               @click="activeTab = tab.key"
-              class="rounded-full border border-black px-3 py-1 text-[11px] sm:text-xs font-bold transition-colors cursor-pointer"
-              :class="activeTab === tab.key ? 'bg-black text-white' : 'bg-white text-black hover:bg-slate-100'"
+              class="rounded-full px-3.5 py-1 text-xs font-semibold transition-colors cursor-pointer"
+              :class="activeTab === tab.key ? 'bg-black text-white' : 'text-slate-700 hover:text-black'"
             >
               {{ tab.label }}
             </button>
@@ -346,266 +328,244 @@ onBeforeUnmount(() => {
         </div>
 
         <!-- Category Chips (Swipeable Rail) -->
-        <div class="flex items-center gap-1.5 sm:gap-2 overflow-x-auto no-scrollbar snap-x snap-mandatory pb-0.5 text-[11px] sm:text-xs">
+        <div class="flex items-center gap-2 overflow-x-auto no-scrollbar snap-x snap-mandatory pb-1 text-xs">
           <button
             v-for="cat in categories"
             :key="cat.key"
+            type="button"
             @click="activeCategory = cat.key"
-            class="snap-start shrink-0 luxury-pill rounded-full border border-black px-3.5 py-1 sm:px-4 sm:py-1.5 whitespace-nowrap font-semibold cursor-pointer"
-            :class="activeCategory === cat.key ? 'bg-[#72a5e4] text-black font-bold shadow-[2px_2px_0px_#000]' : 'bg-white text-slate-700 hover:text-black'"
+            class="snap-start shrink-0 rounded-full border px-3.5 py-1.5 whitespace-nowrap font-semibold transition-colors cursor-pointer"
+            :class="activeCategory === cat.key ? 'border-black bg-[#72a5e4] text-black font-bold' : 'border-black/20 bg-white text-slate-600 hover:border-black hover:text-black'"
           >
             {{ cat.label }}
           </button>
         </div>
 
-        <!-- Featured Hero Event Card -->
+        <!-- Featured Event Split Card (Festival Programme Feature) -->
         <RouterLink
           v-if="featuredEvent"
           :to="`/events/${featuredEvent.slug || featuredEvent.id}`"
-          class="reveal-section is-visible luxury-card group rounded-2xl sm:rounded-3xl border-2 border-black overflow-hidden grid grid-cols-1 md:grid-cols-12 bg-[#72a5e4] shadow-[4px_4px_0px_#000] sm:shadow-[5px_5px_0px_#000]"
+          class="reveal-section is-visible luxury-card group rounded-2xl border-2 border-black overflow-hidden grid grid-cols-1 md:grid-cols-12 bg-white shadow-[4px_4px_0px_#000]"
         >
-          <div class="relative md:col-span-6 aspect-video md:aspect-auto bg-black border-b md:border-b-0 md:border-r border-black overflow-hidden">
+          <div class="relative md:col-span-7 aspect-[16/10] bg-black border-b md:border-b-0 md:border-r border-black overflow-hidden">
             <img
               :src="featuredEvent.poster_url"
               :alt="featuredEvent.title"
               class="w-full h-full object-cover group-hover:scale-103 transition-transform duration-500"
             />
-            <div class="flex md:hidden items-center gap-1.5 absolute top-2.5 left-2.5">
-              <span class="rounded-full border border-black bg-[#72a5e4] px-2.5 py-0.5 text-[9px] font-black uppercase text-black shadow-[1px_1px_0px_#000]">
-                FEATURED
-              </span>
-              <span class="rounded-full border border-black bg-white/95 px-2.5 py-0.5 text-[9px] font-bold text-black">
+            <span class="absolute top-3 left-3 rounded-full border border-black bg-[#72a5e4] px-3 py-0.5 text-[11px] font-bold text-black">
+              Sorotan Utama
+            </span>
+          </div>
+
+          <div class="md:col-span-5 p-5 sm:p-7 flex flex-col justify-between bg-[#72a5e4] text-black space-y-5">
+            <div class="space-y-2.5">
+              <span class="inline-block rounded-full border border-black bg-white px-3 py-0.5 text-[11px] font-semibold text-black">
                 {{ featuredEvent.category }}
               </span>
-            </div>
-          </div>
-          <div class="md:col-span-6 p-4 sm:p-7 flex flex-col justify-between text-black space-y-3 sm:space-y-4">
-            <div class="space-y-1.5 sm:space-y-2">
-              <div class="hidden md:flex items-center gap-2">
-                <span class="rounded-full border border-black bg-white px-3 py-0.5 text-[10px] font-black uppercase">
-                  FEATURED
-                </span>
-                <span class="text-[11px] font-bold uppercase text-slate-900">
-                  {{ featuredEvent.category }}
-                </span>
-              </div>
-              <h3 class="text-base sm:text-2xl font-black tracking-tight text-black leading-snug group-hover:underline">
+              <h3 class="text-xl sm:text-2xl font-extrabold tracking-tight text-black leading-snug group-hover:underline">
                 {{ featuredEvent.title }}
               </h3>
-              <p class="text-[11px] sm:text-xs font-semibold text-slate-900">
-                {{ formatDate(featuredEvent.start_date || featuredEvent.start_at) }} •
-                {{ featuredEvent.venue_name || featuredEvent.location_name }}
-              </p>
+              <div class="space-y-1 text-xs font-medium text-slate-900">
+                <p class="font-mono text-[11px]">{{ formatDate(featuredEvent.start_date || featuredEvent.start_at) }}</p>
+                <p>{{ featuredEvent.venue_name || featuredEvent.location_name }}</p>
+                <p v-if="featuredEvent.organization?.name || featuredEvent.organization_name" class="text-slate-800">
+                  Oleh {{ featuredEvent.organization?.name || featuredEvent.organization_name }}
+                </p>
+              </div>
             </div>
 
-            <div class="pt-2.5 sm:pt-4 border-t border-black/20 flex items-center justify-between gap-3">
+            <div class="pt-4 border-t-2 border-dashed border-black/25 flex items-center justify-between gap-3">
               <div>
-                <span class="text-[9px] font-bold uppercase tracking-wider text-slate-800 block">TIKET MULAI</span>
-                <span class="text-sm sm:text-lg font-black text-black">{{ getEventMeta(featuredEvent).priceLabel }}</span>
+                <span class="text-[11px] font-medium text-slate-900 block">Tiket mulai dari</span>
+                <span class="font-mono text-lg sm:text-xl font-bold text-black">{{ getEventMeta(featuredEvent).priceLabel }}</span>
               </div>
-              <span class="luxury-pill rounded-full bg-black px-4 sm:px-5 py-1.5 sm:py-2 text-xs font-bold text-white">
-                Beli Tiket &rarr;
+              <span class="luxury-pill rounded-full bg-black px-5 py-2.5 text-xs font-bold text-white shrink-0">
+                Lihat &amp; Beli Tiket
               </span>
             </div>
           </div>
         </RouterLink>
 
-        <!-- Mobile: Compact Horizontal Ticket-Row Cards | Tablet/Desktop: 3-Column Vertical Poster Grid -->
+        <!-- 3-Column Programme Grid -->
         <TransitionGroup
           v-if="catalogCards.length"
           name="card-grid"
           tag="div"
-          class="reveal-section is-visible grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-5"
+          class="reveal-section is-visible grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5"
         >
           <RouterLink
             v-for="evt in catalogCards"
             :key="evt.id"
             :to="`/events/${evt.slug || evt.id}`"
-            class="luxury-card group rounded-2xl border-2 border-black bg-white overflow-hidden flex flex-row sm:flex-col justify-between shadow-[3px_3px_0px_#000]"
+            class="luxury-card group rounded-2xl border border-black bg-white overflow-hidden flex flex-col justify-between"
           >
-            <!-- Left Square Thumbnail on Mobile | Top 16:9 Banner on sm+ -->
-            <div class="relative w-28 sm:w-full shrink-0 sm:aspect-video bg-black border-r sm:border-r-0 sm:border-b border-black overflow-hidden">
+            <div class="relative aspect-[16/10] bg-black border-b border-black overflow-hidden">
               <img
                 :src="evt.poster_url"
                 :alt="evt.title"
-                class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                class="w-full h-full object-cover group-hover:scale-103 transition-transform duration-300"
               />
-              <span class="hidden sm:inline-block absolute top-2.5 left-2.5 rounded-full border border-black bg-white px-2.5 py-0.5 text-[10px] font-bold text-black">
+              <span class="absolute top-2.5 left-2.5 rounded-full border border-black bg-white/95 px-2.5 py-0.5 text-[11px] font-semibold text-black">
                 {{ evt.category }}
               </span>
             </div>
 
-            <!-- Right Details on Mobile | Bottom Content on sm+ -->
-            <div class="flex-1 min-w-0 flex flex-col justify-between">
-              <div class="p-3 sm:p-4 space-y-1">
-                <span class="sm:hidden inline-block rounded-full border border-black/30 bg-[#fafaf9] px-2 py-0.2 text-[9px] font-bold text-slate-700">
-                  {{ evt.category }}
-                </span>
-                <h3 class="text-xs sm:text-sm font-bold text-black group-hover:underline line-clamp-2 leading-snug">
+            <div class="p-4 flex-1 flex flex-col justify-between space-y-4">
+              <div class="space-y-1.5">
+                <p class="font-mono text-[11px] text-slate-500">
+                  {{ formatDate(evt.start_date || evt.start_at) }}
+                </p>
+                <h3 class="text-sm sm:text-base font-bold text-black group-hover:underline line-clamp-2 leading-snug">
                   {{ evt.title }}
                 </h3>
-                <p class="text-[10px] sm:text-[11px] text-slate-600 truncate">
-                  {{ formatDate(evt.start_date || evt.start_at) }} • {{ evt.venue_name || evt.location_name }}
+                <p class="text-xs text-slate-600 truncate">
+                  {{ evt.venue_name || evt.location_name }}
                 </p>
               </div>
 
-              <div class="px-3 sm:px-4 py-2 sm:py-3 border-t border-black/10 bg-[#fafaf9] flex items-center justify-between">
-                <span class="text-xs font-black text-black">{{ getEventMeta(evt).priceLabel }}</span>
-                <span class="text-[11px] font-bold text-black group-hover:translate-x-0.5 transition-transform">
-                  Detail &rarr;
+              <div class="pt-3 border-t border-black/10 flex items-center justify-between">
+                <span class="font-mono text-xs sm:text-sm font-bold text-black">{{ getEventMeta(evt).priceLabel }}</span>
+                <span class="text-[11px] font-medium text-slate-500">
+                  Sisa {{ getEventMeta(evt).remaining }} kursi
                 </span>
               </div>
             </div>
           </RouterLink>
         </TransitionGroup>
 
-        <!-- Friendly Filter Empty State -->
+        <!-- Filter Empty State -->
         <div
           v-else
-          class="rounded-2xl border-2 border-dashed border-black/40 bg-white/80 p-6 text-center space-y-2.5"
+          class="rounded-2xl border border-dashed border-black/40 bg-white p-8 text-center space-y-3"
         >
-          <p class="text-xs font-bold text-slate-700">Belum ada event untuk kombinasi filter ini.</p>
+          <p class="text-xs sm:text-sm font-semibold text-slate-700">Belum ada acara yang cocok dengan filter ini.</p>
           <button
             type="button"
             @click="activeCategory = 'All'; activeTab = 'all'"
             class="luxury-pill rounded-full border border-black bg-[#72a5e4] px-4 py-1.5 text-xs font-bold text-black cursor-pointer"
           >
-            Tampilkan Semua Event
+            Tampilkan Semua Acara
           </button>
         </div>
 
-        <div class="flex justify-center pt-1">
+        <div class="flex justify-start sm:justify-end pt-1">
           <RouterLink
             to="/events"
-            class="luxury-pill inline-flex items-center gap-2 rounded-full border-2 border-black bg-white px-6 py-2.5 text-xs font-bold text-black shadow-[3px_3px_0px_#000]"
+            class="luxury-pill inline-flex items-center gap-2 rounded-full border border-black bg-white px-5 py-2.5 text-xs font-bold text-black"
           >
-            Lihat Semua Event di Marketplace &rarr;
+            Lihat seluruh katalog acara
           </RouterLink>
         </div>
       </div>
     </section>
 
     <!-- =================================================================== -->
-    <!-- 3. ABOUT TERRA & CARA KERJA (CLEAN BENTO GRID + TAB SWITCHER)       -->
+    <!-- 3. EKOSISTEM & CARA KERJA (12-COL ARCHITECTURAL BENTO)              -->
     <!-- =================================================================== -->
-    <section id="about" class="relative z-10 py-[7vh] border-t border-black/15 scroll-mt-[8vh]">
-      <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 space-y-[4vh]">
-        <!-- Minimal Section Header -->
-        <div class="reveal-section flex flex-col sm:flex-row sm:items-end justify-between gap-4">
-          <div class="space-y-1.5">
-            <span class="inline-flex items-center gap-1.5 rounded-full border border-black bg-[#72a5e4] px-3 py-0.5 text-[10px] font-black uppercase tracking-wider text-black">
-              <Sparkles class="h-3 w-3" />
-              ABOUT TERRA
-            </span>
-            <h2 class="text-2xl sm:text-3xl font-black tracking-tight text-black">
-              Satu Ekosistem untuk <span class="font-editorial font-normal">Tiket &amp; Kepanitiaan</span>
+    <section id="about" class="relative z-10 py-14 sm:py-20 border-t border-black/15 scroll-mt-16">
+      <div class="max-w-[1080px] mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
+        <!-- Left-Aligned Section Header -->
+        <div class="reveal-section flex flex-col md:flex-row md:items-end justify-between gap-4">
+          <div class="space-y-1.5 max-w-xl">
+            <h2 class="text-2xl sm:text-3xl font-extrabold tracking-tight text-black">
+              Ekosistem terpadu tiket &amp; ruang kerja panitia
             </h2>
+            <p class="text-xs sm:text-sm text-slate-600 leading-relaxed">
+              Menggantikan spreadsheet terpisah dan form manual dengan 13 modul operasional yang terhubung langsung ke penjualan tiket publik.
+            </p>
           </div>
-          <p class="text-xs text-slate-600 max-w-sm">
-            Menggantikan spreadsheet, grup chat, dan form manual dengan 13 modul operasional yang terhubung langsung ke marketplace tiket.
-          </p>
+          <RouterLink
+            to="/pricing"
+            class="text-xs font-bold text-black underline underline-offset-4 hover:opacity-75 shrink-0"
+          >
+            Lihat skema harga per acara
+          </RouterLink>
         </div>
 
-        <!-- Bento Grid (Mobile: 1 Hero Card + 2 Side-by-Side Compact Cards; Desktop: 12-Col Bento) -->
-        <div class="reveal-section grid grid-cols-2 md:grid-cols-12 gap-3.5 sm:gap-5">
-          <!-- Bento 1: Main Black Card -->
-          <div class="col-span-2 md:col-span-6 rounded-3xl border-2 border-black bg-black text-white p-5 sm:p-7 shadow-[4px_4px_0px_#72a5e4] flex flex-col justify-between space-y-4 sm:space-y-6">
+        <!-- 12-Column Bento Grid -->
+        <div class="reveal-section grid grid-cols-1 md:grid-cols-12 gap-5">
+          <!-- Cols 1-7: Dark Studio Card Grouping 13 Modular Engines by Phase -->
+          <div class="md:col-span-7 rounded-2xl border-2 border-black bg-black text-white p-6 sm:p-8 flex flex-col justify-between space-y-6">
             <div class="space-y-2">
-              <span class="text-[10px] font-bold uppercase tracking-widest text-[#72a5e4]">
-                MODULAR ENGINE
+              <span class="inline-block rounded-full border border-white/25 px-3 py-0.5 text-[11px] font-semibold text-[#72a5e4]">
+                13 Modul Kepanitiaan
               </span>
               <h3 class="text-xl sm:text-2xl font-bold leading-snug">
-                13 Modul Kepanitiaan Sesuai Skala Acara
+                Aktifkan fitur sesuai skala acara
               </h3>
-              <p class="text-xs text-slate-300 leading-relaxed">
-                Aktifkan modul Timeline WBS, Kanban, RBAC Tim, Keuangan, Vendor, Sponsor, hingga Survey Evaluasi dalam satu klik.
+              <p class="text-xs text-slate-300 leading-relaxed max-w-[54ch]">
+                Setiap acara memiliki ruang kerja modular yang bisa dinyalakan atau dimatikan kapan saja tanpa kehilangan data historis.
               </p>
             </div>
 
-            <!-- Interactive Swipeable Module Preview Rail -->
-            <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-0.5 text-[10px] font-bold">
-              <span
-                v-for="modName in ['Timeline WBS', 'Kanban Task', 'RBAC Panitia', 'Ticketing QR', 'Fullscreen Check-in', 'Keuangan & RAB', 'Sponsor & Vendor', 'Live Report']"
-                :key="modName"
-                class="shrink-0 rounded-full border border-white/20 bg-white/10 px-2.5 py-1 text-slate-200"
-              >
-                ✦ {{ modName }}
-              </span>
-            </div>
-
-            <div class="grid grid-cols-3 gap-2 sm:gap-2.5 pt-2 border-t border-white/15 text-center">
-              <div class="rounded-xl bg-white/10 p-2 sm:p-2.5">
-                <span class="text-base sm:text-lg font-black text-[#72a5e4] block">13</span>
-                <span class="text-[10px] text-slate-300">Modul Event</span>
-              </div>
-              <div class="rounded-xl bg-white/10 p-2 sm:p-2.5">
-                <span class="text-base sm:text-lg font-black text-white block">3</span>
-                <span class="text-[10px] text-slate-300">Portal Akses</span>
-              </div>
-              <div class="rounded-xl bg-white/10 p-2 sm:p-2.5">
-                <span class="text-base sm:text-lg font-black text-[#72a5e4] block">100%</span>
-                <span class="text-[10px] text-slate-300">Real-Time</span>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 border-t border-white/15">
+              <div v-for="group in moduleGroups" :key="group.phase" class="space-y-2">
+                <p class="text-xs font-bold text-[#72a5e4]">{{ group.phase }}</p>
+                <ul class="space-y-1 text-xs text-slate-300">
+                  <li v-for="item in group.items" :key="item">• {{ item }}</li>
+                </ul>
               </div>
             </div>
           </div>
 
-          <!-- Bento 2: Blue QR Boarding-Pass Card (Half width on mobile!) -->
-          <div class="col-span-1 md:col-span-3 rounded-3xl border-2 border-black bg-[#72a5e4] text-black p-4 sm:p-6 shadow-[4px_4px_0px_#000] flex flex-col justify-between space-y-3 sm:space-y-4">
-            <div class="h-9 w-9 sm:h-10 sm:w-10 rounded-xl border border-black bg-white flex items-center justify-center shadow-[2px_2px_0px_#000]">
-              <QrCode class="h-4 w-4 sm:h-5 sm:w-5 text-black" />
+          <!-- Cols 8-12: Stacked Pair of Focused Value Cards -->
+          <div class="md:col-span-5 flex flex-col gap-5">
+            <div class="flex-1 rounded-2xl border border-black bg-[#72a5e4] text-black p-6 flex flex-col justify-between space-y-4">
+              <div class="h-10 w-10 rounded-xl border border-black bg-white flex items-center justify-center">
+                <QrCode class="h-5 w-5 text-black" />
+              </div>
+              <div class="space-y-1.5">
+                <h3 class="text-base sm:text-lg font-bold leading-snug">
+                  Tiket QR &amp; PDF otomatis di email
+                </h3>
+                <p class="text-xs text-slate-900 leading-relaxed">
+                  Setelah checkout, sistem menerbitkan QR Code unik dan mengirim file PDF siap cetak langsung ke email peserta.
+                </p>
+              </div>
             </div>
-            <div class="space-y-1">
-              <h3 class="text-sm sm:text-base font-black leading-snug">
-                Branded QR Boarding-Pass
-              </h3>
-              <p class="text-[11px] sm:text-xs text-slate-900 leading-relaxed">
-                PDF &amp; Email E-Ticket otomatis menampilkan logo resmi acara di tengah QR Code.
-              </p>
-            </div>
-          </div>
 
-          <!-- Bento 3: White Fullscreen Scanner & RBAC Card (Half width on mobile!) -->
-          <div class="col-span-1 md:col-span-3 rounded-3xl border-2 border-black bg-white text-black p-4 sm:p-6 shadow-[4px_4px_0px_#000] flex flex-col justify-between space-y-3 sm:space-y-4">
-            <div class="h-9 w-9 sm:h-10 sm:w-10 rounded-xl border border-black bg-[#fafaf9] flex items-center justify-center shadow-[2px_2px_0px_#000]">
-              <ShieldCheck class="h-4 w-4 sm:h-5 sm:w-5 text-black" />
-            </div>
-            <div class="space-y-1">
-              <h3 class="text-sm sm:text-base font-black leading-snug">
-                Anti-Double Gate Check-in
-              </h3>
-              <p class="text-[11px] sm:text-xs text-slate-600 leading-relaxed">
-                Scanner kamera layar penuh dengan kunci kuota atomik mencegah duplikasi tiket.
-              </p>
+            <div class="flex-1 rounded-2xl border border-black bg-white text-black p-6 flex flex-col justify-between space-y-4">
+              <div class="h-10 w-10 rounded-xl border border-black bg-[#fafaf9] flex items-center justify-center">
+                <ShieldCheck class="h-5 w-5 text-black" />
+              </div>
+              <div class="space-y-1.5">
+                <h3 class="text-base sm:text-lg font-bold leading-snug">
+                  Validasi gate anti-duplikasi
+                </h3>
+                <p class="text-xs text-slate-600 leading-relaxed">
+                  Pemindaian kamera langsung maupun unggah gambar QR memverifikasi keaslian tiket, kesesuaian acara, dan mencegah check-in ganda.
+                </p>
+              </div>
             </div>
           </div>
         </div>
 
-        <!-- Interactive Cara Kerja Tab Switcher (Full-width touch toggle & horizontal steps on mobile) -->
-        <div id="how-it-works" class="reveal-section rounded-3xl border-2 border-black bg-white p-5 sm:p-8 shadow-[4px_4px_0px_#000] space-y-5 sm:space-y-6 scroll-mt-20">
-          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 border-b border-black/10 pb-4">
-            <div>
-              <span class="text-[10px] font-black uppercase tracking-widest text-slate-400 block">
-                CARA KERJA TERRA
-              </span>
-              <h3 class="text-lg sm:text-xl font-black text-black">
-                3 Langkah Mudah Memulai
+        <!-- Cara Kerja Chronological Sequence -->
+        <div id="how-it-works" class="reveal-section rounded-2xl border border-black bg-white p-6 sm:p-8 space-y-6 scroll-mt-20">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-black/10 pb-5">
+            <div class="space-y-1">
+              <h3 class="text-lg sm:text-xl font-extrabold text-black">
+                Alur kerja dalam tiga langkah
               </h3>
+              <p class="text-xs text-slate-600">
+                Pilih peran di samping untuk melihat alur penggunaan bagi pembeli tiket maupun penyelenggara.
+              </p>
             </div>
 
-            <!-- Role Pill Toggle (Full-width 2-col on mobile for easy thumb reach) -->
             <div class="grid grid-cols-2 sm:inline-flex w-full sm:w-auto rounded-full border border-black bg-[#fafaf9] p-1">
               <button
                 type="button"
                 @click="activeRoleFlow = 'customer'"
-                class="rounded-full px-4 py-2 sm:py-1.5 text-xs font-bold transition-colors cursor-pointer text-center"
-                :class="activeRoleFlow === 'customer' ? 'bg-[#72a5e4] border border-black text-black shadow-[1px_1px_0px_#000]' : 'text-slate-600 hover:text-black'"
+                class="rounded-full px-4 py-1.5 text-xs font-bold transition-colors cursor-pointer text-center"
+                :class="activeRoleFlow === 'customer' ? 'bg-[#72a5e4] border border-black text-black' : 'text-slate-600 hover:text-black'"
               >
                 Pembeli Tiket
               </button>
               <button
                 type="button"
                 @click="activeRoleFlow = 'organizer'"
-                class="rounded-full px-4 py-2 sm:py-1.5 text-xs font-bold transition-colors cursor-pointer text-center"
+                class="rounded-full px-4 py-1.5 text-xs font-bold transition-colors cursor-pointer text-center"
                 :class="activeRoleFlow === 'organizer' ? 'bg-black text-white' : 'text-slate-600 hover:text-black'"
               >
                 Organizer Acara
@@ -614,13 +574,13 @@ onBeforeUnmount(() => {
           </div>
 
           <Transition name="tab-slide" mode="out-in">
-            <div :key="activeRoleFlow" class="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4">
+            <div :key="activeRoleFlow" class="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div
                 v-for="step in roleFlows[activeRoleFlow].steps"
                 :key="step.num"
-                class="luxury-card rounded-2xl border border-black bg-[#fafaf9] p-3.5 sm:p-4 flex sm:block items-start gap-3.5 sm:space-y-2"
+                class="rounded-xl border border-black/20 bg-[#fafaf9] p-5 flex sm:block items-start gap-3.5 sm:space-y-3"
               >
-                <span class="inline-flex h-8 w-8 sm:h-auto sm:w-auto shrink-0 items-center justify-center rounded-xl sm:rounded-lg border border-black bg-[#72a5e4] sm:px-2.5 sm:py-0.5 text-xs font-black text-black shadow-[2px_2px_0px_#000] sm:shadow-none">
+                <span class="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-black bg-[#72a5e4] font-mono text-xs font-bold text-black shrink-0">
                   {{ step.num }}
                 </span>
                 <div class="space-y-1 min-w-0">
@@ -631,36 +591,36 @@ onBeforeUnmount(() => {
             </div>
           </Transition>
 
-          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 pt-2">
-            <!-- Verified Organizers Compact Pill Row (Swipeable on mobile) -->
-            <div class="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1 sm:pb-0">
-              <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mr-1 shrink-0">
-                Verified EO:
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-2">
+            <!-- Verified Organizers Row -->
+            <div v-if="store.organizations.length" class="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1 sm:pb-0">
+              <span class="text-xs font-medium text-slate-500 mr-1 shrink-0">
+                Penyelenggara aktif:
               </span>
               <RouterLink
                 v-for="org in store.organizations.slice(0, 3)"
                 :key="org.id"
                 :to="`/organizers/${org.slug}`"
-                class="shrink-0 inline-flex items-center gap-1.5 rounded-full border border-black bg-[#fafaf9] px-3 py-1 text-[11px] font-bold text-black hover:bg-[#72a5e4]/30 transition-colors"
+                class="shrink-0 inline-flex items-center gap-1.5 rounded-full border border-black/25 bg-[#fafaf9] px-3 py-1 text-xs font-semibold text-black hover:border-black transition-colors"
               >
                 <img :src="org.logo_url" :alt="org.name" class="h-4 w-4 rounded-full object-cover border border-black" />
                 <span class="truncate max-w-[140px]">{{ org.name }}</span>
-                <ArrowUpRight class="h-3 w-3" />
+                <ArrowUpRight class="h-3 w-3 text-slate-500" />
               </RouterLink>
             </div>
 
-            <div class="grid grid-cols-2 sm:flex items-center gap-2 w-full sm:w-auto">
+            <div class="grid grid-cols-2 sm:flex items-center gap-2.5 w-full sm:w-auto">
               <RouterLink
                 :to="roleFlows[activeRoleFlow].secondaryTo"
-                class="luxury-pill text-center rounded-full border border-black bg-white px-4 py-2.5 sm:py-2 text-xs font-semibold text-black"
+                class="luxury-pill text-center rounded-full border border-black bg-white px-4 py-2 text-xs font-semibold text-black whitespace-nowrap"
               >
                 {{ roleFlows[activeRoleFlow].secondaryLabel }}
               </RouterLink>
               <RouterLink
                 :to="roleFlows[activeRoleFlow].ctaTo"
-                class="luxury-pill text-center rounded-full border border-black bg-[#72a5e4] px-5 py-2.5 sm:py-2 text-xs font-bold text-black shadow-[2px_2px_0px_#000]"
+                class="luxury-pill text-center rounded-full border border-black bg-[#72a5e4] px-5 py-2 text-xs font-bold text-black whitespace-nowrap"
               >
-                {{ roleFlows[activeRoleFlow].ctaLabel }} &rarr;
+                {{ roleFlows[activeRoleFlow].ctaLabel }}
               </RouterLink>
             </div>
           </div>

@@ -6,7 +6,7 @@ import { useAuthStore } from '@/stores/auth'
 import { formatDateTime, formatCurrency } from '@/utils/formatters'
 import { useToastStore } from '@/stores/toast'
 import EventCompanionForum from './components/EventCompanionForum.vue'
-import { ArrowLeft, Flag, MessageSquarePlus, X } from 'lucide-vue-next'
+import { ArrowLeft, ArrowRight, Flag, MessageSquarePlus, X } from 'lucide-vue-next'
 
 const route = useRoute()
 const router = useRouter()
@@ -66,6 +66,11 @@ const maxQty = computed(() => {
   )
   const limit = Number(activeTicket.value?.max_per_order || 5)
   return Math.max(minQty.value, Math.min(limit, remaining))
+})
+
+const selectedSubtotal = computed(() => {
+  const price = Number(activeTicket.value?.price || 0)
+  return price * quantity.value
 })
 
 watch(
@@ -146,82 +151,82 @@ function shareEvent() {
 </script>
 
 <template>
-  <div v-if="event" class="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-    <RouterLink to="/events" class="inline-flex items-center gap-1.5 text-xs font-medium text-slate-600 hover:text-black">
-      <ArrowLeft class="h-3.5 w-3.5" /> Kembali ke Explore
-    </RouterLink>
+  <div v-if="event" class="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-8 sm:py-10 space-y-6">
+    <!-- Top Breadcrumb & Quick Actions -->
+    <div class="flex items-center justify-between gap-3">
+      <RouterLink to="/events" class="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-black transition-colors">
+        <ArrowLeft class="h-3.5 w-3.5" /> Kembali ke Katalog Acara
+      </RouterLink>
+
+      <div class="flex items-center gap-2">
+        <button
+          type="button"
+          @click="shareEvent"
+          class="rounded-full border border-black/30 bg-white px-3.5 py-1.5 text-xs font-semibold text-black hover:border-black cursor-pointer transition-colors"
+        >
+          Bagikan Tautan
+        </button>
+        <button
+          type="button"
+          @click="showReportModal = true"
+          class="inline-flex items-center gap-1 rounded-full border border-black/30 bg-white px-3.5 py-1.5 text-xs font-semibold text-rose-700 hover:border-rose-600 hover:bg-rose-50 cursor-pointer transition-colors"
+        >
+          <Flag class="h-3 w-3" />
+          Laporkan
+        </button>
+      </div>
+    </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
       <!-- Left Column (8 Cols) -->
-      <div class="lg:col-span-8 space-y-6">
+      <div class="lg:col-span-8 space-y-8">
         <!-- Main 16:9 Media Cover -->
-        <div class="relative aspect-video rounded-2xl overflow-hidden border border-black bg-black">
+        <div class="relative aspect-video rounded-2xl overflow-hidden border-2 border-black bg-black">
           <img
             :src="event.banner_url || event.poster_url"
             :alt="event.title"
             class="w-full h-full object-cover"
           />
-          <div class="absolute top-3.5 left-3.5">
-            <span class="rounded-full border border-black bg-white px-3.5 py-1 text-[10px] font-bold uppercase tracking-wider text-black">
-              {{ (event.location_type || 'HYBRID').toUpperCase() }}
+          <div class="absolute top-3.5 left-3.5 flex items-center gap-2">
+            <span class="rounded-full border border-black bg-[#72a5e4] px-3 py-1 text-[11px] font-bold text-black">
+              {{ event.category }}
+            </span>
+            <span class="rounded-full border border-black bg-white px-3 py-1 text-[11px] font-semibold text-black capitalize">
+              {{ event.location_type || 'hybrid' }}
             </span>
           </div>
         </div>
 
-        <!-- Category Pill, Share & Report -->
-        <div class="flex flex-wrap items-center justify-between gap-3">
-          <span class="rounded-full border border-black bg-[#72a5e4] px-4 py-1 text-xs font-bold text-black">
-            {{ event.category }}
-          </span>
-          <div class="flex items-center gap-2">
-            <button
-              @click="showReportModal = true"
-              class="inline-flex items-center gap-1 rounded-full border border-black bg-white px-3.5 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-50 cursor-pointer"
-            >
-              <Flag class="h-3 w-3" />
-              Laporkan
-            </button>
-            <button
-              @click="shareEvent"
-              class="rounded-full border border-black bg-white px-4 py-1 text-xs font-semibold text-black hover:bg-slate-100 cursor-pointer"
-            >
-              Bagikan ↗
-            </button>
+        <!-- Event Masthead -->
+        <div class="space-y-4">
+          <h1 class="text-2xl sm:text-4xl font-extrabold tracking-tight text-black leading-[1.15]">
+            {{ event.title }}
+          </h1>
+
+          <!-- Architectural Info Grid -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 rounded-2xl border border-black bg-white p-5">
+            <div class="space-y-1">
+              <span class="text-[11px] font-semibold text-slate-500 block">Waktu Pelaksanaan</span>
+              <p class="font-mono text-xs sm:text-sm font-bold text-black">
+                {{ formatDateTime(event.start_at || event.start_date) }}
+              </p>
+            </div>
+            <div class="space-y-1 sm:border-l sm:border-black/15 sm:pl-4">
+              <span class="text-[11px] font-semibold text-slate-500 block">Lokasi Venue</span>
+              <p class="text-xs sm:text-sm font-bold text-black">
+                {{ event.location_name || event.venue_name }}
+              </p>
+              <p class="text-xs text-slate-500 leading-snug">
+                {{ event.address || 'Informasi alamat terkonfirmasi saat checkout' }}
+              </p>
+            </div>
           </div>
         </div>
 
-        <!-- Title -->
-        <h1 class="text-3xl sm:text-4xl font-bold tracking-tight text-black font-sans leading-tight">
-          {{ event.title }}
-        </h1>
-
-        <!-- Waktu Pelaksanaan & Lokasi Row -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 py-4 border-y border-black/15 text-xs">
-          <div class="space-y-1">
-            <span class="text-[9px] font-bold uppercase tracking-wider text-slate-400 block">
-              WAKTU PELAKSANAAN
-            </span>
-            <p class="text-sm font-bold text-black">
-              {{ formatDateTime(event.start_at || event.start_date) }}
-            </p>
-          </div>
-          <div class="space-y-1">
-            <span class="text-[9px] font-bold uppercase tracking-wider text-slate-400 block">
-              LOKASI
-            </span>
-            <p class="text-sm font-bold text-black">
-              {{ event.location_name || event.venue_name }}
-            </p>
-            <p class="text-[11px] text-slate-500">
-              {{ event.address || 'Jl. Gatot Subroto, Senayan, Jakarta Pusat' }}
-            </p>
-          </div>
-        </div>
-
-        <!-- Tentang Event -->
-        <div class="space-y-2.5 pt-1">
-          <h2 class="text-lg font-bold text-black font-sans">Tentang Event</h2>
-          <p class="text-sm sm:text-base font-editorial text-slate-800 leading-relaxed">
+        <!-- Tentang Event (Clean Readable Sans) -->
+        <div class="space-y-2.5">
+          <h2 class="text-lg font-bold text-black">Tentang Acara</h2>
+          <p class="max-w-[68ch] text-sm sm:text-[15px] text-slate-700 leading-relaxed">
             {{ event.description }}
           </p>
         </div>
@@ -261,31 +266,32 @@ function shareEvent() {
           </div>
         </div>
 
-        <!-- Rundown Acara -->
-        <div class="space-y-3.5 pt-3">
-          <h2 class="text-lg font-bold text-black font-sans">Rundown Acara</h2>
+        <!-- Rundown Acara (Vertical Chronological Programme) -->
+        <div v-if="(event.schedules || []).filter(s => !s.visibility || s.visibility === 'public').length" class="space-y-3.5 pt-2">
+          <h2 class="text-lg font-bold text-black">Rundown Acara</h2>
 
-          <div class="space-y-2.5">
+          <div class="rounded-2xl border border-black bg-white divide-y divide-black/10 overflow-hidden">
             <div
               v-for="sc in (event.schedules || []).filter(s => !s.visibility || s.visibility === 'public')"
               :key="sc.id"
-              class="rounded-xl border border-black bg-[#fafaf9] p-4 flex flex-col sm:flex-row sm:items-center gap-4"
+              class="p-4 sm:px-5 flex flex-col sm:flex-row sm:items-start gap-2 sm:gap-5"
             >
-              <span class="rounded-full border border-black bg-[#72a5e4] px-4 py-1 text-[11px] font-bold text-black font-mono shrink-0 text-center">
-                {{ sc.date ? `${sc.date} • ` : '' }}{{ sc.start_time }} – {{ sc.end_time }}
-              </span>
+              <div class="sm:w-44 shrink-0 font-mono text-xs font-bold text-black">
+                <span>{{ sc.start_time }} – {{ sc.end_time }}</span>
+                <span v-if="sc.date" class="block text-[11px] font-normal text-slate-500">{{ sc.date }}</span>
+              </div>
               <div class="space-y-1 flex-1 min-w-0">
                 <div class="flex flex-wrap items-center gap-2">
-                  <p class="text-xs font-bold text-black">{{ sc.title }}</p>
+                  <p class="text-sm font-bold text-black">{{ sc.title }}</p>
                   <span
                     v-if="sc.track"
-                    class="rounded-full border border-black bg-white px-2 py-0.5 text-[9px] font-bold text-black"
+                    class="rounded-full border border-black/30 bg-[#72a5e4]/25 px-2.5 py-0.5 text-[10px] font-semibold text-black"
                   >
                     {{ sc.track }}
                   </span>
                 </div>
-                <p v-if="sc.description" class="text-[11px] text-slate-700 leading-snug">{{ sc.description }}</p>
-                <p class="text-[11px] text-slate-500">{{ sc.location }} • PIC: {{ sc.pic }}</p>
+                <p v-if="sc.description" class="text-xs text-slate-600 leading-relaxed">{{ sc.description }}</p>
+                <p class="text-[11px] text-slate-500">{{ sc.location }} • PIC: {{ sc.pic || 'Panitia' }}</p>
               </div>
             </div>
           </div>
@@ -417,82 +423,93 @@ function shareEvent() {
         />
       </div>
 
-      <!-- Right Column (4 Cols): Organizer Box + Sticky Pilih Tiket -->
-      <div class="lg:col-span-4 space-y-4 sticky top-20">
+      <!-- Right Column (4 Cols): Organizer Box + Sticky Admission Ticket Stub -->
+      <div class="lg:col-span-4 space-y-4 sticky top-22">
         <!-- Diselenggarakan Oleh Card -->
         <RouterLink
           :to="`/organizers/${event.organization?.slug || 'nusantara-tech'}`"
-          class="rounded-xl border border-black bg-[#fafaf9] p-4 flex items-center gap-3.5 hover:bg-white transition-colors block"
+          class="rounded-2xl border border-black bg-white p-4 flex items-center gap-3.5 hover:bg-slate-50 transition-colors block"
         >
           <img
             :src="event.organization?.logo_url || 'https://images.unsplash.com/photo-1560179707-f14e90ef3623?w=200&q=80'"
             :alt="event.organization?.name"
-            class="h-12 w-12 rounded-lg border border-black object-cover shrink-0 bg-white"
+            class="h-11 w-11 rounded-xl border border-black object-cover shrink-0 bg-white"
           />
-          <div class="space-y-0.5">
-            <span class="text-[9px] font-bold uppercase tracking-wider text-slate-400 block">
-              DISELENGGARAKAN OLEH
+          <div class="space-y-0.5 min-w-0">
+            <span class="text-[11px] font-medium text-slate-500 block">
+              Diselenggarakan oleh
             </span>
-            <p class="text-xs font-bold text-black">
+            <p class="text-xs font-bold text-black truncate">
               {{ event.organization?.name || event.organization_name || 'Nusantara Tech Community' }}
             </p>
-            <span class="text-[11px] text-slate-600 block">Lihat profil organizer ↗</span>
+            <span class="text-[11px] font-semibold text-slate-700 underline underline-offset-2 block">Lihat profil organizer</span>
           </div>
         </RouterLink>
 
-        <!-- Pilih Tiket Card -->
-        <div class="rounded-2xl border border-black bg-[#fafaf9] p-6 space-y-4">
-          <h3 class="text-lg font-bold text-black font-sans">Pilih Tiket</h3>
+        <!-- Admission Ticket Stub -->
+        <div class="rounded-2xl border-2 border-black bg-white shadow-[4px_4px_0px_#000] overflow-hidden">
+          <div class="bg-[#72a5e4] border-b border-black px-5 py-3.5 flex items-center justify-between">
+            <h3 class="text-sm font-extrabold text-black">Pilih Tiket</h3>
+            <span class="font-mono text-[11px] font-bold text-black">
+              {{ ticketTypes.length }} kategori
+            </span>
+          </div>
 
-          <div class="space-y-3">
+          <div class="p-5 space-y-3">
             <div
               v-for="tkt in ticketTypes"
               :key="tkt.id"
               @click="selectTicket(tkt.id)"
-              class="rounded-xl border border-black p-4 cursor-pointer transition-colors space-y-3"
-              :class="activeTicket?.id === tkt.id ? 'bg-[#72a5e4]/25' : 'bg-[#fafaf9] hover:bg-white'"
+              class="rounded-xl border p-3.5 cursor-pointer transition-colors space-y-2"
+              :class="activeTicket?.id === tkt.id ? 'border-black bg-[#72a5e4]/20' : 'border-black/20 bg-[#fafaf9] hover:border-black'"
             >
-              <div class="space-y-1">
-                <div class="flex items-center justify-between gap-2">
-                  <p class="text-xs font-bold text-black">{{ tkt.name }}</p>
-                  <span
-                    class="rounded-full border border-black px-2.5 py-0.5 text-[9px] font-bold"
-                    :class="activeTicket?.id === tkt.id ? 'bg-[#72a5e4] text-black' : 'bg-white text-black'"
-                  >
-                    {{ tkt.status || 'On Sale' }}
-                  </span>
-                </div>
-                <p class="text-[11px] text-slate-600 leading-snug">{{ tkt.description }}</p>
+              <div class="flex items-start justify-between gap-2">
+                <p class="text-xs font-bold text-black leading-snug">{{ tkt.name }}</p>
+                <span
+                  class="rounded-full border border-black px-2 py-0.5 text-[10px] font-bold shrink-0"
+                  :class="activeTicket?.id === tkt.id ? 'bg-[#72a5e4] text-black' : 'bg-white text-black'"
+                >
+                  {{ tkt.status || 'On Sale' }}
+                </span>
               </div>
+              <p v-if="tkt.description" class="text-[11px] text-slate-600 leading-snug">{{ tkt.description }}</p>
 
               <div class="flex items-center justify-between text-xs pt-1">
-                <span class="text-[10px] text-slate-500">
-                  Sisa kuota: {{ Math.max(0, (tkt.quantity || 100) - (tkt.sold_quantity || 0)) }}
+                <span class="font-mono text-[11px] text-slate-500">
+                  Sisa {{ Math.max(0, (tkt.quantity || 100) - (tkt.sold_quantity || 0)) }}
                 </span>
-                <span class="font-bold text-black">
+                <span class="font-mono font-bold text-black">
                   {{ Number(tkt.price) > 0 ? formatCurrency(tkt.price) : 'Gratis' }}
                 </span>
               </div>
             </div>
           </div>
 
-          <!-- Jumlah Tiket Row -->
-          <div class="pt-3 border-t border-black/15 flex items-center justify-between">
-            <span class="text-xs font-bold text-black">Jumlah Tiket</span>
-            <div class="flex items-center rounded-full border border-black bg-white px-3 py-1 gap-4 text-xs font-bold text-black">
-              <button @click="decrementQty" type="button" class="hover:opacity-60">–</button>
-              <span class="font-mono">{{ quantity }}</span>
-              <button @click="incrementQty" type="button" class="hover:opacity-60">+</button>
+          <!-- Perforated Ticket Divider -->
+          <div class="ticket-stub-divider px-5 py-4 space-y-4 bg-[#fafaf9]">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-black">Jumlah Tiket</span>
+              <div class="flex items-center rounded-full border border-black bg-white px-3 py-1 gap-4 text-xs font-bold text-black">
+                <button @click="decrementQty" type="button" class="hover:opacity-60 cursor-pointer" aria-label="Kurangi">–</button>
+                <span class="font-mono">{{ quantity }}</span>
+                <button @click="incrementQty" type="button" class="hover:opacity-60 cursor-pointer" aria-label="Tambah">+</button>
+              </div>
             </div>
-          </div>
 
-          <!-- Pesan Tiket Sekarang Button -->
-          <button
-            @click="proceedCheckout"
-            class="shimmer-sheen luxury-pill w-full rounded-full bg-black py-3 text-xs font-bold text-white hover:bg-slate-800 transition-colors cursor-pointer"
-          >
-            Pesan Tiket Sekarang &rarr;
-          </button>
+            <div class="flex items-center justify-between text-xs pt-1 border-t border-black/10">
+              <span class="font-semibold text-slate-600">Subtotal ({{ quantity }} tiket)</span>
+              <span class="font-mono text-base font-extrabold text-black">
+                {{ selectedSubtotal > 0 ? formatCurrency(selectedSubtotal) : 'Gratis' }}
+              </span>
+            </div>
+
+            <button
+              @click="proceedCheckout"
+              class="shimmer-sheen luxury-pill w-full rounded-full bg-black py-3 text-xs font-bold text-white hover:bg-slate-800 transition-colors cursor-pointer"
+            >
+              Lanjut ke Checkout
+            </button>
+          </div>
         </div>
       </div>
     </div>

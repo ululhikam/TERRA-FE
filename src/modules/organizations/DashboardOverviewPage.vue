@@ -4,7 +4,7 @@ import { RouterLink } from 'vue-router'
 import { useEventWorkspaceStore } from '@/stores/eventWorkspace'
 import { useAuthStore } from '@/stores/auth'
 import { formatDate, formatCurrency } from '@/utils/formatters'
-import { ExternalLink } from 'lucide-vue-next'
+import { ArrowRight, CalendarDays, ExternalLink, Plus } from 'lucide-vue-next'
 
 const store = useEventWorkspaceStore()
 const authStore = useAuthStore()
@@ -22,123 +22,144 @@ const totalEstimatedRevenue = computed(() =>
 </script>
 
 <template>
-  <div class="space-y-8 min-h-[calc(100vh-6rem)]">
-    <!-- Blue Welcome Banner -->
-    <div class="rounded-2xl border border-black bg-[#72a5e4] p-8 text-black flex flex-col md:flex-row md:items-center justify-between gap-6">
+  <div class="mx-auto max-w-6xl space-y-8 min-h-[calc(100vh-6rem)]">
+    <!-- Welcome Masthead -->
+    <section class="rounded-2xl border border-black bg-[#72a5e4] p-6 sm:p-8 text-black flex flex-col md:flex-row md:items-center justify-between gap-6">
       <div class="space-y-2 max-w-2xl">
-        <span class="text-[10px] font-bold uppercase tracking-wider text-black block">
-          ORGANIZER STUDIO OVERVIEW
-        </span>
-        <h1 class="text-2xl sm:text-3xl font-bold tracking-tight text-black font-editorial">
-          Selamat datang,<br />{{ authStore.user?.full_name || authStore.user?.email || 'Organizer' }}!
+        <p class="text-xs font-medium text-black/80">
+          Ringkasan Penyelenggara
+        </p>
+        <h1 class="text-2xl sm:text-3xl font-bold tracking-tight text-black leading-tight">
+          Selamat datang, {{ authStore.user?.full_name || authStore.user?.email || 'Organizer' }}
         </h1>
-        <p class="text-xs sm:text-sm text-slate-900 leading-relaxed">
-          Kelola seluruh rangkaian acara, pantau penjualan tiket berbayar &amp; gratis secara real-time, dan atur tim kerja melalui sistem modular terpadu.
+        <p class="text-sm text-black/85 leading-relaxed">
+          Kelola seluruh rangkaian acara, pantau penjualan tiket berbayar maupun gratis secara langsung, dan atur tim panitia dalam satu workspace terpadu.
         </p>
       </div>
 
-      <div class="flex flex-col sm:flex-row md:flex-col lg:flex-row items-stretch sm:items-center gap-3 shrink-0">
+      <div class="flex flex-col sm:flex-row md:flex-col lg:flex-row items-stretch sm:items-center gap-2.5 shrink-0">
         <RouterLink
           to="/dashboard/events/create"
-          class="rounded-full bg-black px-6 py-2.5 text-xs font-semibold text-white hover:bg-slate-800 transition-colors text-center"
+          class="inline-flex items-center justify-center gap-1.5 rounded-full bg-black px-5 py-2.5 text-xs font-semibold text-white hover:bg-slate-800 transition-colors"
         >
-          + Buat Event Baru
+          <Plus class="h-3.5 w-3.5" />
+          <span>Buat Event Baru</span>
         </RouterLink>
         <RouterLink
           to="/dashboard/organizations"
-          class="rounded-full border border-black bg-white px-6 py-2.5 text-xs font-semibold text-black hover:bg-slate-100 transition-colors text-center"
+          class="inline-flex items-center justify-center rounded-full border border-black bg-white px-5 py-2.5 text-xs font-semibold text-black hover:bg-slate-100 transition-colors"
         >
           Kelola Organisasi
         </RouterLink>
       </div>
-    </div>
+    </section>
 
     <!-- 4 Stats Cards Grid (100% Live Data from Backend) -->
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-      <div class="rounded-2xl border border-black bg-white p-6 space-y-2">
-        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">TOTAL ORGANISASI AKTIF</span>
-        <span class="text-3xl font-black text-black leading-none block">{{ store.organizations.length }}</span>
+    <section class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div class="rounded-2xl border border-black bg-white p-5 sm:p-6 flex flex-col justify-between gap-3">
+        <span class="text-xs font-medium text-slate-600">Organisasi aktif</span>
+        <span class="font-mono text-3xl font-bold tabular-nums tracking-tight text-black leading-none">{{ store.organizations.length }}</span>
         <p class="text-[11px] text-slate-500 pt-2 border-t border-black/10">Organisasi penyelenggara</p>
       </div>
 
-      <div class="rounded-2xl border border-black bg-white p-6 space-y-2">
-        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">TOTAL EVENT DIKELOLA</span>
-        <span class="text-3xl font-black text-black leading-none block">{{ store.events.length }}</span>
-        <p class="text-[11px] text-slate-500 pt-2 border-t border-black/10">Draft &amp; Published</p>
+      <div class="rounded-2xl border border-black bg-white p-5 sm:p-6 flex flex-col justify-between gap-3">
+        <span class="text-xs font-medium text-slate-600">Event dikelola</span>
+        <span class="font-mono text-3xl font-bold tabular-nums tracking-tight text-black leading-none">{{ store.events.length }}</span>
+        <p class="text-[11px] text-slate-500 pt-2 border-t border-black/10">Draft &amp; terbit</p>
       </div>
 
-      <div class="rounded-2xl border border-black bg-white p-6 space-y-2">
-        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">TOTAL TIKET TERDISTRIBUSI</span>
-        <span class="text-3xl font-black text-black leading-none block">{{ totalSoldTickets }}</span>
+      <div class="rounded-2xl border border-black bg-white p-5 sm:p-6 flex flex-col justify-between gap-3">
+        <span class="text-xs font-medium text-slate-600">Tiket terdistribusi</span>
+        <span class="font-mono text-3xl font-bold tabular-nums tracking-tight text-black leading-none">{{ totalSoldTickets }}</span>
         <p class="text-[11px] text-slate-500 pt-2 border-t border-black/10">Semua jenis tiket terjual</p>
       </div>
 
-      <div class="rounded-2xl border border-black bg-white p-6 space-y-2">
-        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">ESTIMASI OMSET TIKET</span>
-        <span class="text-xl sm:text-2xl font-black text-black leading-none block truncate">{{ formatCurrency(totalEstimatedRevenue) }}</span>
-        <p class="text-[11px] text-slate-500 pt-2 border-t border-black/10">Revenue tiket berbayar</p>
+      <div class="rounded-2xl border border-black bg-white p-5 sm:p-6 flex flex-col justify-between gap-3">
+        <span class="text-xs font-medium text-slate-600">Estimasi omset</span>
+        <span class="font-mono text-xl sm:text-2xl font-bold tabular-nums tracking-tight text-black leading-none truncate">{{ formatCurrency(totalEstimatedRevenue) }}</span>
+        <p class="text-[11px] text-slate-500 pt-2 border-t border-black/10">Pendapatan tiket berbayar</p>
       </div>
-    </div>
+    </section>
 
     <!-- Active Events Table -->
-    <div class="space-y-4">
-      <div class="flex items-center justify-between">
+    <section class="space-y-4">
+      <div class="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h2 class="text-xl font-bold tracking-tight text-black font-editorial">Daftar Event Aktif</h2>
-          <p class="text-xs text-slate-600">Kelola konfigurasi modul, kuota tiket, dan tim panitia per event.</p>
+          <h2 class="text-xl font-bold tracking-tight text-black">Daftar Event Aktif</h2>
+          <p class="text-xs text-slate-600 mt-0.5">Kelola konfigurasi modul, kuota tiket, dan tim panitia per acara.</p>
         </div>
-        <RouterLink to="/dashboard/events" class="text-xs font-semibold text-black hover:underline">
-          Lihat Semua &rarr;
+        <RouterLink to="/dashboard/events" class="inline-flex items-center gap-1 text-xs font-semibold text-black hover:underline">
+          <span>Lihat semua</span>
+          <ArrowRight class="h-3.5 w-3.5" />
         </RouterLink>
       </div>
 
-      <div class="rounded-2xl border border-black bg-white p-4 divide-y divide-black/10">
+      <div v-if="activeEvents.length > 0" class="rounded-2xl border border-black bg-white px-5 py-2 divide-y divide-black/10">
         <div
           v-for="evt in activeEvents"
           :key="evt.id"
-          class="py-4 first:pt-2 last:pb-2 flex flex-col md:flex-row items-start md:items-center justify-between gap-4"
+          class="py-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4"
         >
-          <div class="flex items-center gap-4">
-            <div class="h-16 w-24 rounded-lg overflow-hidden border border-black shrink-0 bg-slate-100">
-              <img :src="evt.poster_url" :alt="evt.title" class="h-full w-full object-cover" />
+          <div class="flex items-center gap-4 min-w-0">
+            <div class="h-16 w-24 rounded-lg overflow-hidden border border-black shrink-0 bg-stone-100 flex items-center justify-center">
+              <img v-if="evt.poster_url" :src="evt.poster_url" :alt="evt.title" class="h-full w-full object-cover" />
+              <CalendarDays v-else class="h-5 w-5 text-slate-400" />
             </div>
-            <div class="space-y-1">
+            <div class="space-y-1 min-w-0">
               <div class="flex flex-wrap items-center gap-2">
-                <span class="rounded-full border border-black bg-[#72a5e4] px-2.5 py-0.2 text-[10px] font-bold text-black">
-                  Published
+                <span
+                  class="rounded-full border border-black px-2.5 py-0.5 text-[10px] font-semibold text-black capitalize"
+                  :class="(evt.publication_status || evt.status || 'Draft').toLowerCase() === 'published' ? 'bg-[#72a5e4]' : 'bg-stone-100'"
+                >
+                  {{ evt.publication_status || evt.status || 'Draft' }}
                 </span>
-                <span class="text-[11px] text-slate-500 font-medium">{{ evt.category }}</span>
+                <span v-if="evt.category" class="text-[11px] text-slate-500 font-medium">{{ evt.category }}</span>
               </div>
-              <h3 class="text-sm font-bold text-black leading-snug">{{ evt.title }}</h3>
+              <h3 class="text-sm font-bold text-black leading-snug truncate">{{ evt.title }}</h3>
               <p class="text-xs text-slate-600">
-                {{ formatDate(evt.start_date || evt.start_at) }} • {{ evt.venue_name || evt.location_name }} • {{ evt.enabled_modules.length }} modul aktif
+                {{ formatDate(evt.start_date || evt.start_at) }} · {{ evt.venue_name || evt.location_name || 'Lokasi menyusul' }} · <span class="font-mono tabular-nums">{{ evt.enabled_modules?.length || 0 }}</span> modul aktif
               </p>
             </div>
           </div>
 
-          <div class="flex items-center gap-2 self-end md:self-center shrink-0">
+          <div class="flex flex-wrap items-center gap-2 self-end md:self-center shrink-0">
             <RouterLink
               :to="`/events/${evt.id}`"
-              class="rounded-full border border-black bg-white px-4 py-1.5 text-xs font-semibold text-black hover:bg-slate-100 transition-colors flex items-center gap-1"
+              class="rounded-full border border-black bg-white px-3.5 py-1.5 text-xs font-semibold text-black hover:bg-slate-100 transition-colors inline-flex items-center gap-1"
             >
               <span>Preview</span>
               <ExternalLink class="h-3 w-3" />
             </RouterLink>
             <RouterLink
               :to="`/dashboard/events/${evt.id}/modules`"
-              class="rounded-full border border-black bg-white px-4 py-1.5 text-xs font-semibold text-black hover:bg-slate-100 transition-colors"
+              class="rounded-full border border-black bg-white px-3.5 py-1.5 text-xs font-semibold text-black hover:bg-slate-100 transition-colors"
             >
               Modul
             </RouterLink>
             <RouterLink
               :to="`/dashboard/events/${evt.id}`"
-              class="rounded-full border border-black bg-[#72a5e4] px-4 py-1.5 text-xs font-bold text-black hover:bg-[#5c93d9] transition-colors"
+              class="rounded-full border border-black bg-[#72a5e4] px-4 py-1.5 text-xs font-semibold text-black hover:bg-[#5c93d9] transition-colors inline-flex items-center gap-1"
             >
-              Workspace &rarr;
+              <span>Workspace</span>
+              <ArrowRight class="h-3.5 w-3.5" />
             </RouterLink>
           </div>
         </div>
       </div>
-    </div>
+
+      <div v-else class="rounded-2xl border border-black bg-white p-8 text-center space-y-3">
+        <p class="text-sm font-semibold text-black">Belum ada acara yang dikelola</p>
+        <p class="text-xs text-slate-600 max-w-md mx-auto">Mulai buat acara pertama Anda untuk mengatur tiket, jadwal, tim panitia, serta pemindai QR check-in.</p>
+        <div class="pt-1">
+          <RouterLink
+            to="/dashboard/events/create"
+            class="inline-flex items-center gap-1.5 rounded-full bg-black px-5 py-2 text-xs font-semibold text-white hover:bg-slate-800 transition-colors"
+          >
+            <Plus class="h-3.5 w-3.5" />
+            <span>Buat Event Baru</span>
+          </RouterLink>
+        </div>
+      </div>
+    </section>
   </div>
 </template>

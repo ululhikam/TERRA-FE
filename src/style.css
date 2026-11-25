@@ -2,7 +2,16 @@
 
 @layer base {
   :root {
-    --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --font-editorial: 'Instrument Serif', Georgia, Cambria, serif;
+    --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+    --terra-paper: #fafaf9;
+    --terra-surface: #ffffff;
+    --terra-cobalt: #72a5e4;
+    --terra-cobalt-hover: #5e94d8;
+    --terra-ink: #000000;
+    --terra-slate: #0f172a;
+    --terra-muted: #475569;
   }
 
   html {
@@ -11,12 +20,12 @@
 
   body {
     font-family: var(--font-sans);
-    background-color: #fafaf9;
-    background-image: 
-      linear-gradient(to right, rgba(0, 0, 0, 0.04) 1px, transparent 1px),
-      linear-gradient(to bottom, rgba(0, 0, 0, 0.04) 1px, transparent 1px);
+    background-color: var(--terra-paper);
+    background-image:
+      linear-gradient(to right, rgba(0, 0, 0, 0.038) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(0, 0, 0, 0.038) 1px, transparent 1px);
     background-size: 28px 28px;
-    color: #0f172a;
+    color: var(--terra-slate);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     overflow-x: hidden;
@@ -28,17 +37,88 @@
     touch-action: manipulation;
   }
 
-  h1, h2, h3, .font-editorial {
-    font-family: Georgia, Cambria, 'Times New Roman', Times, serif;
+  .terra-select {
+    -webkit-appearance: none !important;
+    -moz-appearance: none !important;
+    appearance: none !important;
+    background-image: none !important;
   }
+  .terra-select::-ms-expand {
+    display: none;
+  }
+
+  :where(button, a, input, select, textarea, [tabindex]):focus-visible {
+    outline: 2px solid var(--terra-ink);
+    outline-offset: 2px;
+  }
+
+  h1, h2, h3, h4 {
+    font-family: var(--font-sans);
+    letter-spacing: -0.025em;
+  }
+
+  .font-editorial {
+    font-family: var(--font-editorial);
+    letter-spacing: -0.01em;
+  }
+
+  .font-mono {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/* Architectural Container & Ticket Stub Utilities */
+.terra-container {
+  width: 100%;
+  max-width: 67.5rem;
+  margin-inline: auto;
+  padding-inline: 1rem;
+}
+
+@media (min-width: 640px) {
+  .terra-container {
+    padding-inline: 1.5rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .terra-container {
+    padding-inline: 2rem;
+  }
+}
+
+.ticket-stub-divider {
+  position: relative;
+  border-top: 2px dashed rgba(0, 0, 0, 0.22);
+}
+
+.ticket-stub-divider::before,
+.ticket-stub-divider::after {
+  content: '';
+  position: absolute;
+  top: -0.5rem;
+  width: 1rem;
+  height: 1rem;
+  border-radius: 9999px;
+  background-color: var(--terra-paper);
+  border: 1.5px solid var(--terra-ink);
+}
+
+.ticket-stub-divider::before {
+  left: -0.5625rem;
+}
+
+.ticket-stub-divider::after {
+  right: -0.5625rem;
 }
 
 /* Background Grid Pattern */
 .bg-grid-paper {
-  background-color: #fafaf9;
-  background-image: 
-    linear-gradient(to right, rgba(0, 0, 0, 0.045) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(0, 0, 0, 0.045) 1px, transparent 1px);
+  background-color: var(--terra-paper);
+  background-image:
+    linear-gradient(to right, rgba(0, 0, 0, 0.038) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(0, 0, 0, 0.038) 1px, transparent 1px);
   background-size: 28px 28px;
 }
 
@@ -129,39 +209,39 @@
 
 /* Tactile Neo-Brutalist Luxury Card & Pill Hover + Mobile Touch Effects */
 .luxury-card {
-  transition: transform 0.32s cubic-bezier(0.22, 1, 0.36, 1),
-              box-shadow 0.32s cubic-bezier(0.22, 1, 0.36, 1),
-              background-color 0.25s ease;
+  transition: transform 0.24s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.24s cubic-bezier(0.16, 1, 0.3, 1),
+              background-color 0.2s ease;
   -webkit-tap-highlight-color: transparent;
 }
 
 .luxury-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 6px 6px 0px #000000;
+  transform: translateY(-2px);
+  box-shadow: 4px 4px 0px #000000;
 }
 
 .luxury-card:active {
-  transform: translateY(-1px) scale(0.99);
+  transform: translateY(-1px) scale(0.995);
   box-shadow: 2px 2px 0px #000000;
 }
 
 .luxury-pill {
   position: relative;
   overflow: hidden;
-  transition: transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1),
-              box-shadow 0.22s cubic-bezier(0.22, 1, 0.36, 1),
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1),
               background-color 0.2s ease,
               color 0.2s ease;
   -webkit-tap-highlight-color: transparent;
 }
 
 .luxury-pill:hover {
-  transform: translateY(-2px);
-  box-shadow: 3px 3px 0px #000000;
+  transform: translateY(-1px);
+  box-shadow: 2px 2px 0px #000000;
 }
 
 .luxury-pill:active {
-  transform: translateY(1px) scale(0.96);
+  transform: translateY(1px) scale(0.98);
   box-shadow: 0px 0px 0px #000000;
 }
 
@@ -274,16 +354,16 @@
 /* Smooth Scroll-Triggered Reveal Motion */
 .motion-reveal {
   opacity: 0;
-  transform: translateY(20px) scale(0.985);
+  transform: translateY(12px);
   transition:
-    opacity 0.65s cubic-bezier(0.16, 1, 0.3, 1),
-    transform 0.65s cubic-bezier(0.16, 1, 0.3, 1);
+    opacity 0.45s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.45s cubic-bezier(0.16, 1, 0.3, 1);
   will-change: opacity, transform;
 }
 
 .motion-reveal.is-revealed {
   opacity: 1;
-  transform: translateY(0) scale(1);
+  transform: translateY(0);
 }
 
 /* Smooth Route Page Transitions */
@@ -327,14 +407,14 @@
 /* Living Interactive Hover Lift for Cards & Tickets */
 .interactive-surface {
   transition:
-    transform 0.28s cubic-bezier(0.16, 1, 0.3, 1),
-    box-shadow 0.28s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.24s cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 0.24s cubic-bezier(0.16, 1, 0.3, 1),
     border-color 0.2s ease;
 }
 
 .interactive-surface:hover {
-  transform: translateY(-3px);
-  box-shadow: 5px 5px 0px #000000;
+  transform: translateY(-2px);
+  box-shadow: 4px 4px 0px #000000;
 }
 
 /* Scanner Active Beam */
