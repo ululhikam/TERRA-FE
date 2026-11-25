@@ -21,6 +21,10 @@ function isTicketCancelled(status) {
   return String(status || '').toLowerCase() === 'cancelled'
 }
 
+function isTicketPending(status) {
+  return String(status || '').toLowerCase() === 'pending'
+}
+
 function getTicketQrValue(tkt) {
   return (
     tkt.qr_payload ||
@@ -82,9 +86,9 @@ onMounted(() => {
       </RouterLink>
     </div>
 
-    <div v-if="store.myTickets.length > 0" class="space-y-6">
+    <div v-if="store.myTickets.filter((t) => !isTicketPending(t.status)).length > 0" class="space-y-6">
       <div
-        v-for="(tkt, idx) in store.myTickets"
+        v-for="(tkt, idx) in store.myTickets.filter((t) => !isTicketPending(t.status))"
         :key="tkt.id"
         v-reveal="idx * 70"
         class="interactive-surface relative rounded-3xl border-2 border-black bg-white overflow-hidden p-5 sm:p-8 flex flex-col md:flex-row items-stretch justify-between gap-5 sm:gap-6 shadow-[4px_4px_0px_#000]"

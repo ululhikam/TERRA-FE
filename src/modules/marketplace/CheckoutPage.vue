@@ -411,7 +411,7 @@ onBeforeUnmount(() => {
             <span>Lihat Email QR</span>
           </button>
           <button
-            v-if="completedOrder.orderId"
+            v-if="completedOrder.orderId && completedOrder.orderStatus !== 'Pending'"
             type="button"
             @click="handleDownloadOrderPdf"
             class="luxury-pill inline-flex items-center gap-1.5 rounded-full border border-black bg-white px-4 py-2.5 text-xs font-bold text-black cursor-pointer"
@@ -420,6 +420,7 @@ onBeforeUnmount(() => {
             <span>Unduh PDF QR</span>
           </button>
           <RouterLink
+            v-if="completedOrder.orderStatus !== 'Pending'"
             to="/my-tickets"
             class="luxury-pill inline-flex items-center justify-center gap-2 rounded-full border border-black bg-black px-5 py-2.5 text-xs font-bold text-white"
           >
@@ -485,7 +486,10 @@ onBeforeUnmount(() => {
         </div>
       </div>
 
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div
+        v-if="completedOrder.orderStatus !== 'Pending' && completedOrder.tickets?.length"
+        class="grid grid-cols-1 md:grid-cols-2 gap-6"
+      >
         <div
           v-for="(tkt, idx) in completedOrder.tickets"
           :key="tkt.id"
