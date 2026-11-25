@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, RouterLink } from 'vue-router'
 import { z } from 'zod'
 import { useEventWorkspaceStore } from '@/stores/eventWorkspace'
@@ -289,6 +289,71 @@ async function launchMidtransPayment(initialPayment = null, { forceNew = false }
     launchingSnap.value = false
   }
 }
+
+let pendingPollTimer = null
+let pendingPollTicks = 0
+
+function stopPendingOrderPolling() {
+  if (pendingPollTimer) {
+    clearInterval(pendingPollTimer)
+    pendingPollTimer = null
+  }
+  pendingPollTicks = 0
+}
+
+function handleCheckoutFocusOrVisible() {
+  if (typeof document !== 'undefined' && document.hidden) return
+  if (
+    completedOrder.value?.orderId &&
+    Number(completedOrder.value?.total || 0) > 0 &&
+    !['Confirmed', 'Cancelled'].includes(completedOrder.value?.orderStatus) &&
+    !['Paid', 'Verified', 'Not Required'].includes(completedOrder.value?.paymentStatus) &&
+    !syncingPayment.value
+  ) {
+    syncCompletedOrderStatus({ silent: true })
+  }
+}
+
+watch(
+  () => [completedOrder.value?.orderId, completedOrder.value?.orderStatus, completedOrder.value?.paymentStatus],
+  ([orderId, orderStatus, paymentStatus]) => {
+    const needsSync =
+      Boolean(orderId) &&
+      Number(completedOrder.value?.total || 0) > 0 &&
+      !['Confirmed', 'Cancelled'].includes(orderStatus) &&
+      !['Paid', 'Verified', 'Not Required'].includes(paymentStatus)
+
+    if (!needsSync) {
+      stopPendingOrderPolling()
+      return
+    }
+    if (pendingPollTimer) return
+    pendingPollTicks = 0
+    pendingPollTimer = setInterval(() => {
+      pendingPollTicks += 1
+      if (pendingPollTicks > 30) {
+        stopPendingOrderPolling()
+        return
+      }
+      if (!syncingPayment.value && !launchingSnap.value) {
+        syncCompletedOrderStatus({ silent: true })
+      }
+    }, 4000)
+  }
+)
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('focus', handleCheckoutFocusOrVisible)
+  document.addEventListener('visibilitychange', handleCheckoutFocusOrVisible)
+}
+
+onBeforeUnmount(() => {
+  stopPendingOrderPolling()
+  if (typeof window !== 'undefined') {
+    window.removeEventListener('focus', handleCheckoutFocusOrVisible)
+    document.removeEventListener('visibilitychange', handleCheckoutFocusOrVisible)
+  }
+})
 </script>
 
 <template>

@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useEventWorkspaceStore } from '@/stores/eventWorkspace'
@@ -150,7 +150,11 @@ async function handlePayTransaction(tx, initialPayment = null) {
       clientKey: session.client_key,
       snapJsUrl: session.snap_js_url
     })
-    await handleSyncTransaction(tx.id, { silent: snapRes.status === 'closed' })
+    await handleSyncTransaction(tx.id, {
+      silent: snapRes.status === 'closed',
+      midtransOrderId: snapRes?.result?.order_id || session.midtrans_order_id || '',
+      expectSettled: snapRes.status === 'success'
+    })
   } catch (err) {
     toast.error(err?.message || 'Gagal membuka jendela pembayaran Midtrans.')
   } finally {
@@ -158,10 +162,18 @@ async function handlePayTransaction(tx, initialPayment = null) {
   }
 }
 
-async function handleSyncTransaction(txId, { silent = false } = {}) {
+async function handleSyncTransaction(txId, { silent = false, midtransOrderId = '', expectSettled = false } = {}) {
   syncingTxId.value = txId
   try {
-    const syncRes = await store.syncBillingPaymentStatus(txId)
+    const maxAttempts = expectSettled ? 3 : 1
+    let syncRes = null
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      if (attempt > 0) {
+        await new Promise((r) => setTimeout(r, attempt === 1 ? 1500 : 2000))
+      }
+      syncRes = await store.syncBillingPaymentStatus(txId, midtransOrderId)
+      if (syncRes?.transaction?.status === 'Paid') break
+    }
     history.value = await store.fetchOrganizerBillingHistory()
     if (syncRes?.transaction?.status === 'Paid') {
       entitlement.value = await store.fetchEventEntitlement(eventId.value)
@@ -176,6 +188,63 @@ async function handleSyncTransaction(txId, { silent = false } = {}) {
     syncingTxId.value = ''
   }
 }
+
+const pendingEventTx = computed(() =>
+  (history.value?.transactions || []).find((t) => t.status === 'Pending' && Number(t.final_amount_idr || 0) > 0) || null
+)
+
+let eventBillingPollTimer = null
+let eventBillingPollTicks = 0
+
+function stopEventBillingPolling() {
+  if (eventBillingPollTimer) {
+    clearInterval(eventBillingPollTimer)
+    eventBillingPollTimer = null
+  }
+  eventBillingPollTicks = 0
+}
+
+function handleEventBillingFocus() {
+  if (typeof document !== 'undefined' && document.hidden) return
+  if (pendingEventTx.value?.id && !syncingTxId.value && !payingTxId.value) {
+    handleSyncTransaction(pendingEventTx.value.id, { silent: true })
+  }
+}
+
+watch(
+  () => pendingEventTx.value?.id,
+  (txId) => {
+    if (!txId) {
+      stopEventBillingPolling()
+      return
+    }
+    if (eventBillingPollTimer) return
+    eventBillingPollTicks = 0
+    eventBillingPollTimer = setInterval(() => {
+      eventBillingPollTicks += 1
+      if (eventBillingPollTicks > 30) {
+        stopEventBillingPolling()
+        return
+      }
+      if (pendingEventTx.value?.id && !syncingTxId.value && !payingTxId.value) {
+        handleSyncTransaction(pendingEventTx.value.id, { silent: true })
+      }
+    }, 4000)
+  }
+)
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('focus', handleEventBillingFocus)
+  document.addEventListener('visibilitychange', handleEventBillingFocus)
+}
+
+onBeforeUnmount(() => {
+  stopEventBillingPolling()
+  if (typeof window !== 'undefined') {
+    window.removeEventListener('focus', handleEventBillingFocus)
+    document.removeEventListener('visibilitychange', handleEventBillingFocus)
+  }
+})
 
 async function handleApplyBundleCredit(creditId) {
   try {

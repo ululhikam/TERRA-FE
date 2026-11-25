@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useEventWorkspaceStore } from '@/stores/eventWorkspace'
@@ -88,6 +88,59 @@ async function loadAll() {
 }
 
 onMounted(loadAll)
+
+let billingPollTimer = null
+let billingPollTicks = 0
+
+function stopBillingPolling() {
+  if (billingPollTimer) {
+    clearInterval(billingPollTimer)
+    billingPollTimer = null
+  }
+  billingPollTicks = 0
+}
+
+function handleBillingFocus() {
+  if (typeof document !== 'undefined' && document.hidden) return
+  if (pendingInvoice.value?.id && !syncingTxId.value && !payingTxId.value) {
+    handleSyncTx(pendingInvoice.value.id, { silent: true })
+  }
+}
+
+watch(
+  () => pendingInvoice.value?.id,
+  (txId) => {
+    if (!txId) {
+      stopBillingPolling()
+      return
+    }
+    if (billingPollTimer) return
+    billingPollTicks = 0
+    billingPollTimer = setInterval(() => {
+      billingPollTicks += 1
+      if (billingPollTicks > 30) {
+        stopBillingPolling()
+        return
+      }
+      if (pendingInvoice.value?.id && !syncingTxId.value && !payingTxId.value) {
+        handleSyncTx(pendingInvoice.value.id, { silent: true })
+      }
+    }, 4000)
+  }
+)
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('focus', handleBillingFocus)
+  document.addEventListener('visibilitychange', handleBillingFocus)
+}
+
+onBeforeUnmount(() => {
+  stopBillingPolling()
+  if (typeof window !== 'undefined') {
+    window.removeEventListener('focus', handleBillingFocus)
+    document.removeEventListener('visibilitychange', handleBillingFocus)
+  }
+})
 
 async function handleSubscribe() {
   subscribing.value = true

@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useEventWorkspaceStore } from '@/stores/eventWorkspace'
@@ -78,8 +78,75 @@ onMounted(async () => {
       workspace.fetchMyTickets().catch(() => {}),
       workspace.fetchMyOrders().catch(() => {})
     ])
+    await syncPendingMidtransOrders()
   } finally {
     loadingData.value = false
+  }
+})
+
+let profilePollTimer = null
+let profilePollTicks = 0
+
+const pendingMidtransOrders = computed(() =>
+  (workspace.myOrders || []).filter(
+    (o) =>
+      o.order_status !== 'Cancelled' &&
+      o.order_status !== 'Confirmed' &&
+      !['Paid', 'Verified', 'Not Required'].includes(o.payment_status) &&
+      Number(o.total || 0) > 0
+  )
+)
+
+async function syncPendingMidtransOrders() {
+  if (!pendingMidtransOrders.value.length || syncingOrderId.value || payingOrderId.value) return
+  for (const ord of pendingMidtransOrders.value.slice(0, 3)) {
+    await handleSyncOrder(ord.id, { silent: true })
+  }
+}
+
+function stopProfilePolling() {
+  if (profilePollTimer) {
+    clearInterval(profilePollTimer)
+    profilePollTimer = null
+  }
+  profilePollTicks = 0
+}
+
+function handleProfileFocus() {
+  if (typeof document !== 'undefined' && document.hidden) return
+  syncPendingMidtransOrders()
+}
+
+watch(
+  () => pendingMidtransOrders.value.length,
+  (count) => {
+    if (!count) {
+      stopProfilePolling()
+      return
+    }
+    if (profilePollTimer) return
+    profilePollTicks = 0
+    profilePollTimer = setInterval(() => {
+      profilePollTicks += 1
+      if (profilePollTicks > 30) {
+        stopProfilePolling()
+        return
+      }
+      syncPendingMidtransOrders()
+    }, 5000)
+  }
+)
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('focus', handleProfileFocus)
+  document.addEventListener('visibilitychange', handleProfileFocus)
+}
+
+onBeforeUnmount(() => {
+  stopProfilePolling()
+  if (typeof window !== 'undefined') {
+    window.removeEventListener('focus', handleProfileFocus)
+    document.removeEventListener('visibilitychange', handleProfileFocus)
   }
 })
 
