@@ -10,7 +10,9 @@ import {
   ArrowUpRight,
   QrCode,
   Layers,
-  ShieldCheck
+  ShieldCheck,
+  ChevronDown,
+  X
 } from 'lucide-vue-next'
 
 const router = useRouter()
@@ -224,6 +226,15 @@ onBeforeUnmount(() => {
               placeholder="Cari konser, DEMAFEST, workshop..."
               class="w-full min-w-0 bg-transparent px-1 py-1.5 text-xs sm:text-sm text-black placeholder:text-slate-400 focus:outline-hidden"
             />
+            <button
+              v-if="searchQuery"
+              type="button"
+              @click="searchQuery = ''"
+              aria-label="Hapus kata kunci pencarian"
+              class="rounded-full p-1 text-slate-400 hover:bg-slate-100 hover:text-black transition-colors shrink-0 cursor-pointer"
+            >
+              <X class="h-3.5 w-3.5" />
+            </button>
 
             <div class="hidden sm:flex items-center border-l border-black/15 pl-3 pr-1 shrink-0">
               <MapPin class="h-3.5 w-3.5 text-slate-400 mr-1.5 shrink-0" />
