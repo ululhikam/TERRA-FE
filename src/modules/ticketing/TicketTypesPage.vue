@@ -1,10 +1,10 @@
 <script setup>
 import { computed, ref } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, RouterLink } from 'vue-router'
 import { useEventWorkspaceStore } from '@/stores/eventWorkspace'
 import { useToastStore } from '@/stores/toast'
 import { formatCurrency } from '@/utils/formatters'
-import { Power, X, Pencil, Trash2 } from 'lucide-vue-next'
+import { Power, X, Pencil, Trash2, ExternalLink } from 'lucide-vue-next'
 
 const route = useRoute()
 const store = useEventWorkspaceStore()
@@ -115,12 +115,23 @@ function getRevenue(tkt) {
         </p>
       </div>
 
-      <button
-        @click="openCreateTicket"
-        class="rounded-full bg-black px-6 py-2.5 text-xs font-semibold text-white hover:bg-slate-800 transition-colors shrink-0"
-      >
-        + Buat Jenis Tiket
-      </button>
+      <div class="flex flex-wrap items-center gap-2 shrink-0">
+        <RouterLink
+          v-if="event.publication_status === 'Published'"
+          :to="`/events/${event.slug || event.id}`"
+          target="_blank"
+          class="inline-flex items-center gap-1.5 rounded-full border border-black bg-white px-4 py-2.5 text-xs font-bold text-black hover:bg-slate-100 transition-colors"
+        >
+          <ExternalLink class="h-3.5 w-3.5" />
+          <span>Lihat di Marketplace</span>
+        </RouterLink>
+        <button
+          @click="openCreateTicket"
+          class="rounded-full bg-black px-6 py-2.5 text-xs font-semibold text-white hover:bg-slate-800 transition-colors cursor-pointer"
+        >
+          + Buat Jenis Tiket
+        </button>
+      </div>
     </div>
 
     <!-- Ticket Cards Grid -->
@@ -231,6 +242,28 @@ function getRevenue(tkt) {
         </div>
 
         <form @submit.prevent="saveTicketType" class="space-y-4 text-xs">
+          <div class="flex items-center justify-between gap-2 rounded-xl border border-black bg-[#fafaf9] p-2.5">
+            <span class="font-bold text-black">Tipe Harga</span>
+            <div class="inline-flex rounded-full border border-black bg-white p-0.5 text-[11px] font-bold">
+              <button
+                type="button"
+                @click="price = Number(price) > 0 ? price : 50000"
+                class="rounded-full px-3 py-1 cursor-pointer"
+                :class="Number(price) > 0 ? 'bg-[#72a5e4] text-black border border-black' : 'text-slate-600'"
+              >
+                Berbayar (Midtrans)
+              </button>
+              <button
+                type="button"
+                @click="price = 0"
+                class="rounded-full px-3 py-1 cursor-pointer"
+                :class="Number(price) === 0 ? 'bg-black text-white' : 'text-slate-600'"
+              >
+                Gratis
+              </button>
+            </div>
+          </div>
+
           <div class="space-y-1">
             <label class="font-bold text-black">Nama Tiket</label>
             <input
