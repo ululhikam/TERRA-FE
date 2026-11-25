@@ -5,6 +5,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useEventWorkspaceStore } from '@/stores/eventWorkspace'
 import { useToastStore } from '@/stores/toast'
 import { formatCurrency, formatDateTime } from '@/utils/formatters'
+import { openMidtransSnap } from '@/utils/midtrans'
 import QrCodeCanvas from '@/components/common/QrCodeCanvas.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import {
@@ -15,7 +16,9 @@ import {
   CalendarDays,
   MapPin,
   LogOut,
-  Compass
+  Compass,
+  CreditCard,
+  RefreshCw
 } from 'lucide-vue-next'
 
 const router = useRouter()
@@ -26,6 +29,8 @@ const toast = useToastStore()
 const activeTab = ref('tickets')
 const loadingData = ref(true)
 const cancellingOrderId = ref('')
+const payingOrderId = ref('')
+const syncingOrderId = ref('')
 
 const fullName = ref(authStore.user?.full_name || '')
 const email = ref(authStore.user?.email || '')
@@ -129,6 +134,41 @@ async function handleCancelOrder(orderId) {
     toast.error(err?.message || 'Gagal membatalkan pesanan.')
   } finally {
     cancellingOrderId.value = ''
+  }
+}
+
+async function handlePayOrder(order) {
+  payingOrderId.value = order.id
+  try {
+    const session = await workspace.createOrderSnapToken(order.id)
+    const snapRes = await openMidtransSnap(session.snap_token, {
+      clientKey: session.client_key,
+      snapJsUrl: session.snap_js_url
+    })
+    await handleSyncOrder(order.id, { silent: snapRes.status === 'closed' })
+  } catch (err) {
+    toast.error(err?.message || 'Gagal membuka pembayaran Midtrans.')
+  } finally {
+    payingOrderId.value = ''
+  }
+}
+
+async function handleSyncOrder(orderId, { silent = false } = {}) {
+  syncingOrderId.value = orderId
+  try {
+    const res = await workspace.syncOrderPaymentStatus(orderId)
+    await workspace.fetchMyTickets().catch(() => {})
+    if (!silent) {
+      if (res?.payment_state === 'settled' || res?.order?.order_status === 'Confirmed') {
+        toast.success('Pembayaran terkonfirmasi! Tiket QR Anda sudah aktif.')
+      } else {
+        toast.info(`Status pembayaran: ${res?.order?.payment_status || 'Pending'}.`)
+      }
+    }
+  } catch (err) {
+    if (!silent) toast.error(err?.message || 'Gagal menyinkronkan status pembayaran.')
+  } finally {
+    syncingOrderId.value = ''
   }
 }
 
@@ -379,7 +419,27 @@ async function handleLogout() {
             </p>
           </div>
 
-          <div class="flex items-center gap-2 shrink-0">
+          <div class="flex flex-wrap items-center gap-2 shrink-0">
+            <button
+              v-if="ord.order_status === 'Pending' && Number(ord.total || 0) > 0"
+              type="button"
+              @click="handlePayOrder(ord)"
+              :disabled="payingOrderId === ord.id"
+              class="inline-flex items-center gap-1.5 rounded-full border border-black bg-[#72a5e4] px-4 py-1.5 text-xs font-bold text-black hover:bg-[#5c93d9] disabled:opacity-50 cursor-pointer"
+            >
+              <CreditCard class="h-3.5 w-3.5" />
+              <span>{{ payingOrderId === ord.id ? 'Membuka...' : 'Bayar Sekarang' }}</span>
+            </button>
+            <button
+              v-if="ord.order_status === 'Pending' && Number(ord.total || 0) > 0"
+              type="button"
+              @click="handleSyncOrder(ord.id)"
+              :disabled="syncingOrderId === ord.id"
+              class="inline-flex items-center gap-1.5 rounded-full border border-black bg-white px-3.5 py-1.5 text-xs font-bold text-black hover:bg-slate-100 disabled:opacity-50 cursor-pointer"
+            >
+              <RefreshCw class="h-3.5 w-3.5" :class="syncingOrderId === ord.id ? 'animate-spin' : ''" />
+              <span>{{ syncingOrderId === ord.id ? 'Cek...' : 'Cek Status' }}</span>
+            </button>
             <button
               v-if="ord.order_status !== 'Cancelled'"
               type="button"

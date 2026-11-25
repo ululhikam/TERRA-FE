@@ -7,8 +7,9 @@ import { useAuthStore } from '@/stores/auth'
 import { useToastStore } from '@/stores/toast'
 import { formatCurrency, formatDateTime } from '@/utils/formatters'
 import { downloadTicketQrPng, generateTicketQrPayload } from '@/utils/qrCode'
+import { openMidtransSnap } from '@/utils/midtrans'
 import QrCodeCanvas from '@/components/common/QrCodeCanvas.vue'
-import { CheckCircle2, Download, ArrowRight, Copy, FileText, Mail, X } from 'lucide-vue-next'
+import { CheckCircle2, Download, ArrowRight, Copy, FileText, Mail, X, CreditCard, RefreshCw } from 'lucide-vue-next'
 
 const route = useRoute()
 const store = useEventWorkspaceStore()
@@ -87,11 +88,8 @@ const email = ref(authStore.user?.email || '')
 const phone = ref(authStore.user?.phone || '')
 const institution = ref('')
 const memberId = ref('')
-const proofFile = ref(null)
-const proofUrl = ref('')
-const proofNotes = ref('')
-const submittingProof = ref(false)
-const proofSubmitted = ref(false)
+const launchingSnap = ref(false)
+const syncingPayment = ref(false)
 const errorMsg = ref('')
 
 const schema = z.object({
@@ -189,11 +187,12 @@ async function confirmOrder() {
       }
     })
     completedOrder.value = res
-    toast.success(
-      res.orderStatus === 'Pending'
-        ? `Pesanan ${res.orderNumber} dibuat. Silakan unggah bukti pembayaran.`
-        : `Pesanan ${res.orderNumber} berhasil! QR Code & Email PDF siap digunakan.`
-    )
+    if (res.orderStatus === 'Pending') {
+      toast.info(`Pesanan ${res.orderNumber} dibuat. Membuka pembayaran Midtrans...`)
+      await launchMidtransPayment(res.payment)
+    } else {
+      toast.success(`Pesanan ${res.orderNumber} berhasil! QR Code & Email PDF siap digunakan.`)
+    }
   } catch (err) {
     errorMsg.value = err?.message || 'Gagal memproses checkout tiket.'
   } finally {
@@ -201,25 +200,57 @@ async function confirmOrder() {
   }
 }
 
-async function handleSubmitPaymentProof() {
+async function syncCompletedOrderStatus({ silent = false } = {}) {
   if (!completedOrder.value?.orderId) return
-  if (!proofFile.value && !proofUrl.value.trim()) {
-    toast.error('Unggah file bukti transfer atau isi tautan bukti pembayaran.')
-    return
-  }
-  submittingProof.value = true
+  syncingPayment.value = true
   try {
-    await store.submitOrderPaymentProof(completedOrder.value.orderId, {
-      file: proofFile.value,
-      payment_proof_url: proofUrl.value.trim(),
-      payment_notes: proofNotes.value.trim()
-    })
-    proofSubmitted.value = true
-    toast.success('Bukti pembayaran berhasil dikirim. Menunggu verifikasi organizer.')
+    const syncRes = await store.syncOrderPaymentStatus(completedOrder.value.orderId)
+    if (syncRes?.order) {
+      completedOrder.value = {
+        ...completedOrder.value,
+        orderStatus: syncRes.order.order_status,
+        paymentStatus: syncRes.order.payment_status,
+        order: syncRes.order,
+        tickets: syncRes.tickets?.length ? syncRes.tickets : completedOrder.value.tickets,
+        emailStatus: syncRes.email_status || completedOrder.value.emailStatus,
+        emailNotification: syncRes.email_status || completedOrder.value.emailNotification
+      }
+    }
+    if (!silent) {
+      if (syncRes?.payment_state === 'settled' || syncRes?.order?.order_status === 'Confirmed') {
+        toast.success('Pembayaran terkonfirmasi! E-Tiket QR kini aktif dan dikirim ke email Anda.')
+      } else {
+        toast.info('Status pembayaran masih Pending. Selesaikan pembayaran di jendela Midtrans.')
+      }
+    }
   } catch (err) {
-    toast.error(err?.message || 'Gagal mengirim bukti pembayaran.')
+    if (!silent) toast.error(err?.message || 'Gagal memeriksa status pembayaran.')
   } finally {
-    submittingProof.value = false
+    syncingPayment.value = false
+  }
+}
+
+async function launchMidtransPayment(initialPayment = null) {
+  if (!completedOrder.value?.orderId) return
+  launchingSnap.value = true
+  try {
+    const session =
+      initialPayment?.snap_token
+        ? initialPayment
+        : await store.createOrderSnapToken(completedOrder.value.orderId)
+    if (!session?.snap_token) {
+      toast.error('Token pembayaran Midtrans belum siap. Periksa konfigurasi MIDTRANS_SERVER_KEY & CLIENT_KEY.')
+      return
+    }
+    const snapResult = await openMidtransSnap(session.snap_token, {
+      clientKey: session.client_key,
+      snapJsUrl: session.snap_js_url
+    })
+    await syncCompletedOrderStatus({ silent: snapResult.status === 'closed' })
+  } catch (err) {
+    toast.error(err?.message || 'Gagal membuka pembayaran Midtrans.')
+  } finally {
+    launchingSnap.value = false
   }
 }
 </script>
@@ -246,14 +277,14 @@ async function handleSubmitPaymentProof() {
             />
             {{
               completedOrder.orderStatus === 'Pending'
-                ? 'PESANAN TERSIMPAN • MENUNGGU VERIFIKASI PEMBAYARAN'
+                ? 'MENUNGGU PEMBAYARAN MIDTRANS'
                 : 'PEMBELIAN BERHASIL • QR & EMAIL TERKIRIM'
             }}
           </div>
           <h1 class="text-2xl sm:text-3xl font-bold tracking-tight text-black font-sans">
             {{
               completedOrder.orderStatus === 'Pending'
-                ? 'Unggah Bukti Pembayaran untuk Aktivasi Tiket'
+                ? 'Selesaikan Pembayaran Instan via Midtrans'
                 : 'Tiket Digital & QR Code Siap Digunakan'
             }}
           </h1>
@@ -303,64 +334,44 @@ async function handleSubmitPaymentProof() {
         </div>
       </div>
 
-      <!-- Pending Payment Proof Upload -->
+      <!-- Midtrans Instant Payment Card -->
       <div
         v-if="completedOrder.orderStatus === 'Pending'"
-        class="rounded-2xl border-2 border-black bg-white p-6 space-y-4"
+        class="rounded-2xl border-2 border-black bg-white p-6 space-y-4 shadow-[4px_4px_0px_#000]"
       >
         <div class="flex flex-wrap items-center justify-between gap-2 border-b border-black/15 pb-3">
           <div>
-            <h2 class="text-base font-bold text-black">Konfirmasi Pembayaran Tiket Berbayar</h2>
+            <h2 class="text-base font-bold text-black">Pembayaran Otomatis Midtrans Snap</h2>
             <p class="text-xs text-slate-600">
-              Tiket berstatus Pending hingga pembayaran diverifikasi oleh organizer (QR aktif setelah verifikasi).
+              Pilih QRIS, Virtual Account (BCA / BNI / BRI / Mandiri), GoPay, ShopeePay, atau Kartu. QR Code tiket aktif otomatis setelah lunas.
             </p>
           </div>
-          <span
-            v-if="proofSubmitted"
-            class="rounded-full border border-black bg-emerald-200 px-3 py-1 text-[11px] font-bold text-black"
-          >
-            Bukti Terkirim ✓
+          <span class="rounded-full border border-black bg-[#72a5e4] px-3 py-1 text-[11px] font-bold text-black">
+            Midtrans Snap
           </span>
         </div>
 
-        <form @submit.prevent="handleSubmitPaymentProof" class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
-          <div class="space-y-1">
-            <label class="font-bold text-black">File Bukti Transfer (JPG/PNG/PDF)</label>
-            <input
-              type="file"
-              accept=".pdf,image/*"
-              @change="(e) => { proofFile = e.target.files?.[0] || null }"
-              class="w-full rounded-xl border border-black bg-[#fafaf9] p-2 text-black"
-            />
-          </div>
-          <div class="space-y-1">
-            <label class="font-bold text-black">Atau Tautan Bukti (Opsional)</label>
-            <input
-              v-model="proofUrl"
-              type="url"
-              placeholder="https://..."
-              class="w-full rounded-xl border border-black bg-white p-2.5 text-black focus:outline-hidden"
-            />
-          </div>
-          <div class="space-y-1">
-            <label class="font-bold text-black">Catatan Transfer (Bank / Pengirim)</label>
-            <input
-              v-model="proofNotes"
-              type="text"
-              placeholder="BRI a/n Nama Peserta"
-              class="w-full rounded-xl border border-black bg-white p-2.5 text-black focus:outline-hidden"
-            />
-          </div>
-          <div class="md:col-span-3 flex justify-end">
-            <button
-              type="submit"
-              :disabled="submittingProof"
-              class="rounded-full bg-black px-6 py-2.5 text-xs font-bold text-white hover:bg-slate-800 disabled:opacity-60 cursor-pointer"
-            >
-              {{ submittingProof ? 'Mengunggah...' : 'Kirim Bukti Pembayaran' }}
-            </button>
-          </div>
-        </form>
+        <div class="flex flex-wrap items-center gap-3 pt-1">
+          <button
+            type="button"
+            @click="launchMidtransPayment()"
+            :disabled="launchingSnap"
+            class="shimmer-sheen luxury-pill inline-flex items-center gap-2 rounded-full border border-black bg-[#72a5e4] px-6 py-2.5 text-xs font-black text-black shadow-[3px_3px_0px_#000] cursor-pointer disabled:opacity-50"
+          >
+            <CreditCard class="h-4 w-4" />
+            <span>{{ launchingSnap ? 'Membuka Midtrans Snap...' : 'Bayar Sekarang via Midtrans' }}</span>
+          </button>
+
+          <button
+            type="button"
+            @click="syncCompletedOrderStatus()"
+            :disabled="syncingPayment"
+            class="luxury-pill inline-flex items-center gap-1.5 rounded-full border border-black bg-white px-5 py-2.5 text-xs font-bold text-black hover:bg-slate-100 cursor-pointer disabled:opacity-50"
+          >
+            <RefreshCw class="h-3.5 w-3.5" :class="syncingPayment ? 'animate-spin' : ''" />
+            <span>{{ syncingPayment ? 'Memeriksa...' : 'Cek Status Pembayaran' }}</span>
+          </button>
+        </div>
       </div>
 
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -558,7 +569,13 @@ async function handleSubmitPaymentProof() {
                 :disabled="submitting || !ticketType || ticketType.status !== 'On Sale'"
                 class="luxury-pill w-full rounded-full bg-black py-3.5 text-xs font-bold text-white hover:bg-slate-800 disabled:opacity-50 cursor-pointer"
               >
-                {{ submitting ? 'Memproses Pesanan & Generate QR...' : '✓ Konfirmasi Pesanan & Kirim Email QR' }}
+                {{
+                  submitting
+                    ? 'Memproses Pesanan...'
+                    : totalAmount > 0
+                      ? 'Lanjut ke Pembayaran Midtrans →'
+                      : '✓ Konfirmasi Pesanan & Kirim Email QR'
+                }}
               </button>
             </div>
           </form>
@@ -585,6 +602,13 @@ async function handleSubmitPaymentProof() {
             <span class="text-xl font-black text-black">
               {{ totalAmount > 0 ? formatCurrency(totalAmount) : 'Gratis' }}
             </span>
+          </div>
+
+          <div v-if="totalAmount > 0" class="pt-3 border-t border-black/20 space-y-1.5 text-[11px]">
+            <p class="font-bold uppercase tracking-wider text-black">Pembayaran Instan Midtrans</p>
+            <p class="text-slate-900 leading-relaxed">
+              Mendukung QRIS, Virtual Account (BCA, BNI, BRI, Mandiri), GoPay, ShopeePay, dan Kartu Kredit/Debit dengan aktivasi QR otomatis.
+            </p>
           </div>
         </div>
       </div>

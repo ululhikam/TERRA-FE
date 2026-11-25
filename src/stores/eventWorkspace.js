@@ -671,6 +671,7 @@ export const useEventWorkspaceStore = defineStore('eventWorkspace', () => {
       currency: data?.order?.currency || 'IDR',
       order: data?.order || null,
       tickets: issued,
+      payment: data?.payment || null,
       emailStatus: data?.email_status || null,
       emailNotification: data?.email_notification || data?.email_status || null
     }
@@ -1076,6 +1077,53 @@ export const useEventWorkspaceStore = defineStore('eventWorkspace', () => {
     return res?.data || null
   }
 
+  async function fetchOrderDetail(orderId) {
+    const res = await api.get(`/orders/${orderId}`)
+    if (res?.data) upsertListItem(myOrders, res.data)
+    return res?.data || null
+  }
+
+  async function fetchOrderTickets(orderId) {
+    const res = await api.get(`/orders/${orderId}/tickets`)
+    const list = Array.isArray(res?.data) ? res.data : []
+    list.forEach((tk) => upsertListItem(myTickets, tk))
+    return list
+  }
+
+  // ---------------- MIDTRANS PAYMENT GATEWAY ----------------
+  async function fetchPaymentConfig() {
+    const res = await api.get('/payments/config')
+    return res?.data || null
+  }
+
+  async function createOrderSnapToken(orderId, { forceNew = false } = {}) {
+    const res = await api.post(`/payments/orders/${orderId}/snap-token`, { force_new: forceNew })
+    return res?.data || null
+  }
+
+  async function syncOrderPaymentStatus(orderId) {
+    const res = await api.post(`/payments/orders/${orderId}/sync`)
+    const data = res?.data || null
+    if (data?.order) {
+      upsertListItem(myOrders, data.order)
+      upsertListItem(eventOrders, data.order)
+    }
+    if (Array.isArray(data?.tickets)) {
+      data.tickets.forEach((tk) => upsertListItem(myTickets, tk))
+    }
+    return data
+  }
+
+  async function createBillingSnapToken(txId, { forceNew = false } = {}) {
+    const res = await api.post(`/payments/billing/${txId}/snap-token`, { force_new: forceNew })
+    return res?.data || null
+  }
+
+  async function syncBillingPaymentStatus(txId) {
+    const res = await api.post(`/payments/billing/${txId}/sync`)
+    return res?.data || null
+  }
+
   // ---------------- ORDERS, PAYMENT PROOF, REPORTS, LOGS, SURVEYS, NOTIFICATIONS ----------------
   async function fetchEventOrders(eventId) {
     const res = await api.get(`/events/${eventId}/orders`)
@@ -1290,6 +1338,13 @@ export const useEventWorkspaceStore = defineStore('eventWorkspace', () => {
     fetchOrganizerBillingHistory,
     createBillingCheckout,
     uploadBillingProof,
+    fetchOrderDetail,
+    fetchOrderTickets,
+    fetchPaymentConfig,
+    createOrderSnapToken,
+    syncOrderPaymentStatus,
+    createBillingSnapToken,
+    syncBillingPaymentStatus,
     fetchAdminPricingOverview,
     adminUpdatePricingPlan,
     adminSaveBundle,

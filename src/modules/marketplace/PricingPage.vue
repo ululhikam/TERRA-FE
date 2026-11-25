@@ -5,6 +5,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useEventWorkspaceStore } from '@/stores/eventWorkspace'
 import { useToastStore } from '@/stores/toast'
 import { formatCurrency } from '@/utils/formatters'
+import { openMidtransSnap } from '@/utils/midtrans'
 import {
   CheckCircle2,
   Sparkles,
@@ -15,7 +16,7 @@ import {
   CreditCard,
   Copy,
   X,
-  UploadCloud
+  RefreshCw
 } from 'lucide-vue-next'
 
 const authStore = useAuthStore()
@@ -42,7 +43,8 @@ const livePreview = ref(null)
 const loadingPreview = ref(false)
 const createdInvoice = ref(null)
 const creatingInvoice = ref(false)
-const uploadingProof = ref(false)
+const payingSnap = ref(false)
+const syncingSnap = ref(false)
 
 const waForm = reactive({
   organization_name: '',
@@ -193,9 +195,9 @@ async function copyWaTemplate() {
   }
 }
 
-async function createManualInvoice() {
+async function payWithMidtransGateway() {
   if (!authStore.isOrganizer || !workspace.organizations?.[0]?.id) {
-    toast.info('Klik tombol WhatsApp Admin di samping untuk memproses aktivasi & pembuatan akun/invoice.')
+    toast.info('Silakan masuk ke Organizer Studio terlebih dahulu untuk membayar melalui Midtrans.')
     return
   }
   if (!selectedItem.value || selectedItem.value.kind === 'trial') return
@@ -210,30 +212,63 @@ async function createManualInvoice() {
       use_early_access: useEarlyAccess.value,
       is_community: showCommunityPrices.value,
       community_org_proof: waForm.organization_name,
-      payment_method: 'manual_transfer'
+      payment_method: 'payment_gateway'
     })
     createdInvoice.value = res?.transaction || null
-    toast.success(`Invoice ${createdInvoice.value?.invoice_number} dibuat! Silakan transfer & unggah bukti atau kirim ke WA Admin.`)
+    if (res?.transaction?.status === 'Paid') {
+      toast.success('Paket langsung aktif!')
+      return
+    }
+    if (res?.transaction?.id) {
+      await launchPricingSnap(res.transaction, res.payment)
+    }
   } catch (err) {
-    toast.error(err?.message || 'Gagal membuat invoice.')
+    toast.error(err?.message || 'Gagal memproses checkout Midtrans.')
   } finally {
     creatingInvoice.value = false
   }
 }
 
-async function handleProofUpload(e) {
-  const file = e.target.files?.[0]
-  if (!file || !createdInvoice.value?.id) return
-  uploadingProof.value = true
+async function launchPricingSnap(tx = createdInvoice.value, initialPayment = null) {
+  if (!tx?.id) return
+  payingSnap.value = true
   try {
-    const updated = await workspace.uploadBillingProof(createdInvoice.value.id, file)
-    createdInvoice.value = updated
-    toast.success('Bukti transfer diunggah ke Supabase Storage! Menunggu verifikasi Admin.')
+    const session = initialPayment?.snap_token
+      ? initialPayment
+      : await workspace.createBillingSnapToken(tx.id)
+    if (!session?.snap_token) {
+      toast.error('Token pembayaran Midtrans belum tersedia di server.')
+      return
+    }
+    const snapRes = await openMidtransSnap(session.snap_token, {
+      clientKey: session.client_key,
+      snapJsUrl: session.snap_js_url
+    })
+    await syncPricingSnapStatus({ silent: snapRes.status === 'closed' })
   } catch (err) {
-    toast.error(err?.message || 'Gagal mengunggah bukti pembayaran.')
+    toast.error(err?.message || 'Gagal membuka Midtrans Snap.')
   } finally {
-    uploadingProof.value = false
-    e.target.value = ''
+    payingSnap.value = false
+  }
+}
+
+async function syncPricingSnapStatus({ silent = false } = {}) {
+  if (!createdInvoice.value?.id) return
+  syncingSnap.value = true
+  try {
+    const syncRes = await workspace.syncBillingPaymentStatus(createdInvoice.value.id)
+    if (syncRes?.transaction) createdInvoice.value = syncRes.transaction
+    if (!silent) {
+      if (syncRes?.transaction?.status === 'Paid') {
+        toast.success('Pembayaran berhasil! Paket event & modul aktif otomatis.')
+      } else {
+        toast.info(`Status invoice: ${syncRes?.transaction?.status || 'Pending'}.`)
+      }
+    }
+  } catch (err) {
+    if (!silent) toast.error(err?.message || 'Gagal mengecek status pembayaran.')
+  } finally {
+    syncingSnap.value = false
   }
 }
 </script>
@@ -593,50 +628,56 @@ async function handleProofUpload(e) {
             </a>
           </div>
 
-          <!-- Opsi 2: Bayar Payment (Transfer Manual / Payment Gateway Soon) -->
+          <!-- Opsi 2: Bayar Instan via Midtrans Payment Gateway -->
           <div class="rounded-2xl border-2 border-black bg-white p-5 space-y-4 flex flex-col justify-between">
             <div class="space-y-3">
               <div class="flex items-center justify-between gap-2">
-                <span class="inline-flex items-center gap-1.5 rounded-full border border-black bg-[#fafaf9] px-3 py-0.5 text-[10px] font-bold uppercase text-black">
-                  <CreditCard class="h-3 w-3" /> Opsi 2 • Bayar Payment
+                <span class="inline-flex items-center gap-1.5 rounded-full border border-black bg-[#72a5e4] px-3 py-0.5 text-[10px] font-bold uppercase text-black">
+                  <CreditCard class="h-3 w-3" /> Opsi 2 • Midtrans Gateway
                 </span>
-                <span class="rounded-full border border-black bg-amber-100 px-2.5 py-0.5 text-[10px] font-bold text-amber-900">
-                  Payment Gateway (Soon)
+                <span class="rounded-full border border-black bg-emerald-200 px-2.5 py-0.5 text-[10px] font-bold text-black">
+                  Aktivasi Otomatis
                 </span>
               </div>
 
-              <!-- Payment Gateway Soon Box -->
-              <div class="rounded-xl border border-dashed border-black/40 bg-slate-50 p-3.5 space-y-1 text-xs">
-                <p class="font-bold text-black">Payment Gateway Otomatis (Segera Hadir)</p>
-                <p class="text-[11px] text-slate-600">
-                  Pembayaran instan via QRIS, Virtual Account (BCA/Mandiri/BNI/BRI), dan E-Wallet otomatis akan tersedia pada tahap berikutnya.
+              <div class="rounded-xl border border-black bg-[#fafaf9] p-4 space-y-2 text-xs">
+                <p class="font-bold text-black">Pembayaran Instan Midtrans Snap</p>
+                <p class="text-[11px] text-slate-600 leading-relaxed">
+                  Bayar cepat menggunakan QRIS, Virtual Account (BCA / BNI / BRI / Mandiri), GoPay, ShopeePay, atau Kartu. Paket &amp; modul acara langsung aktif setelah terverifikasi otomatis.
+                </p>
+                <p class="text-[11px] text-slate-500 pt-1">
+                  Total Tagihan: <strong class="text-black">{{ finalPayableAmount === 0 ? 'Rp0' : formatCurrency(finalPayableAmount) }}</strong>
                 </p>
               </div>
 
-              <!-- Manual Transfer Instructions -->
-              <div class="rounded-xl border border-black bg-[#fafaf9] p-4 space-y-1.5 text-xs">
-                <span class="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
-                  Pembayaran Transfer Manual Tersedia Sekarang
-                </span>
-                <p class="text-sm font-black text-black">
-                  {{ manualInstructions.bank_name }} • {{ manualInstructions.account_number }}
-                </p>
-                <p class="text-slate-700 font-semibold">a.n. {{ manualInstructions.account_holder }}</p>
-                <p class="text-[11px] text-slate-500">
-                  Total Transfer: <strong class="text-black">{{ finalPayableAmount === 0 ? 'Rp0' : formatCurrency(finalPayableAmount) }}</strong>
-                </p>
-              </div>
-
-              <!-- If Organizer logged in, allow instant invoice + proof upload right here -->
-              <div v-if="createdInvoice" class="rounded-xl border border-black bg-[#72a5e4]/20 p-3.5 space-y-2 text-xs">
-                <p class="font-bold text-black">
-                  Invoice: <span class="font-mono">{{ createdInvoice.invoice_number }}</span> ({{ createdInvoice.status }})
-                </p>
-                <label class="inline-flex items-center gap-1.5 rounded-full border border-black bg-white px-4 py-1.5 text-[11px] font-bold cursor-pointer hover:bg-slate-100">
-                  <UploadCloud class="h-3.5 w-3.5" />
-                  <span>{{ uploadingProof ? 'Mengunggah...' : createdInvoice.payment_proof_url ? '✓ Bukti Terunggah (Ganti)' : 'Unggah Bukti Transfer' }}</span>
-                  <input type="file" accept="image/*" class="hidden" @change="handleProofUpload" />
-                </label>
+              <div v-if="createdInvoice" class="rounded-xl border border-black bg-[#72a5e4]/20 p-3.5 space-y-2.5 text-xs">
+                <div class="flex items-center justify-between gap-2">
+                  <p class="font-bold text-black">
+                    Invoice: <span class="font-mono">{{ createdInvoice.invoice_number }}</span>
+                  </p>
+                  <span class="rounded-full border border-black bg-white px-2.5 py-0.5 text-[10px] font-bold text-black">
+                    {{ createdInvoice.status }}
+                  </span>
+                </div>
+                <div v-if="createdInvoice.status !== 'Paid'" class="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    @click="launchPricingSnap()"
+                    :disabled="payingSnap"
+                    class="rounded-full border border-black bg-[#72a5e4] px-3.5 py-1.5 text-[11px] font-bold text-black hover:bg-[#5c93d9] cursor-pointer disabled:opacity-50"
+                  >
+                    {{ payingSnap ? 'Membuka Snap...' : 'Buka Midtrans Snap' }}
+                  </button>
+                  <button
+                    type="button"
+                    @click="syncPricingSnapStatus()"
+                    :disabled="syncingSnap"
+                    class="inline-flex items-center gap-1 rounded-full border border-black bg-white px-3 py-1.5 text-[11px] font-bold text-black hover:bg-slate-100 cursor-pointer disabled:opacity-50"
+                  >
+                    <RefreshCw class="h-3 w-3" :class="syncingSnap ? 'animate-spin' : ''" />
+                    <span>Cek Status</span>
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -644,21 +685,19 @@ async function handleProofUpload(e) {
               <button
                 v-if="authStore.isOrganizer && selectedItem.kind !== 'trial'"
                 type="button"
-                @click="createManualInvoice"
-                :disabled="creatingInvoice"
+                @click="payWithMidtransGateway"
+                :disabled="creatingInvoice || payingSnap"
                 class="w-full rounded-full bg-black py-3 px-4 text-xs font-bold text-white hover:bg-slate-800 cursor-pointer disabled:opacity-50"
               >
-                {{ creatingInvoice ? 'Membuat Invoice...' : 'Buat Invoice Pembayaran Manual' }}
+                {{ creatingInvoice || payingSnap ? 'Memproses Midtrans...' : 'Bayar Instan via Midtrans →' }}
               </button>
-              <a
+              <RouterLink
                 v-else
-                :href="whatsappHref"
-                target="_blank"
-                rel="noopener noreferrer"
+                to="/organizer/login"
                 class="w-full rounded-full bg-black py-3 px-4 text-xs font-bold text-white hover:bg-slate-800 inline-flex items-center justify-center gap-2"
               >
-                <span>Kirim Bukti Transfer via WhatsApp Admin ↗</span>
-              </a>
+                <span>Masuk Organizer Studio untuk Bayar ↗</span>
+              </RouterLink>
             </div>
           </div>
         </div>

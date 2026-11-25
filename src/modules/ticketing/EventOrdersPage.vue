@@ -4,7 +4,7 @@ import { useRoute } from 'vue-router'
 import { useEventWorkspaceStore } from '@/stores/eventWorkspace'
 import { useToastStore } from '@/stores/toast'
 import { formatCurrency, formatDateTime } from '@/utils/formatters'
-import { CheckCircle2, RefreshCw, ExternalLink } from 'lucide-vue-next'
+import { CheckCircle2, RefreshCw } from 'lucide-vue-next'
 
 const route = useRoute()
 const store = useEventWorkspaceStore()
@@ -13,6 +13,7 @@ const toast = useToastStore()
 const eventId = computed(() => route.params.eventId || store.activeEvent?.id)
 const loading = ref(true)
 const verifyingId = ref('')
+const syncingId = ref('')
 const statusFilter = ref('ALL')
 
 const orders = computed(() => {
@@ -48,6 +49,22 @@ async function handleVerify(order) {
     verifyingId.value = ''
   }
 }
+
+async function handleSyncGateway(order) {
+  syncingId.value = order.id
+  try {
+    const res = await store.syncOrderPaymentStatus(order.id)
+    if (res?.payment_state === 'settled' || res?.order?.order_status === 'Confirmed') {
+      toast.success(`Order ${order.order_number} lunas via Midtrans! QR aktif & email terkirim.`)
+    } else {
+      toast.info(`Status Midtrans: ${res?.order?.payment_status || 'Pending'}.`)
+    }
+  } catch (err) {
+    toast.error(err?.message || 'Gagal menyinkronkan status Midtrans.')
+  } finally {
+    syncingId.value = ''
+  }
+}
 </script>
 
 <template>
@@ -57,7 +74,7 @@ async function handleVerify(order) {
         <span class="text-[10px] font-bold uppercase tracking-wider text-slate-500">TICKETING OPERATIONS</span>
         <h1 class="text-3xl font-bold tracking-tight text-black font-sans">Orders &amp; Verifikasi Pembayaran</h1>
         <p class="text-xs text-slate-600">
-          Pesanan tiket berbayar berstatus Pending hingga panitia memverifikasi bukti pembayaran untuk mengaktifkan QR Code.
+          Pesanan tiket berbayar diselesaikan otomatis melalui Midtrans Snap (QRIS, Virtual Account, E-Wallet, Kartu). Anda juga dapat menyinkronkan status gateway secara langsung.
         </p>
       </div>
       <div class="flex items-center gap-2">
@@ -85,7 +102,7 @@ async function handleVerify(order) {
               <th class="px-5 py-3.5">QTY</th>
               <th class="px-5 py-3.5">TOTAL</th>
               <th class="px-5 py-3.5">STATUS ORDER / BAYAR</th>
-              <th class="px-5 py-3.5">BUKTI BAYAR &amp; CATATAN</th>
+              <th class="px-5 py-3.5">METODE &amp; REFERENSI GATEWAY</th>
               <th class="px-5 py-3.5">WAKTU</th>
               <th class="px-5 py-3.5 text-right">AKSI</th>
             </tr>
@@ -114,32 +131,39 @@ async function handleVerify(order) {
                 </div>
               </td>
               <td class="px-5 py-4 text-slate-600 max-w-xs">
-                <p v-if="ord.payment_notes" class="truncate">{{ ord.payment_notes }}</p>
-                <a
-                  v-if="ord.payment_proof_url && ord.payment_proof_url.startsWith('http')"
-                  :href="ord.payment_proof_url"
-                  target="_blank"
-                  rel="noopener"
-                  class="inline-flex items-center gap-1 font-bold text-black underline mt-0.5"
-                >
-                  Lihat Bukti <ExternalLink class="h-3 w-3" />
-                </a>
-                <span v-else-if="ord.payment_proof_url" class="font-mono text-[11px] text-black break-all">
-                  {{ ord.payment_proof_url }}
-                </span>
-                <span v-else class="text-slate-400">Belum ada bukti</span>
+                <div class="flex flex-wrap items-center gap-1.5">
+                  <span class="rounded-md border border-black/20 bg-[#fafaf9] px-2 py-0.5 font-mono text-[10px] font-bold text-black uppercase">
+                    {{ ord.payment_provider || (Number(ord.total) === 0 ? 'FREE' : 'MIDTRANS') }}
+                  </span>
+                  <span v-if="ord.payment_method" class="text-[11px] font-semibold text-slate-700">
+                    {{ ord.payment_method }}
+                  </span>
+                </div>
+                <p v-if="ord.payment_reference" class="font-mono text-[10px] text-slate-500 truncate mt-1">
+                  Ref: {{ ord.payment_reference }}
+                </p>
               </td>
               <td class="px-5 py-4 text-[11px] text-slate-500">{{ formatDateTime(ord.created_at) }}</td>
               <td class="px-5 py-4 text-right">
-                <button
-                  v-if="ord.order_status === 'Pending' || ord.payment_status === 'Pending'"
-                  @click="handleVerify(ord)"
-                  :disabled="verifyingId === ord.id"
-                  class="inline-flex items-center gap-1.5 rounded-full border border-black bg-[#72a5e4] px-3.5 py-1.5 text-xs font-bold text-black hover:bg-[#5c93d9] disabled:opacity-50 cursor-pointer"
-                >
-                  <CheckCircle2 class="h-3.5 w-3.5" />
-                  <span>{{ verifyingId === ord.id ? 'Memproses...' : 'Verifikasi & Aktifkan QR' }}</span>
-                </button>
+                <div v-if="ord.order_status === 'Pending' || ord.payment_status === 'Pending'" class="inline-flex flex-wrap items-center justify-end gap-1.5">
+                  <button
+                    @click="handleSyncGateway(ord)"
+                    :disabled="syncingId === ord.id"
+                    class="inline-flex items-center gap-1.5 rounded-full border border-black bg-[#72a5e4] px-3.5 py-1.5 text-xs font-bold text-black hover:bg-[#5c93d9] disabled:opacity-50 cursor-pointer"
+                  >
+                    <RefreshCw class="h-3.5 w-3.5" :class="syncingId === ord.id ? 'animate-spin' : ''" />
+                    <span>{{ syncingId === ord.id ? 'Cek...' : 'Sinkronkan Midtrans' }}</span>
+                  </button>
+                  <button
+                    @click="handleVerify(ord)"
+                    :disabled="verifyingId === ord.id"
+                    class="inline-flex items-center gap-1 rounded-full border border-black bg-white px-3 py-1.5 text-[11px] font-bold text-black hover:bg-slate-100 disabled:opacity-50 cursor-pointer"
+                    title="Override verifikasi manual oleh organizer"
+                  >
+                    <CheckCircle2 class="h-3.5 w-3.5" />
+                    <span>{{ verifyingId === ord.id ? '...' : 'Konfirmasi' }}</span>
+                  </button>
+                </div>
                 <span v-else class="text-[11px] font-semibold text-slate-500">—</span>
               </td>
             </tr>

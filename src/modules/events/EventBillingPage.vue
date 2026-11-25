@@ -5,16 +5,15 @@ import { useAuthStore } from '@/stores/auth'
 import { useEventWorkspaceStore } from '@/stores/eventWorkspace'
 import { useToastStore } from '@/stores/toast'
 import { formatCurrency, formatDateTime } from '@/utils/formatters'
+import { openMidtransSnap } from '@/utils/midtrans'
 import {
   Sparkles,
   Crown,
-  CheckCircle2,
   AlertTriangle,
-  MessageCircle,
-  UploadCloud,
   ArrowDownCircle,
   Layers,
-  CreditCard
+  CreditCard,
+  RefreshCw
 } from 'lucide-vue-next'
 
 const route = useRoute()
@@ -36,12 +35,13 @@ const promoCode = ref('')
 const useEarlyAccess = ref(false)
 const isCommunity = ref(false)
 const communityOrgProof = ref('')
-const paymentMethod = ref('manual_whatsapp')
+const paymentMethod = ref('payment_gateway')
 const preview = ref(null)
 const checkingOut = ref(false)
 const activatingTrial = ref(false)
 const downgrading = ref(false)
-const uploadingTxId = ref('')
+const payingTxId = ref('')
+const syncingTxId = ref('')
 const activeInvoice = ref(null)
 
 async function loadBillingData() {
@@ -117,7 +117,7 @@ async function handleCheckout() {
       use_early_access: useEarlyAccess.value,
       is_community: isCommunity.value,
       community_org_proof: communityOrgProof.value.trim(),
-      payment_method: paymentMethod.value
+      payment_method: 'payment_gateway'
     })
     activeInvoice.value = res?.transaction || null
     history.value = await store.fetchOrganizerBillingHistory()
@@ -125,8 +125,9 @@ async function handleCheckout() {
       entitlement.value = await store.fetchEventEntitlement(eventId.value)
       await store.fetchEventWorkspace(eventId.value)
       toast.success('Paket langsung aktif!')
-    } else {
-      toast.success(`Invoice ${res?.transaction?.invoice_number} dibuat! Unggah bukti atau hubungi Admin WA.`)
+    } else if (res?.transaction?.id) {
+      toast.info(`Invoice ${res.transaction.invoice_number} dibuat. Membuka Midtrans Snap...`)
+      await handlePayTransaction(res.transaction, res.payment)
     }
   } catch (err) {
     toast.error(err?.message || 'Gagal membuat transaksi billing.')
@@ -135,20 +136,44 @@ async function handleCheckout() {
   }
 }
 
-async function handleProofUpload(e, txId) {
-  const file = e.target.files?.[0]
-  if (!file) return
-  uploadingTxId.value = txId
+async function handlePayTransaction(tx, initialPayment = null) {
+  payingTxId.value = tx.id
   try {
-    const updated = await store.uploadBillingProof(txId, file)
-    if (activeInvoice.value?.id === txId) activeInvoice.value = updated
-    history.value = await store.fetchOrganizerBillingHistory()
-    toast.success('Bukti pembayaran terkirim! Admin akan segera memverifikasi.')
+    const session = initialPayment?.snap_token
+      ? initialPayment
+      : await store.createBillingSnapToken(tx.id)
+    if (!session?.snap_token) {
+      toast.error('Token pembayaran Midtrans belum tersedia. Pastikan API key Midtrans aktif di server.')
+      return
+    }
+    const snapRes = await openMidtransSnap(session.snap_token, {
+      clientKey: session.client_key,
+      snapJsUrl: session.snap_js_url
+    })
+    await handleSyncTransaction(tx.id, { silent: snapRes.status === 'closed' })
   } catch (err) {
-    toast.error(err?.message || 'Gagal mengunggah bukti pembayaran.')
+    toast.error(err?.message || 'Gagal membuka jendela pembayaran Midtrans.')
   } finally {
-    uploadingTxId.value = ''
-    e.target.value = ''
+    payingTxId.value = ''
+  }
+}
+
+async function handleSyncTransaction(txId, { silent = false } = {}) {
+  syncingTxId.value = txId
+  try {
+    const syncRes = await store.syncBillingPaymentStatus(txId)
+    history.value = await store.fetchOrganizerBillingHistory()
+    if (syncRes?.transaction?.status === 'Paid') {
+      entitlement.value = await store.fetchEventEntitlement(eventId.value)
+      await store.fetchEventWorkspace(eventId.value)
+      if (!silent) toast.success('Pembayaran lunas! Paket event & modul telah aktif otomatis.')
+    } else if (!silent) {
+      toast.info(`Status invoice: ${syncRes?.transaction?.status || 'Pending'}.`)
+    }
+  } catch (err) {
+    if (!silent) toast.error(err?.message || 'Gagal memeriksa status transaksi.')
+  } finally {
+    syncingTxId.value = ''
   }
 }
 
@@ -175,21 +200,6 @@ async function handleDowngrade(targetCode) {
   } finally {
     downgrading.value = false
   }
-}
-
-function buildWaLink(tx) {
-  const num = String(catalog.value.admin_whatsapp || '6287897192601').replace(/[^0-9]/g, '')
-  const msg = [
-    `Halo Admin TERRA, saya ingin konfirmasi aktivasi/pembayaran paket event:`,
-    `- No. Invoice: ${tx.invoice_number}`,
-    `- Paket: ${tx.plan_name} (${formatCurrency(tx.final_amount_idr)})`,
-    `- Event: ${event.value?.title || '-'}`,
-    `- Nama Organisasi: ${event.value?.organization?.name || '-'}`,
-    `- Nama Pelanggan: ${authStore.user?.full_name || '-'}`,
-    `- Email: ${authStore.user?.email || '-'}`,
-    `- Kontak: ${authStore.user?.phone || '-'}`
-  ].join('\n')
-  return `https://wa.me/${num}?text=${encodeURIComponent(msg)}`
 }
 </script>
 
@@ -383,25 +393,16 @@ function buildWaLink(tx) {
             </button>
           </div>
 
-          <div class="space-y-1">
-            <label class="font-bold text-black block">Metode Pembayaran</label>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-              <button
-                type="button"
-                @click="paymentMethod = 'manual_whatsapp'"
-                class="rounded-xl border border-black p-3 text-left cursor-pointer"
-                :class="paymentMethod === 'manual_whatsapp' ? 'bg-[#72a5e4]/30 font-bold' : 'bg-white'"
-              >
-                <div class="text-xs font-bold">Transfer Manual &amp; WA Admin</div>
-                <div class="text-[10px] text-slate-600">Aktif setelah verifikasi bukti Admin</div>
-              </button>
-              <div class="rounded-xl border border-black/30 bg-slate-100 p-3 text-left opacity-75">
-                <div class="flex items-center justify-between text-xs font-bold text-slate-600">
-                  <span class="inline-flex items-center gap-1"><CreditCard class="h-3.5 w-3.5" /> Payment Gateway</span>
-                  <span class="rounded-full bg-amber-100 px-2 py-0.5 text-[9px] text-amber-900 border border-black/20">Soon</span>
-                </div>
-                <div class="text-[10px] text-slate-500">QRIS &amp; Virtual Account otomatis segera hadir</div>
+          <div class="space-y-1.5">
+            <label class="font-bold text-black block">Metode Pembayaran Otomatis</label>
+            <div class="rounded-xl border-2 border-black bg-[#72a5e4]/25 p-3.5 text-left space-y-1">
+              <div class="flex items-center justify-between text-xs font-black text-black">
+                <span class="inline-flex items-center gap-1.5"><CreditCard class="h-4 w-4" /> Midtrans Snap Payment Gateway</span>
+                <span class="rounded-full border border-black bg-[#72a5e4] px-2.5 py-0.5 text-[10px] font-bold text-black">Instan</span>
               </div>
+              <p class="text-[11px] text-slate-700">
+                QRIS, Virtual Account (BCA, BNI, BRI, Mandiri), GoPay, ShopeePay &amp; Kartu. Paket event aktif otomatis setelah pembayaran sukses.
+              </p>
             </div>
           </div>
         </div>
@@ -443,17 +444,14 @@ function buildWaLink(tx) {
           :disabled="checkingOut"
           class="w-full rounded-full bg-black py-3 text-xs font-bold text-white hover:bg-slate-800 cursor-pointer disabled:opacity-50"
         >
-          {{ checkingOut ? 'Membuat Invoice...' : 'Buat Pesanan & Invoice →' }}
+          {{
+            checkingOut
+              ? 'Menyiapkan Pembayaran...'
+              : preview?.final_amount_idr === 0
+                ? 'Aktifkan Paket Sekarang →'
+                : 'Bayar via Midtrans Snap →'
+          }}
         </button>
-
-        <!-- Manual Payment Instructions -->
-        <div v-if="catalog.manual_payment_instructions?.account_number" class="rounded-xl border border-black bg-white p-4 space-y-1.5 text-xs">
-          <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Instruksi Pembayaran Manual</p>
-          <p class="font-bold text-black">
-            {{ catalog.manual_payment_instructions.bank_name }} • {{ catalog.manual_payment_instructions.account_number }}
-          </p>
-          <p class="text-slate-600">a.n. {{ catalog.manual_payment_instructions.account_holder }}</p>
-        </div>
 
         <!-- Explicit Downgrade Section -->
         <div v-if="entitlement && entitlement.plan_code !== 'free'" class="pt-3 border-t border-black/15 space-y-2">
@@ -484,7 +482,7 @@ function buildWaLink(tx) {
               <th class="px-5 py-3">PAKET</th>
               <th class="px-5 py-3">NOMINAL</th>
               <th class="px-5 py-3">STATUS</th>
-              <th class="px-5 py-3 text-right">KONFIRMASI / BUKTI</th>
+              <th class="px-5 py-3 text-right">AKSI PEMBAYARAN</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-black/10">
@@ -498,39 +496,36 @@ function buildWaLink(tx) {
               <td class="px-5 py-3.5">
                 <span
                   class="rounded-full border border-black px-2.5 py-0.5 text-[10px] font-bold"
-                  :class="tx.status === 'Paid' ? 'bg-[#72a5e4] text-black' : tx.status === 'Rejected' ? 'bg-rose-100 text-rose-800' : 'bg-amber-100 text-amber-900'"
+                  :class="tx.status === 'Paid' ? 'bg-[#72a5e4] text-black' : tx.status === 'Rejected' || tx.status === 'Expired' ? 'bg-rose-100 text-rose-800' : 'bg-amber-100 text-amber-900'"
                 >
                   {{ tx.status }}
                 </span>
               </td>
               <td class="px-5 py-3.5 text-right">
                 <div class="inline-flex flex-wrap items-center justify-end gap-2">
-                  <label
-                    v-if="['Pending', 'Waiting Verification', 'Rejected'].includes(tx.status)"
-                    class="rounded-full border border-black bg-white px-3 py-1 text-[11px] font-bold cursor-pointer hover:bg-slate-100 inline-flex items-center gap-1"
+                  <button
+                    v-if="['Pending', 'Waiting Verification', 'Expired'].includes(tx.status) && Number(tx.final_amount_idr || 0) > 0"
+                    type="button"
+                    @click="handlePayTransaction(tx)"
+                    :disabled="payingTxId === tx.id"
+                    class="rounded-full border border-black bg-[#72a5e4] px-3.5 py-1 text-[11px] font-bold text-black hover:bg-[#5c93d9] cursor-pointer inline-flex items-center gap-1 disabled:opacity-50"
                   >
-                    <UploadCloud class="h-3 w-3" />
-                    <span>{{ uploadingTxId === tx.id ? 'Mengunggah...' : tx.payment_proof_url ? 'Ganti Bukti' : 'Upload Bukti' }}</span>
-                    <input type="file" accept="image/*" class="hidden" @change="handleProofUpload($event, tx.id)" />
-                  </label>
-                  <a
-                    v-if="tx.status !== 'Paid'"
-                    :href="buildWaLink(tx)"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    class="rounded-full border border-black bg-[#72a5e4] px-3 py-1 text-[11px] font-bold text-black hover:bg-[#5c93d9] inline-flex items-center gap-1"
+                    <CreditCard class="h-3 w-3" />
+                    <span>{{ payingTxId === tx.id ? 'Membuka...' : 'Bayar Midtrans' }}</span>
+                  </button>
+                  <button
+                    v-if="tx.status !== 'Paid' && Number(tx.final_amount_idr || 0) > 0"
+                    type="button"
+                    @click="handleSyncTransaction(tx.id)"
+                    :disabled="syncingTxId === tx.id"
+                    class="rounded-full border border-black bg-white px-3 py-1 text-[11px] font-bold text-black hover:bg-slate-100 cursor-pointer inline-flex items-center gap-1 disabled:opacity-50"
                   >
-                    <MessageCircle class="h-3 w-3" /> WA Admin
-                  </a>
-                  <a
-                    v-if="tx.payment_proof_url"
-                    :href="tx.payment_proof_url"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    class="text-[11px] font-bold underline text-black"
-                  >
-                    Lihat Bukti ↗
-                  </a>
+                    <RefreshCw class="h-3 w-3" :class="syncingTxId === tx.id ? 'animate-spin' : ''" />
+                    <span>{{ syncingTxId === tx.id ? 'Cek...' : 'Cek Status' }}</span>
+                  </button>
+                  <span v-else-if="tx.status === 'Paid'" class="text-[11px] font-bold text-emerald-700">
+                    Lunas {{ tx.payment_provider ? `(${tx.payment_provider})` : '' }} ✓
+                  </span>
                 </div>
               </td>
             </tr>

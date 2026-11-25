@@ -2,12 +2,17 @@
 import { onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import { useEventWorkspaceStore } from '@/stores/eventWorkspace'
+import { useToastStore } from '@/stores/toast'
 import { formatCurrency, formatDateTime } from '@/utils/formatters'
-import { Layers, Receipt, History, ArrowRight } from 'lucide-vue-next'
+import { openMidtransSnap } from '@/utils/midtrans'
+import { Layers, Receipt, History, ArrowRight, CreditCard, RefreshCw } from 'lucide-vue-next'
 
 const store = useEventWorkspaceStore()
+const toast = useToastStore()
 const history = ref({ transactions: [], bundle_credits: [], audit_logs: [] })
 const loading = ref(true)
+const payingTxId = ref('')
+const syncingTxId = ref('')
 
 onMounted(async () => {
   loading.value = true
@@ -18,6 +23,42 @@ onMounted(async () => {
     loading.value = false
   }
 })
+
+async function handlePayTx(tx) {
+  payingTxId.value = tx.id
+  try {
+    const session = await store.createBillingSnapToken(tx.id)
+    const snapRes = await openMidtransSnap(session.snap_token, {
+      clientKey: session.client_key,
+      snapJsUrl: session.snap_js_url
+    })
+    await handleSyncTx(tx.id, { silent: snapRes.status === 'closed' })
+  } catch (err) {
+    toast.error(err?.message || 'Gagal membuka Midtrans Snap.')
+  } finally {
+    payingTxId.value = ''
+  }
+}
+
+async function handleSyncTx(txId, { silent = false } = {}) {
+  syncingTxId.value = txId
+  try {
+    const res = await store.syncBillingPaymentStatus(txId)
+    const refreshed = await store.fetchOrganizerBillingHistory()
+    if (refreshed) history.value = refreshed
+    if (!silent) {
+      if (res?.transaction?.status === 'Paid') {
+        toast.success('Pembayaran berhasil! Paket / Bundle credit Anda kini aktif.')
+      } else {
+        toast.info(`Status transaksi: ${res?.transaction?.status || 'Pending'}.`)
+      }
+    }
+  } catch (err) {
+    if (!silent) toast.error(err?.message || 'Gagal memeriksa status transaksi.')
+  } finally {
+    syncingTxId.value = ''
+  }
+}
 </script>
 
 <template>
@@ -82,6 +123,7 @@ onMounted(async () => {
               <th class="px-5 py-3">PAKET</th>
               <th class="px-5 py-3">NOMINAL</th>
               <th class="px-5 py-3">STATUS</th>
+              <th class="px-5 py-3 text-right">AKSI</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-black/10">
@@ -101,9 +143,34 @@ onMounted(async () => {
                   {{ tx.status }}
                 </span>
               </td>
+              <td class="px-5 py-3 text-right">
+                <div class="inline-flex items-center justify-end gap-2">
+                  <button
+                    v-if="tx.status !== 'Paid' && Number(tx.final_amount_idr || 0) > 0"
+                    type="button"
+                    @click="handlePayTx(tx)"
+                    :disabled="payingTxId === tx.id"
+                    class="rounded-full border border-black bg-[#72a5e4] px-3 py-1 text-[11px] font-bold text-black hover:bg-[#5c93d9] inline-flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                  >
+                    <CreditCard class="h-3 w-3" />
+                    <span>{{ payingTxId === tx.id ? 'Membuka...' : 'Bayar' }}</span>
+                  </button>
+                  <button
+                    v-if="tx.status !== 'Paid' && Number(tx.final_amount_idr || 0) > 0"
+                    type="button"
+                    @click="handleSyncTx(tx.id)"
+                    :disabled="syncingTxId === tx.id"
+                    class="rounded-full border border-black bg-white px-3 py-1 text-[11px] font-bold text-black hover:bg-slate-100 inline-flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                  >
+                    <RefreshCw class="h-3 w-3" :class="syncingTxId === tx.id ? 'animate-spin' : ''" />
+                    <span>Cek</span>
+                  </button>
+                  <span v-else-if="tx.status === 'Paid'" class="text-[11px] font-bold text-emerald-700">Lunas ✓</span>
+                </div>
+              </td>
             </tr>
             <tr v-if="!history.transactions.length">
-              <td colspan="5" class="px-5 py-6 text-center text-slate-500">Belum ada transaksi billing.</td>
+              <td colspan="6" class="px-5 py-6 text-center text-slate-500">Belum ada transaksi billing.</td>
             </tr>
           </tbody>
         </table>
